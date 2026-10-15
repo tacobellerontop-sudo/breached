@@ -7,8 +7,10 @@ ac_add_options --disable-crashreporter
 ac_add_options --disable-updater
 ac_add_options --disable-maintenance-service
 ac_add_options --disable-default-browser-agent
-# Build output on D: (the runner's bigger disk; C: filled up).
-mk_add_options MOZ_OBJDIR=D:/obj-gecko
+# Source and build output live on D: (the runner's bigger disk; C: filled up).
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-gecko
+# No Visual Studio project files (and its C:/D: path mixing).
+ac_add_options --build-backends=RecursiveMake,FasterMake
 # The 16 GB GitHub runner runs out of memory linking Rust with full LTO.
 ac_add_options --disable-release
 mk_add_options MOZ_PARALLEL_BUILD=3

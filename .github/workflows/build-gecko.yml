@@ -44,8 +44,7 @@ jobs:
           maximum-size: 32GB
           disk-root: "D:"
 
-      # C: ran out of space mid-build; the build output goes to D: (mozconfig)
-      # and big preinstalled SDKs we don't use are removed from C:.
+      # C: ran out of space mid-build; the source and build go on D:, and big preinstalled SDKs we don't use are removed from C:.
       - name: Free disk space
         shell: pwsh
         run: |
@@ -60,7 +59,7 @@ jobs:
         run: |
           rev=$(grep '^revision=' breached/app/firefox-source.txt | cut -d= -f2)
           echo "GECKO_REV=$rev" >> "$GITHUB_ENV"
-          mkdir -p /c/src && cd /c/src
+          mkdir -p /d/src && cd /d/src
           git init -q .
           git remote add origin https://github.com/mozilla-firefox/firefox
           git fetch -q --depth 1 origin "$rev"
@@ -77,11 +76,11 @@ jobs:
       - name: Bootstrap, compile and package
         shell: cmd
         env:
-          MOZCONFIG: C:\src\mozconfig
+          MOZCONFIG: D:\src\mozconfig
           MSYSTEM: MSYS
           MSYS2_PATH_TYPE: inherit
           CHERE_INVOKING: "1"
-        working-directory: C:\src
+        working-directory: D:\src
         run: >-
           C:\mozilla-build\msys2\usr\bin\bash.exe --login -eo pipefail -c
           "./mach --no-interactive bootstrap --application-choice browser
@@ -93,8 +92,8 @@ jobs:
         shell: pwsh
         run: |
           Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}} | Format-Table | Out-String
-          $zip = Get-ChildItem D:\obj-gecko\dist\*.zip -ErrorAction SilentlyContinue | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
-          if (-not $zip) { Get-ChildItem D:\obj-gecko\dist -ErrorAction SilentlyContinue; throw 'no package zip found' }
+          $zip = Get-ChildItem D:\src\obj-gecko\dist\*.zip -ErrorAction SilentlyContinue | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
+          if (-not $zip) { Get-ChildItem D:\src\obj-gecko\dist -ErrorAction SilentlyContinue; throw 'no package zip found' }
           Copy-Item $zip.FullName gecko-win64.zip
           "{0:N0} MB" -f ((Get-Item gecko-win64.zip).Length / 1MB)
 
