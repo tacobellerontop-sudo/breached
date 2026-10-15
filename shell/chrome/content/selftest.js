@@ -252,7 +252,8 @@ var SelfTest = {
     await wait(200);
     check(
       "settings: a colour set recolours the window",
-      getComputedStyle($("titlebar")).backgroundColor == rgb("#2e3440")
+      getComputedStyle(root).getPropertyValue("--bar-bg").trim() == "#2e3440" &&
+        getComputedStyle(root).backgroundColor == rgb("#2e3440")
     );
     check(
       "settings: the settings page follows the colours",
