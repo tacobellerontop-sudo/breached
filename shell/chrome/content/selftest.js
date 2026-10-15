@@ -213,8 +213,9 @@ var SelfTest = {
     // A dropdown on a page opens as a real popup list.
     let dropdownEl = settingsDoc().getElementById("setting-breached-tabs-position");
     let r = dropdownEl.getBoundingClientRect();
-    settingsDoc().defaultView.windowUtils.sendMouseEvent("mousedown", r.left + 10, r.top + 5, 0, 1, 0);
-    settingsDoc().defaultView.windowUtils.sendMouseEvent("mouseup", r.left + 10, r.top + 5, 0, 1, 0);
+    let pageWin = settingsDoc().defaultView;
+    pageWin.synthesizeMouseEvent("mousedown", r.left + 10, r.top + 5, { button: 0, buttons: 1, clickCount: 1 });
+    pageWin.synthesizeMouseEvent("mouseup", r.left + 10, r.top + 5, { button: 0, buttons: 0, clickCount: 1 });
     let dropdown = () => document.getElementById("ContentSelectDropdown")?.menupopup;
     let dropdownOpen = await waitFor(() => dropdown()?.state == "open", 5000);
     report.info.dropdown = dropdown() ? {
