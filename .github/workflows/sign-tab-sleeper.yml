@@ -30,8 +30,9 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: |
           npx --yes web-ext@8 sign --channel unlisted --source-dir . \
-            --ignore-files "test/**" "README.md" --artifacts-dir ../../dist
-          mv ../../dist/*.xpi ../../dist/tab-sleeper.xpi
+            --ignore-files "test/**" "README.md" --artifacts-dir "$RUNNER_TEMP/signed"
+          mkdir -p ../../dist
+          mv "$RUNNER_TEMP"/signed/*.xpi ../../dist/tab-sleeper.xpi
       - name: Commit the signed file
         run: |
           git config user.name "github-actions[bot]"
