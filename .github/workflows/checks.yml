@@ -1,0 +1,50 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: catch Firefox renaming a pref or policy we use
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install jsonschema
+      - run: python3 scripts/check-config.py
+
+  tab-sleeper:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extensions/tab-sleeper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test test/rules.test.js
+      - run: npx --yes web-ext@8 lint --source-dir . --ignore-files "test/**" --self-hosted
+
+  install-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install and uninstall against a fake Firefox folder
+        shell: pwsh
+        run: |
+          $t = Join-Path $env:RUNNER_TEMP 'fake'
+          New-Item -ItemType Directory -Force "$t\ff", "$t\prof\p.default" | Out-Null
+          New-Item -ItemType File "$t\ff\firefox.exe", "$t\prof\p.default\prefs.js" | Out-Null
+          ./scripts/windows/install.ps1 -FirefoxDir "$t\ff" -ProfilesDir "$t\prof" -Lean
+          foreach ($f in 'distribution\policies.json', 'defaults\pref\autoconfig.js', 'breached.cfg') {
+            if (-not (Test-Path "$t\ff\$f")) { throw "missing $f" }
+          }
+          Get-Content "$t\ff\distribution\policies.json" -Raw | ConvertFrom-Json | Out-Null
+          if (-not (Test-Path "$t\prof\p.default\chrome\userChrome.css")) { throw 'missing userChrome.css' }
+          ./scripts/windows/uninstall.ps1 -FirefoxDir "$t\ff" -ProfilesDir "$t\prof"
+          if (Test-Path "$t\ff\breached.cfg") { throw 'uninstall left breached.cfg' }

@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="ui.css">
+</head>
+<body>
+  <label><input type="checkbox" id="enabled"> Put background tabs to sleep automatically</label>
+  <label>After <input type="number" id="timeoutMinutes" min="1" max="1440"> minutes without being viewed</label>
+  <label><input type="checkbox" id="protectPinned"> Never sleep pinned tabs</label>
+  <label for="allowlist">Never sleep these sites (one per line)</label>
+  <textarea id="allowlist" rows="5" placeholder="mail.example.com"></textarea>
+  <p class="muted">Tabs playing audio, using your camera, mic or screen, or holding unsaved text never sleep.</p>
+  <script src="rules.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

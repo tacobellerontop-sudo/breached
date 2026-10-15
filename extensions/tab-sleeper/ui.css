@@ -1,0 +1,6 @@
+body { font: menu; margin: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+body.popup p { margin: 0; }
+#count { font-weight: 600; }
+.muted { opacity: 0.7; }
+input[type="number"] { width: 4em; }
+textarea { width: 100%; box-sizing: border-box; }

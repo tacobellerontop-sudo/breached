@@ -1,0 +1,31 @@
+name: Sign Tab Sleeper
+
+# Release Firefox only installs extensions signed by Mozilla. This signs Tab
+# Sleeper as an unlisted (self-distributed) add-on; it is not published on
+# addons.mozilla.org. Needs repository secrets AMO_JWT_ISSUER and AMO_JWT_SECRET
+# (API keys from https://addons.mozilla.org/developers/addon/api/key/).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Sign
+        working-directory: extensions/tab-sleeper
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          npx --yes web-ext@8 sign --channel unlisted --source-dir . \
+            --ignore-files "test/**" "README.md" --artifacts-dir ../../dist
+          mv ../../dist/*.xpi ../../dist/tab-sleeper.xpi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tab-sleeper-xpi
+          path: dist/tab-sleeper.xpi

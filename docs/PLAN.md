@@ -4,9 +4,9 @@
 
 Breached is a Windows desktop browser that uses fewer system resources than a stock browser while still opening every modern website.
 
-**Decision: build on Firefox (Gecko), in the style of LibreWolf.** We ship Firefox's engine unchanged, and change only the browser shell: preferences, policies, build flags, a small patch set, and a bundled tab-unloading component. uBlock Origin is bundled and runs at full strength, which is no longer possible in any mainstream Chromium browser.
+**Decision: build on Firefox (Gecko), in the style of LibreWolf.** We ship Firefox's engine unchanged and replace everything around it: our own minimal user interface, preferences, policies, build flags, a small patch set, and a bundled tab-unloading component. uBlock Origin is bundled and runs at full strength, which is no longer possible in any mainstream Chromium browser.
 
-The five goals map to the plan like this:
+The goals map to the plan like this:
 
 | Goal | How Breached does it |
 |---|---|
@@ -15,6 +15,7 @@ The five goals map to the plan like this:
 | 3. "1 process" | Not possible on any modern engine, and not desirable (section 6). Instead: no idle pre-launched processes, a capped content process count, and an opt-in **Lean mode** that isolates only high-value sites. Tab unloading and ad blocking save far more memory than merging processes would. |
 | 4. Remove telemetry and vendor services | Telemetry, studies/experiments, sponsored content, Pocket/Suggest, AI chatbot features, Firefox Accounts/Sync, Safe Browsing and the crash reporter are off or compiled out. Only updates, certificate revocation and the extension blocklist stay. |
 | 5. Fewer helpers and background tasks | Compile out the default-browser agent, background update tasks and maintenance service; disable translation, ML, prefetch/speculative connections and other background features by default. |
+| 6. Custom, minimal UI | Breached's own compact interface: one slim toolbar, no buttons for services we removed, no sidebar strip or bookmarks bar by default (section 4.6). |
 
 The first usable version is a **config pack on top of stock Firefox** (no compiling), so LX can daily-drive it almost immediately. Our own branded build follows.
 
@@ -126,6 +127,23 @@ Kept, because they are cheap or essential: PDF viewer, Reader View, Picture-in-P
 
 Background throttling: keep Firefox's background-tab timer throttling on, and enable budget-based throttling for background tabs (limits how much CPU a background page's timers can use). Measure the effect before locking it in.
 
+### 4.6 Custom, minimal UI
+
+Breached is its own browser with its own small interface; only the engine underneath is Firefox's.
+
+What "custom" can and can't mean here: Gecko has no supported way to embed it in a completely separate desktop app (GeckoView, its embedding kit, is Android-only). But Firefox's whole interface is itself written in HTML, CSS and JavaScript on top of the engine, so we can replace and slim it down freely. Zen Browser and Floorp are existing examples of heavily customised interfaces built this way.
+
+Design direction:
+- **One slim toolbar row** with back, forward, reload, the address bar, uBlock Origin, Tab Sleeper and the menu. Tabs in a compact strip above it, or optionally vertical tabs.
+- **Nothing for services we removed:** no account button, Firefox View, sidebar launcher, Pocket, "More from Mozilla" or feature tours.
+- **Compact by default:** smaller tabs and toolbar padding, bookmarks bar hidden, no title bar spacers.
+- **Sleeping tabs look different** (dimmed) so it's clear they reload when clicked.
+- **Simple settings:** a short Breached settings page with the few choices that matter (Tab Sleeper timeout, Lean mode, search engine, theme); Firefox's full settings stay reachable under "Advanced".
+
+Delivery:
+- **M0:** a stylesheet (`ui/userChrome.css`) plus prefs for compact density, applied to stock Firefox by the install script. It hides clutter and tightens spacing but can't change layout much.
+- **M2 onwards:** patches to Firefox's interface code in our own build: the custom toolbar layout, Breached settings page, new tab page and branding. Each change is a small patch, kept separate so rebasing on new Firefox versions stays manageable.
+
 ## 5. Settings model
 
 - One settings page section, "Breached", with two toggles at the top: **Tab Sleeper** (and timeout) and **Lean mode** (section 6).
@@ -159,14 +177,16 @@ Planned layout:
 docs/              plan, decisions, benchmark results
 config/
   policies.json    enterprise policies (section 4.4)
+  autoconfig.js    tells Firefox to load breached.cfg
   breached.cfg     autoconfig prefs, grouped by goal, commented
   lean.cfg         Lean mode overrides
+ui/                minimal UI (M0: userChrome.css; later: interface patches)
 extensions/
   tab-sleeper/     built-in tab unloading extension
 patches/           small, numbered patches against Firefox source
 branding/          Breached name, icons (replaces Mozilla trademarks)
 mozconfigs/        build flags per platform
-scripts/           fetch-source, apply-patches, build, package
+scripts/           install (M0), config checks, later fetch-source, apply-patches, build, package
 bench/             memory, wakeup, network-silence and compat harness
 .github/workflows/ CI: build, test, measure, release
 ```
@@ -183,9 +203,10 @@ Install and updates:
 ## 8. Milestones
 
 **M0: Config pack (daily drivable on stock Firefox)**
-- `policies.json` + autoconfig prefs + uBO install, applied to an installed stock Firefox on Windows with one PowerShell script.
-- Tab Sleeper extension v1, loaded as a normal extension.
-- Benchmark harness baseline: stock Firefox vs. Firefox + config pack vs. Chrome.
+- Done: `policies.json` + autoconfig prefs + uBO install + minimal UI stylesheet, applied to an installed stock Firefox on Windows with one PowerShell script (`scripts/windows/install.ps1`).
+- Done: Tab Sleeper extension v1 with tests. Needs a one-time Mozilla signing step before release Firefox will install it (`extensions/tab-sleeper/README.md`).
+- Done: CI checks that every pref and policy still exists in the current Firefox release.
+- To do: benchmark harness baseline: stock Firefox vs. Firefox + config pack vs. Chrome.
 - Exit: LX uses it as the main browser for a week; regressions logged.
 
 **M1: Tune**
@@ -195,7 +216,7 @@ Install and updates:
 
 **M2: Own Windows build**
 - Scripts to fetch Firefox source, apply patches, cross-compile for Windows with our mozconfig (no crash reporter, no default-browser agent, no maintenance service).
-- Breached branding; Tab Sleeper bundled as a built-in.
+- Breached branding and the custom minimal UI (section 4.6); Tab Sleeper bundled as a built-in.
 - CI build and nightly artifacts.
 
 **M3: Installer and updates**
@@ -220,7 +241,7 @@ Install and updates:
 | Falling behind Firefox security releases | Release automation (M4), small patch set, ESR as an emergency fallback. |
 | A pref we disable breaks a site | Compat test per release; every disabled feature is a commented pref, easy to revert. |
 | Lean mode weakens security more than expected | Opt-in only, clearly labelled, and dropped if measurements show little memory saving. |
-| Build infrastructure cost | Decide hosted vs. self-hosted runners at M2; the config pack (M0) needs no build infrastructure at all. |
+| Build infrastructure cost | Decide hosted vs. self-hosted runners at M1; the config pack (M0) needs no build infrastructure at all. |
 | Trademark | Remove all Firefox branding before any public build. |
 | No Safe Browsing warnings | uBO malware-domain list plus Windows Defender/SmartScreen; users can re-enable Safe Browsing in settings. |
 
@@ -228,3 +249,4 @@ Decided by LX (2026-10-15):
 1. Platform: Windows only.
 2. Sync: removed entirely (lightest option).
 3. Safe Browsing: off entirely (lightest option); see 4.4 for what still protects users.
+4. Breached is its own browser with a minimal, small custom UI (section 4.6).

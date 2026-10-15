@@ -1,0 +1,41 @@
+/* Breached minimal UI for the M0 settings pack.
+   Copied into each Firefox profile's chrome folder by install.ps1.
+   Only hides clutter and tightens spacing; the fully custom UI comes with
+   our own build (docs/PLAN.md section 4.6). */
+
+/* Buttons for services and features Breached turns off */
+#firefox-view-button,
+#fxa-toolbar-menu-button,
+#sidebar-button,
+#alltabs-button,
+#save-to-pocket-button,
+#pageActionButton,
+.titlebar-spacer[type="pre-tabs"],
+.titlebar-spacer[type="post-tabs"] {
+  display: none !important;
+}
+
+/* Hide the empty space Firefox reserves around the address bar */
+#nav-bar toolbarspring {
+  display: none !important;
+}
+
+/* Slimmer tabs and toolbars */
+:root {
+  --tab-min-height: 28px !important;
+  --tab-block-margin: 2px !important;
+  --toolbarbutton-outer-padding: 1px !important;
+  --toolbarbutton-inner-padding: 6px !important;
+}
+#TabsToolbar .tabbrowser-tab {
+  min-height: var(--tab-min-height) !important;
+}
+#nav-bar {
+  padding-block: 2px !important;
+}
+
+/* Dim unloaded (sleeping) tabs so it's clear they will reload when clicked */
+.tabbrowser-tab[pending] .tab-label,
+.tabbrowser-tab[pending] .tab-icon-image {
+  opacity: 0.55;
+}
