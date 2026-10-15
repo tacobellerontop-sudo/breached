@@ -56,3 +56,15 @@ pref("privacy.trackingprotection.fingerprinting.enabled", true);
 pref("privacy.trackingprotection.cryptomining.enabled", true);
 pref("network.cookie.cookieBehavior", 5);
 pref("privacy.query_stripping.enabled", true);
+
+// Extensions (see extensions/ and chrome/content/addons.js)
+pref("extensions.webextensions.remote", true);
+pref("xpinstall.signatures.required", true);
+pref("extensions.autoDisableScopes", 15);
+pref("extensions.startupScanScopes", 0);
+pref("extensions.update.enabled", true);
+pref("extensions.update.autoUpdateDefault", true);
+pref("extensions.getAddons.link.url", "https://addons.mozilla.org/%LOCALE%/firefox/");
+pref("extensions.webapi.enabled", true);
+pref("extensions.postDownloadThirdPartyPrompt", false);
+pref("permissions.manager.defaultsUrl", "resource://app/defaults/permissions");

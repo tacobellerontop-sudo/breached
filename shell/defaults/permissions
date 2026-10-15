@@ -1,0 +1,2 @@
+# Sites allowed to install extensions without asking first.
+origin	install	1	https://addons.mozilla.org

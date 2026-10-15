@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Extensions</title>
+  <link rel="stylesheet" href="chrome://breached/content/pages/pages.css" />
+  <link rel="stylesheet" href="chrome://breached/content/pages/list.css" />
+  <script src="chrome://breached/content/pages/theme.js"></script>
+  <script src="chrome://breached/content/pages/common.js"></script>
+  <script src="chrome://breached/content/pages/extensions.js"></script>
+</head>
+<body>
+  <main>
+    <h1>extensions</h1>
+    <div class="toolbar">
+      <span class="muted">Firefox extensions. <kbd>:ext name</kbd> opens one's popup.</span>
+      <span style="flex: 1"></span>
+      <button id="get">get extensions</button>
+      <button id="install-file">install from file…</button>
+    </div>
+    <p id="say" class="muted"></p>
+    <ul id="list" class="items"></ul>
+    <p id="empty" class="empty" hidden="hidden">No extensions yet. Get uBlock Origin and others from addons.mozilla.org.</p>
+  </main>
+</body>
+</html>

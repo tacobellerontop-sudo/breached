@@ -3,3 +3,11 @@ resource breached modules/
 content branding chrome/branding/
 locale branding en-US chrome/branding/
 category l10n-registry 5-breached resource://app/localization/{locale}/
+
+# WebExtension APIs that Firefox's front end normally provides (tabs, windows,
+# browserAction, menus), for Breached's tabs.
+content breachedext extensions/
+category webextension-modules breached chrome://breachedext/content/ext-breached.json
+category webextension-scripts c-breached chrome://breachedext/content/parent/ext-breached.js
+category webextension-scripts-devtools breached chrome://breachedext/content/child/ext-breached.js
+category webextension-scripts-addon breached chrome://breachedext/content/child/ext-breached.js

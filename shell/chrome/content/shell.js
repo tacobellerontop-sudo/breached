@@ -115,10 +115,36 @@ class Tab {
     this.history = null; // saved session history while asleep
     this.lastActive = Date.now();
     this.pinned = false;
+    this.opener = null; // the Tab that opened this one, if any
   }
 
   get asleep() {
     return !this.browser;
+  }
+
+  get index() {
+    return Breached.tabs.indexOf(this);
+  }
+
+  get selected() {
+    return Breached.selected === this;
+  }
+
+  get busy() {
+    return this.el.hasAttribute("busy");
+  }
+
+  // For Gecko's extension code, which expects these names.
+  get linkedBrowser() {
+    return this.browser ?? { browsingContext: null };
+  }
+
+  get label() {
+    return this.title || this.url;
+  }
+
+  get documentGlobal() {
+    return window;
   }
 
   update() {
@@ -139,6 +165,24 @@ var Breached = {
   _messageTimer: null,
   _peekTimer: null,
   _saveTimer: null,
+  // Listeners told about every tab's page loads, like Firefox's
+  // gBrowser.addTabsProgressListener (extensions use this).
+  tabsProgressListeners: new Set(),
+
+  /** Fires "Breached:<type>" on the window, for extensions and mods. */
+  emit(type, detail) {
+    window.dispatchEvent(new CustomEvent("Breached:" + type, { detail }));
+  },
+
+  _tellTabsProgressListeners(method, browser, ...args) {
+    for (let l of this.tabsProgressListeners) {
+      try {
+        l[method]?.(browser, ...args);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  },
 
   get $tabbar() {
     return document.getElementById("tabbar");
@@ -190,6 +234,7 @@ var Breached = {
     Keys.install();
     Downloads.watch();
     ModHost.init();
+    Addons.init();
 
     let restored = this.pref("restoreSession", true) && this.restoreSession();
     let urls = this.commandLineURLs();
@@ -268,6 +313,7 @@ var Breached = {
     Services.prefs.removeObserver(PREF, this);
     Downloads.unwatch();
     ModHost.uninit();
+    Addons.uninit();
     this.saveSessionNow();
   },
 
@@ -288,6 +334,13 @@ var Breached = {
       titlebarRow.prepend(this.$tabbar);
     } else if (!inTitlebar && this.$tabbar.parentNode == titlebarRow) {
       this.$content.before(this.$tabbar);
+    }
+    // Extension buttons: in our title bar, or else at the end of the tab bar.
+    let extButtons = document.getElementById("ext-buttons");
+    if (custom) {
+      titlebarRow.after(extButtons);
+    } else {
+      this.$tabbar.append(extButtons);
     }
   },
 
@@ -425,18 +478,22 @@ var Breached = {
         "nsIWebProgressListener",
         "nsISupportsWeakReference",
       ]),
-      onStateChange(webProgress, request, flags) {
+      onStateChange(webProgress, request, flags, status) {
+        Breached._tellTabsProgressListeners("onStateChange", b, webProgress, request, flags, status);
         if (!webProgress.isTopLevel || !(flags & Ci.nsIWebProgressListener.STATE_IS_NETWORK)) {
           return;
         }
         if (flags & Ci.nsIWebProgressListener.STATE_START) {
           tab.el.setAttribute("busy", "true");
+          Breached.emit("TabAttrModified", { tab, changed: ["status"] });
         } else if (flags & Ci.nsIWebProgressListener.STATE_STOP) {
           tab.el.removeAttribute("busy");
+          Breached.emit("TabAttrModified", { tab, changed: ["status"] });
           Breached.saveSession();
         }
       },
-      onLocationChange(webProgress, request, location) {
+      onLocationChange(webProgress, request, location, flags) {
+        Breached._tellTabsProgressListeners("onLocationChange", b, webProgress, request, location, flags);
         if (!webProgress.isTopLevel) {
           return;
         }
@@ -454,7 +511,10 @@ var Breached = {
       onContentBlockingEvent() {},
     };
     tab.progressListener = listener; // keep it alive (weak reference)
-    b.addProgressListener(listener, Ci.nsIWebProgress.NOTIFY_STATE_NETWORK | Ci.nsIWebProgress.NOTIFY_LOCATION);
+    b.addProgressListener(
+      listener,
+      Ci.nsIWebProgress.NOTIFY_STATE_NETWORK | Ci.nsIWebProgress.NOTIFY_STATE_WINDOW | Ci.nsIWebProgress.NOTIFY_LOCATION
+    );
     // A page that moved to another process needs drawing turned back on.
     b.addEventListener("DidChangeBrowserRemoteness", () => {
       if (tab === this.selected) {
@@ -467,6 +527,7 @@ var Breached = {
       if (tab === this.selected) {
         this.updateTitle();
       }
+      this.emit("TabAttrModified", { tab, changed: ["label"] });
     });
   },
 
@@ -517,6 +578,8 @@ var Breached = {
       }
     }
 
+    tab.opener = options.opener ?? null;
+    this.emit("TabOpen", { tab });
     if (!options.background || (!this.selected && !options.asleep)) {
       this.selectTab(tab);
     } else {
@@ -577,6 +640,9 @@ var Breached = {
     }
     this.updateTitle();
     this.peekTabs();
+    if (previous !== tab) {
+      this.emit("TabSelect", { tab, previous });
+    }
   },
 
   closeTab(tab = this.selected) {
@@ -588,10 +654,12 @@ var Breached = {
     if (this.closed.length > 20) {
       this.closed.shift();
     }
+    this.emit("TabClose", { tab, index });
     this.tabs.splice(index, 1);
     tab.el.remove();
     tab.browser?.remove();
     tab.browser = null;
+    tab.closed = true;
     if (!this.tabs.length) {
       this.selected = null;
       this.openTab(this.homepage());
@@ -639,6 +707,9 @@ var Breached = {
     this.$tabbar.insertBefore(tab.el, this.$tabbar.children[to + (to > from ? 1 : 0)] ?? null);
     this.peekTabs();
     this.saveSession();
+    if (from != to) {
+      this.emit("TabMove", { tab, from, to });
+    }
   },
 
   // -------------------------------------------------------------- unloading
@@ -677,6 +748,7 @@ var Breached = {
     tab.browser = null;
     tab.el.removeAttribute("busy");
     tab.update();
+    this.emit("TabAttrModified", { tab, changed: ["discarded"] });
     return true;
   },
 
@@ -688,6 +760,7 @@ var Breached = {
       this.load(tab.browser, tab.url);
     }
     tab.history = null;
+    this.emit("TabAttrModified", { tab, changed: ["discarded"] });
   },
 
   /** Why a tab must stay loaded, or null if it may sleep. */
@@ -1453,6 +1526,7 @@ var Commands = {
       tab.pinned = !tab.pinned;
       tab.update();
       Breached.saveSession();
+      Breached.emit("TabAttrModified", { tab, changed: ["pinned"] });
     },
   },
   "tab-sleep": {
@@ -1655,7 +1729,7 @@ var Commands = {
     },
   },
   extensions: {
-    usage: "extensions  (open the extensions page)",
+    usage: "extensions  (open the extensions page; :ext <name> opens one's popup)",
     run() {
       Breached.openPage("extensions");
     },

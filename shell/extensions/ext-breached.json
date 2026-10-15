@@ -1,0 +1,28 @@
+{
+  "browserAction": {
+    "url": "chrome://breachedext/content/parent/ext-browserAction.js",
+    "schema": "chrome://extensions/content/schemas/browser_action.json",
+    "scopes": ["addon_parent"],
+    "manifest": ["browser_action", "action"],
+    "paths": [["browserAction"], ["action"]]
+  },
+  "menusInternal": {
+    "url": "chrome://breachedext/content/parent/ext-menus.js",
+    "schema": "chrome://breachedext/content/schemas/menus.json",
+    "scopes": ["addon_parent"],
+    "permissions": ["menus", "contextMenus"],
+    "paths": [["contextMenus"], ["menus"], ["menusInternal"]]
+  },
+  "tabs": {
+    "url": "chrome://breachedext/content/parent/ext-tabs.js",
+    "schema": "chrome://breachedext/content/schemas/tabs.json",
+    "scopes": ["addon_parent"],
+    "paths": [["tabs"]]
+  },
+  "windows": {
+    "url": "chrome://breachedext/content/parent/ext-windows.js",
+    "schema": "chrome://breachedext/content/schemas/windows.json",
+    "scopes": ["addon_parent"],
+    "paths": [["windows"]]
+  }
+}

@@ -359,6 +359,9 @@ var SelfTest = {
     // 9. Mods: Bitwarden installs from settings, fills a login, and removes
     await this.mods(B, check, waitFor, wait, press, outDir, report);
 
+    // 10. Extensions: a test extension uses the tabs API, a button and a popup
+    await this.extensions(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -502,6 +505,117 @@ var SelfTest = {
     check(
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
+    );
+    B.closeTab(B.selected);
+  },
+
+  async extensions(B, check, waitFor, wait, outDir, report) {
+    let { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    check("the extension manager is running", AddonManager.isReady);
+    let dir = PathUtils.join(PathUtils.tempDir, "breached-test-extension");
+    await IOUtils.remove(dir, { recursive: true, ignoreAbsent: true });
+    await IOUtils.makeDirectory(dir);
+    let manifest = {
+      manifest_version: 2,
+      name: "Breached Test",
+      version: "1.0",
+      browser_specific_settings: { gecko: { id: "selftest@breached.browser" } },
+      permissions: ["tabs", "storage", "contextMenus", "<all_urls>"],
+      background: { scripts: ["background.js"] },
+      browser_action: { default_title: "Breached Test", default_popup: "popup.html" },
+    };
+    let background = `
+      (async () => {
+        let result = {};
+        try {
+          browser.contextMenus.create({ id: "test", title: "test", contexts: ["page"] });
+          result.menus = true;
+          let tabs = await browser.tabs.query({});
+          result.count = tabs.length;
+          let current = await browser.tabs.query({ active: true, currentWindow: true });
+          result.active = current.length;
+          let win = await browser.windows.getCurrent({ populate: true });
+          result.windowTabs = win.tabs.length;
+          let created = await browser.tabs.create({ url: "https://example.com/?from-extension", active: false });
+          result.created = created.id > 0;
+          await new Promise(resolve => {
+            let listener = (id, info, tab) => {
+              if (id == created.id && info.status == "complete") {
+                browser.tabs.onUpdated.removeListener(listener);
+                resolve();
+              }
+            };
+            browser.tabs.onUpdated.addListener(listener);
+          });
+          let [title] = await browser.tabs.executeScript(created.id, { code: "document.title" });
+          result.script = title;
+          await browser.tabs.remove(created.id);
+          browser.browserAction.setBadgeText({ text: "ok" });
+        } catch (e) {
+          result.error = String(e);
+          browser.browserAction.setBadgeText({ text: "err" });
+        }
+        await browser.storage.local.set({ result });
+        browser.tabs.create({ url: "https://example.org/#" + encodeURIComponent(JSON.stringify(result)) });
+      })();`;
+    await IOUtils.writeJSON(PathUtils.join(dir, "manifest.json"), manifest);
+    await IOUtils.writeUTF8(PathUtils.join(dir, "background.js"), background);
+    await IOUtils.writeUTF8(
+      PathUtils.join(dir, "popup.html"),
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><title>test popup</title></head>
+       <body style="width:220px;height:60px;font:14px monospace">extension popup</body></html>`
+    );
+    let addon;
+    try {
+      let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      file.initWithPath(dir);
+      addon = await AddonManager.installTemporaryAddon(file);
+    } catch (e) {
+      report.info.extensionInstall = String(e);
+    }
+    check("a test extension installs", !!addon);
+    if (!addon) {
+      return;
+    }
+    let resultTab = () => B.tabs.find(t => t.url.startsWith("https://example.org/#"));
+    let done = await waitFor(() => resultTab(), 30000);
+    let result = {};
+    try {
+      result = JSON.parse(decodeURIComponent(resultTab().url.split("#")[1]));
+    } catch (e) {}
+    report.info.extensionResult = result;
+    check("extensions: tabs.query, windows.getCurrent and tabs.create work", done && result.count > 0 && result.active == 1 && result.windowTabs > 0 && result.created);
+    check("extensions: tabs.executeScript runs in pages", result.script == "Example Domain");
+    check("extensions: contextMenus calls don't break extensions", result.menus === true);
+    let button = document.querySelector("#ext-buttons .ext-button");
+    check("extensions: the extension's button shows", !!button && button.getBoundingClientRect().width > 0);
+    check("extensions: badges show on the button", button?.querySelector(".ext-badge")?.textContent == "ok");
+    if (resultTab()) {
+      B.closeTab(resultTab());
+    }
+    B.run("ext breached test");
+    let panel = () => document.getElementById("ext-popup-panel");
+    let popupShown = await waitFor(
+      () => panel()?.state == "open" && panel().querySelector("browser")?.contentTitle == "test popup",
+      15000
+    );
+    report.info.popup = panel() ? { state: panel().state, title: panel().querySelector("browser")?.contentTitle } : null;
+    check(":ext opens the extension's popup", popupShown);
+    await wait(500);
+    await this.screenshot(outDir, "14-extension-popup.png");
+    panel()?.hidePopup();
+    B.run("extensions");
+    let doc = () => B.selectedBrowser?.contentDocument;
+    check(
+      ":extensions lists installed extensions",
+      await waitFor(() => B.selected.url == "breached:extensions" && doc()?.querySelector('[data-id="selftest@breached.browser"]'))
+    );
+    await wait(300);
+    await this.screenshot(outDir, "15-extensions.png");
+    await addon.uninstall();
+    check(
+      "removing an extension removes its button",
+      await waitFor(() => !document.querySelector("#ext-buttons .ext-button"), 5000)
     );
     B.closeTab(B.selected);
   },

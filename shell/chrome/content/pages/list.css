@@ -105,3 +105,9 @@ button.armed {
   border-color: var(--error);
   color: var(--error);
 }
+.items .main br + .sub {
+  font-size: 12px;
+}
+li.extension > img {
+  flex: none;
+}

@@ -312,3 +312,59 @@ body {
 :root[inDOMFullscreen] #bottom {
   display: none;
 }
+
+/* ---- Extension buttons (title bar, or the end of the tab bar) ---- */
+#ext-buttons {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  -moz-window-dragging: no-drag;
+}
+#ext-buttons:empty {
+  display: none;
+}
+#tabbar > #ext-buttons {
+  margin-inline-start: auto;
+}
+.ext-button {
+  appearance: none;
+  position: relative;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0 6px;
+  min-width: 26px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ext-button:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.ext-button[disabled] {
+  opacity: 0.4;
+}
+.ext-button > img {
+  width: 16px;
+  height: 16px;
+}
+.ext-badge {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  font: 9px/11px var(--font, monospace);
+  padding: 0 2px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+#ext-popup-panel {
+  --panel-padding: 0;
+  --panel-border-radius: 0;
+  --panel-background: var(--bar-bg);
+  --panel-border-color: var(--accent);
+}
+#ext-popup-panel > browser {
+  display: block;
+  background: white;
+}
