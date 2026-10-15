@@ -210,6 +210,33 @@ var SelfTest = {
     await wait(500);
     report.info.settings = [...settingsDoc().querySelectorAll("[data-setting]")].map(r => r.dataset.setting);
     await this.screenshot(outDir, "6-settings.png");
+    // A dropdown on a page opens as a real popup list.
+    let dropdownEl = settingsDoc().getElementById("setting-breached-tabs-position");
+    let r = dropdownEl.getBoundingClientRect();
+    settingsDoc().defaultView.windowUtils.sendMouseEvent("mousedown", r.left + 10, r.top + 5, 0, 1, 0);
+    settingsDoc().defaultView.windowUtils.sendMouseEvent("mouseup", r.left + 10, r.top + 5, 0, 1, 0);
+    let dropdown = () => document.getElementById("ContentSelectDropdown")?.menupopup;
+    let dropdownOpen = await waitFor(() => dropdown()?.state == "open", 5000);
+    report.info.dropdown = dropdown() ? {
+      state: dropdown().state,
+      items: dropdown().children.length,
+      height: dropdown().getOuterScreenRect().height,
+      inPage: dropdown().getBoundingClientRect().height,
+    } : null;
+    check("dropdowns open as a popup list", dropdownOpen && dropdown().getOuterScreenRect().height > 10);
+    await wait(300);
+    await this.screenshot(outDir, "6b-dropdown.png");
+    if (dropdownOpen) {
+      let items = [...dropdown().querySelectorAll("menuitem")];
+      let top = items.find(i => i.label == "Top");
+      dropdown().activateItem(top);
+      check(
+        "picking from a dropdown changes the setting",
+        await waitFor(() => Services.prefs.getStringPref("breached.tabs.position") == "top", 3000)
+      );
+      Services.prefs.clearUserPref("breached.tabs.position");
+      await wait(200);
+    }
     let position = settingsDoc().getElementById("setting-breached-tabs-position");
     position.value = "top";
     position.dispatchEvent(new Event("change"));

@@ -12,11 +12,27 @@
 <head>
   <meta charset="utf-8" />
   <title>Breached</title>
+  <!-- Gecko's base styles for menus and popups (dropdowns, pickers). -->
+  <link rel="stylesheet" href="chrome://global/skin/global.css" />
   <link rel="stylesheet" href="chrome://breached/content/shell.css" />
   <script src="chrome://global/content/customElements.js"></script>
   <script src="chrome://breached/content/shell.js"></script>
 </head>
 <body>
+  <!-- Popups pages use: dropdown lists, date and colour pickers, and form
+       autocomplete. Gecko adds the first ones here on demand. -->
+  <xul:popupset id="mainPopupSet">
+    <xul:panel is="autocomplete-richlistbox-popup"
+               type="autocomplete-richlistbox"
+               id="PopupAutoComplete"
+               role="group"
+               level="top"
+               noautofocus="true"
+               hidden="true"
+               overflowpadding="4"
+               norolluponanchor="true"
+               nomaxresults="true" />
+  </xul:popupset>
   <div id="titlebar">
     <div id="titlebar-content">
       <span id="titlebar-title">Breached</span>
