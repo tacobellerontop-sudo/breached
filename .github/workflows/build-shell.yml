@@ -61,13 +61,20 @@ jobs:
           $app = Resolve-Path out\breached
           $shots = New-Item -ItemType Directory -Force screenshots
           $env:BREACHED_SELFTEST = $shots.FullName
+          # Test helpers: a stand-in bw.exe and a local login page.
+          $tools = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\breached-test"
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /out:"$tools\bw.exe" scripts\test\FakeBw.cs
+          $env:BREACHED_TEST_BW = "$tools\bw.exe"
+          $server = Start-Process python -PassThru -NoNewWindow -ArgumentList '-m', 'http.server', '8123', '--bind', '127.0.0.1', '--directory', (Resolve-Path scripts\test)
+          $env:BREACHED_TEST_LOGIN_PAGE = 'http://127.0.0.1:8123/login.html'
           # Let the test's progress lines through to this log.
           Set-Content "$app\profile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
           $p = Start-Process "$app\firefox.exe" -PassThru -NoNewWindow `
             -RedirectStandardOutput selftest-out.txt -RedirectStandardError selftest-err.txt `
             -ArgumentList '-app', "$app\breached\application.ini", '-profile', "$app\profile", '-no-remote', '-headless', '-wait-for-browser', '-attach-console'
-          if (-not $p.WaitForExit(240000)) { $p.Kill($true); "Self-test did not finish" }
+          if (-not $p.WaitForExit(360000)) { $p.Kill($true); "Self-test did not finish" }
           Get-Content selftest-out.txt, selftest-err.txt -ErrorAction SilentlyContinue | Select-String 'SELFTEST|Breached|error' | Select-Object -First 200
+          Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
           if (-not (Test-Path screenshots\report.json)) { throw 'no report.json' }
           Get-Content screenshots\report.json
           $report = Get-Content screenshots\report.json | ConvertFrom-Json

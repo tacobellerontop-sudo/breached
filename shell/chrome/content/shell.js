@@ -932,6 +932,13 @@ var Breached = {
     let [name, ...rest] = text.trim().split(/\s+/);
     let args = rest.join(" ");
     let command = Commands[name];
+    if (!command && ModHost.modCommands.has(name)) {
+      this.showMessage(
+        `${name} comes with the ${ModHost.modCommands.get(name)} mod: install it in settings > mods`,
+        "error"
+      );
+      return undefined;
+    }
     if (!command) {
       // Not a command: open it as an address or a search.
       return Commands.open.run(text.trim());

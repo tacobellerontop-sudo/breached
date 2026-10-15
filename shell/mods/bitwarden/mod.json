@@ -1,0 +1,23 @@
+{
+  "id": "bitwarden",
+  "name": "Bitwarden",
+  "version": "1.0",
+  "description": "Fill logins from your Bitwarden vault with :bw.exe, using the Bitwarden command-line app (bw.exe).",
+  "script": "mod.js",
+  "commands": ["bw.exe", "bw"],
+  "settings": [
+    {
+      "pref": "breached.mods.bitwarden.path",
+      "label": "Where bw.exe is",
+      "hint": "Leave empty to find bw.exe on your PATH.",
+      "placeholder": "C:\\Tools\\bw.exe",
+      "type": "text"
+    },
+    {
+      "pref": "breached.mods.bitwarden.lockMinutes",
+      "label": "Lock the vault after this many idle minutes",
+      "hint": "0 keeps it unlocked until you close Breached or run :bw.exe lock.",
+      "type": "text"
+    }
+  ]
+}

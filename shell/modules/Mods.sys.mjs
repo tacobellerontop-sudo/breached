@@ -74,6 +74,7 @@ export const Mods = {
         description: String(info.description ?? ""),
         script: info.script,
         settings: Array.isArray(info.settings) ? info.settings : [],
+        commands: Array.isArray(info.commands) ? info.commands.map(String) : [],
         dir,
         source,
       };

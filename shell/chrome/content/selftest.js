@@ -12,7 +12,7 @@ var SelfTest = {
       report.checks[name] = !!ok;
       dump(`SELFTEST ${ok ? "PASS" : "FAIL"} ${name}\n`);
     };
-    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 180 * 1000);
+    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 300 * 1000);
     try {
       await IOUtils.makeDirectory(outDir, { ignoreExisting: true });
       await this.steps(outDir, report, check);
@@ -353,6 +353,12 @@ var SelfTest = {
     B.run("close");
     check(":close closes the current tab", B.tabs.length == 1);
 
+    // 8. History and downloads
+    await this.historyAndDownloads(B, check, waitFor, wait, outDir, report);
+
+    // 9. Mods: Bitwarden installs from settings, fills a login, and removes
+    await this.mods(B, check, waitFor, wait, press, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -361,6 +367,143 @@ var SelfTest = {
       "no Breached script errors",
       !report.errors.some(e => /breached/i.test(e))
     );
+  },
+
+  async historyAndDownloads(B, check, waitFor, wait, outDir, report) {
+    let doc = () => B.selectedBrowser?.contentDocument;
+    B.run("history");
+    check(
+      ":history opens the history page",
+      await waitFor(() => B.selected.url == "breached:history" && doc()?.querySelector(".visit"))
+    );
+    let links = () => [...doc().querySelectorAll(".visit a")].map(a => a.href);
+    check("history lists visited pages", links().some(h => h.includes("example.com")));
+    let filter = doc().getElementById("filter");
+    filter.value = "example.org";
+    filter.dispatchEvent(new Event("input"));
+    check(
+      "history search narrows the list",
+      await waitFor(() => links().length > 0 && links().every(h => h.includes("example.org")), 5000)
+    );
+    await wait(300);
+    await this.screenshot(outDir, "9-history.png");
+
+    // A real download, started by a page.
+    let { Downloads } = ChromeUtils.importESModule("resource://gre/modules/Downloads.sys.mjs");
+    let list = await Downloads.getList(Downloads.ALL);
+    let downloaded = false;
+    let view = {
+      onDownloadChanged(d) {
+        downloaded ||= d.succeeded;
+      },
+    };
+    await list.addView(view);
+    B.run("open -t https://github.com/git/git/archive/refs/tags/v0.99.zip");
+    await waitFor(() => downloaded, 60000);
+    await list.removeView(view);
+    let all = await list.getAll();
+    report.info.downloads = all.map(d => ({
+      url: d.source.url,
+      target: d.target.path,
+      succeeded: d.succeeded,
+      error: d.error ? String(d.error.message) : null,
+    }));
+    check("a download saves to the downloads folder", all.some(d => d.succeeded));
+    if (!downloaded) {
+      // Still check the page with a download made directly.
+      let target = PathUtils.join(PathUtils.tempDir, "breached-test-download.html");
+      let d = await Downloads.createDownload({ source: "https://example.com/", target });
+      await list.add(d);
+      await d.start().catch(() => {});
+    }
+    if (B.selected.url.includes("v0.99.zip") || B.selected.url == "about:blank") {
+      B.closeTab(B.selected);
+    }
+    B.run("downloads");
+    check(
+      ":downloads opens the download manager",
+      await waitFor(() => B.selected.url == "breached:downloads" && doc()?.querySelector(".download"))
+    );
+    let row = doc().querySelector(".download");
+    check(
+      "the download manager shows finished downloads with open and folder buttons",
+      !!row?.querySelector(".action-open") && !!row?.querySelector(".action-folder")
+    );
+    await wait(300);
+    await this.screenshot(outDir, "10-downloads.png");
+    B.closeTab(B.selected);
+    B.closeTab(B.tabs.find(t => t.url == "breached:history"));
+  },
+
+  async mods(B, check, waitFor, wait, press, outDir, report) {
+    let doc = () => B.selectedBrowser?.contentDocument;
+    B.run("bw.exe");
+    check(
+      ":bw.exe without the mod says which mod it needs",
+      /Bitwarden mod/.test(document.getElementById("message").textContent)
+    );
+    B.run("mods");
+    check(
+      ":mods opens settings at the mods section",
+      await waitFor(() => B.selected.url == "breached:settings#mods" && doc()?.getElementById("mod-bitwarden-toggle"))
+    );
+    await wait(500);
+    await this.screenshot(outDir, "11-mods.png");
+    let click = el => {
+      let r = el.getBoundingClientRect();
+      let win = el.ownerGlobal;
+      win.synthesizeMouseEvent("mousedown", r.left + 5, r.top + 5, { button: 0, buttons: 1, clickCount: 1 });
+      win.synthesizeMouseEvent("mouseup", r.left + 5, r.top + 5, { button: 0, buttons: 0, clickCount: 1 });
+    };
+    let toggle = doc().getElementById("mod-bitwarden-toggle");
+    toggle.scrollIntoView();
+    await wait(200);
+    click(toggle);
+    let installed = await waitFor(() => ModHost.loaded.has("bitwarden") && Commands["bw.exe"], 5000);
+    check("settings: installing the Bitwarden mod adds :bw.exe", installed);
+    check(
+      "settings: the installed mod shows its settings",
+      await waitFor(() => doc().getElementById("setting-breached-mods-bitwarden-path"), 3000)
+    );
+
+    let fakeBw = Services.env.get("BREACHED_TEST_BW");
+    let loginPage = Services.env.get("BREACHED_TEST_LOGIN_PAGE");
+    report.info.bitwardenTest = { fakeBw, loginPage };
+    if (installed && fakeBw && loginPage) {
+      Services.prefs.setStringPref("breached.mods.bitwarden.path", fakeBw);
+      B.openTab(loginPage);
+      await waitFor(() => B.selected.title == "login", 10000);
+      B.run("bw.exe");
+      let asked = await waitFor(
+        () => !document.getElementById("commandbar").hidden && document.getElementById("commandline").type == "password",
+        10000
+      );
+      check(":bw.exe asks for the master password", asked);
+      if (asked) {
+        await this.screenshot(outDir, "12-bitwarden-password.png");
+        for (let c of "hunter2") {
+          let code = /\d/.test(c) ? "Digit" + c : "Key" + c.toUpperCase();
+          press(c, code, KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+        }
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        let filled = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
+        report.info.bitwardenTitle = B.selected.title;
+        report.info.bitwardenMessage = document.getElementById("message").textContent;
+        check(":bw.exe fills the page's login form", filled);
+        check("the password isn't kept in the command history", !B.history.includes("hunter2"));
+        await this.screenshot(outDir, "13-bitwarden-filled.png");
+      }
+      B.closeTab(B.selected);
+      Services.prefs.clearUserPref("breached.mods.bitwarden.path");
+    }
+
+    B.selectTab(B.tabs.find(t => t.url.startsWith("breached:settings")));
+    click(doc().getElementById("mod-bitwarden-toggle"));
+    check(
+      "settings: removing the mod takes :bw.exe away again",
+      await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
+    );
+    B.closeTab(B.selected);
   },
 
   async screenshot(outDir, name) {

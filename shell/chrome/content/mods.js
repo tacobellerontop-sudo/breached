@@ -8,8 +8,19 @@ var ModHost = {
   loaded: new Map(), // id -> Mod
   _syncing: Promise.resolve(),
 
+  // Commands of mods that aren't installed, so ":bw.exe" can say which mod
+  // it needs instead of opening it as an address.
+  modCommands: new Map(), // command -> mod name
+
   init() {
     Services.prefs.addObserver("breached.mods.installed", this);
+    this.Mods.list().then(mods => {
+      for (let mod of mods) {
+        for (let name of mod.commands) {
+          this.modCommands.set(name, mod.name);
+        }
+      }
+    });
     return this.sync();
   },
 
@@ -96,11 +107,11 @@ class Mod {
 
   /**
    * Registers a page helper (JSWindowActor) whose modules are in the mod's
-   * folder: actor("Name", { parent: "NameParent.sys.mjs", child: "...",
-   * events: {...} }).
+   * folder: actor("Name", { parent: "NameParent.sys.mjs", child:
+   * "NameChild.sys.mjs", events: {...} }). Returns the actor's name.
    */
-  actor(name, { parent, child, events, allFrames = true }) {
-    let actorName = `BreachedMod_${this.id.replace(/\W/g, "_")}_${name}`;
+  actor(actorName, { parent, child, events, allFrames = true }) {
+    // Gecko looks for classes called <actorName>Parent and <actorName>Child.
     ChromeUtils.registerWindowActor(actorName, {
       parent: { esModuleURI: this.url + parent },
       child: { esModuleURI: this.url + child, events },
