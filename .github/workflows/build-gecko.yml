@@ -44,9 +44,16 @@ jobs:
           maximum-size: 32GB
           disk-root: "D:"
 
-      - name: Free disk space check
+      # C: ran out of space mid-build; the build output goes to D: (mozconfig)
+      # and big preinstalled SDKs we don't use are removed from C:.
+      - name: Free disk space
         shell: pwsh
-        run: Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}}
+        run: |
+          Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}} | Format-Table | Out-String
+          foreach ($dir in 'C:\Android', 'C:\Program Files\dotnet', 'C:\ghcup', 'C:\Strawberry', 'C:\Miniconda', 'C:\SeleniumWebDrivers', 'C:\hostedtoolcache\windows\go', 'C:\hostedtoolcache\windows\Ruby', 'C:\hostedtoolcache\windows\PyPy', 'C:\hostedtoolcache\windows\CodeQL') {
+            if (Test-Path $dir) { cmd /c rmdir /s /q "$dir" }
+          }
+          Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}} | Format-Table | Out-String
 
       - name: Fetch Gecko source
         shell: bash
@@ -85,9 +92,9 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          Get-PSDrive C | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}}
-          $zip = Get-ChildItem C:\src\obj-gecko\dist\*.zip -ErrorAction SilentlyContinue | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
-          if (-not $zip) { Get-ChildItem C:\src\obj-gecko\dist -ErrorAction SilentlyContinue; throw 'no package zip found' }
+          Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}} | Format-Table | Out-String
+          $zip = Get-ChildItem D:\obj-gecko\dist\*.zip -ErrorAction SilentlyContinue | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
+          if (-not $zip) { Get-ChildItem D:\obj-gecko\dist -ErrorAction SilentlyContinue; throw 'no package zip found' }
           Copy-Item $zip.FullName gecko-win64.zip
           "{0:N0} MB" -f ((Get-Item gecko-win64.zip).Length / 1MB)
 
