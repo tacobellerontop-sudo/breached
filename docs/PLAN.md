@@ -4,7 +4,7 @@
 
 Breached is a Windows desktop browser that uses fewer system resources than a stock browser while still opening every modern website.
 
-**Decision: build on Firefox (Gecko), in the style of LibreWolf.** We ship Firefox's engine unchanged and replace everything around it: our own minimal user interface, preferences, policies, build flags, a small patch set, and a bundled tab-unloading component. uBlock Origin is bundled and runs at full strength, which is no longer possible in any mainstream Chromium browser.
+**Decision: Breached is its own desktop app built on Gecko, Firefox's engine.** It has its own name, icon, window and minimal interface. Underneath it reuses Gecko, Mozilla's app toolkit and Firefox's behind-the-scenes browser modules (session restore, password manager, permission prompts, extension APIs), the same way Thunderbird is its own app on the same foundations. Around that we add our own preferences, build flags and a bundled tab-unloading component. uBlock Origin is bundled and runs at full strength, which is no longer possible in any mainstream Chromium browser.
 
 The goals map to the plan like this:
 
@@ -127,22 +127,30 @@ Kept, because they are cheap or essential: PDF viewer, Reader View, Picture-in-P
 
 Background throttling: keep Firefox's background-tab timer throttling on, and enable budget-based throttling for background tabs (limits how much CPU a background page's timers can use). Measure the effect before locking it in.
 
-### 4.6 Custom, minimal UI
+### 4.6 Breached as its own app, with a minimal UI
 
-Breached is its own browser with its own small interface; only the engine underneath is Firefox's.
+Breached is a standalone Windows app (`breached.exe`) with its own interface. Nothing in it says Firefox.
 
-What "custom" can and can't mean here: Gecko has no supported way to embed it in a completely separate desktop app (GeckoView, its embedding kit, is Android-only). But Firefox's whole interface is itself written in HTML, CSS and JavaScript on top of the engine, so we can replace and slim it down freely. Zen Browser and Floorp are existing examples of heavily customised interfaces built this way.
+**Why not "just Gecko"?** Gecko has no supported way to be dropped into a separate desktop program (GeckoView, its embedding kit, is Android-only). Every Gecko desktop app, Firefox and Thunderbird included, is built from the same layers, and Breached will be too:
 
-Design direction:
+| Layer | What it is | Breached |
+|---|---|---|
+| Gecko | The engine: HTML, CSS, JavaScript, networking, media, security sandbox | Reused unchanged |
+| Toolkit | Shared app plumbing: profiles, updates, extension manager, downloads | Reused, with telemetry and helpers compiled out |
+| Browser backend modules | Session restore, password manager, permission and certificate prompts, the extension APIs uBO needs (`tabs`, `webRequest`) | Reused (recommended), not rewritten |
+| Interface | Windows, tabs, toolbars, menus, settings, new tab page | **Written by us** |
+
+Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. LX is choosing between the two; the plan assumes the recommended "reuse the backend".
+
+Interface direction:
 - **One slim toolbar row** with back, forward, reload, the address bar, uBlock Origin, Tab Sleeper and the menu. Tabs in a compact strip above it, or optionally vertical tabs.
-- **Nothing for services we removed:** no account button, Firefox View, sidebar launcher, Pocket, "More from Mozilla" or feature tours.
-- **Compact by default:** smaller tabs and toolbar padding, bookmarks bar hidden, no title bar spacers.
+- **Nothing for services we removed:** no account button, Firefox View, sidebar launcher, Pocket or feature tours.
 - **Sleeping tabs look different** (dimmed) so it's clear they reload when clicked.
-- **Simple settings:** a short Breached settings page with the few choices that matter (Tab Sleeper timeout, Lean mode, search engine, theme); Firefox's full settings stay reachable under "Advanced".
+- **Simple settings:** a short Breached settings page with the few choices that matter (Tab Sleeper timeout, Lean mode, search engine, theme), with advanced options behind it.
 
 Delivery:
-- **M0:** a stylesheet (`ui/userChrome.css`) plus prefs for compact density, applied to stock Firefox by the install script. It hides clutter and tightens spacing but can't change layout much.
-- **M2 onwards:** patches to Firefox's interface code in our own build: the custom toolbar layout, Breached settings page, new tab page and branding. Each change is a small patch, kept separate so rebasing on new Firefox versions stays manageable.
+- **M0 (stopgap, done):** a settings pack and stylesheet applied to stock Firefox, so the lightweight setup is usable before our app exists.
+- **M2 onwards:** the Breached app itself: our own application directory in the Gecko source tree (like Thunderbird's), our interface, branding and settings page, linked against the reused layers above.
 
 ## 5. Settings model
 
@@ -214,9 +222,9 @@ Install and updates:
 - Network-silence test in CI (capture proxy, allow-list).
 - Compat smoke test on top sites.
 
-**M2: Own Windows build**
-- Scripts to fetch Firefox source, apply patches, cross-compile for Windows with our mozconfig (no crash reporter, no default-browser agent, no maintenance service).
-- Breached branding and the custom minimal UI (section 4.6); Tab Sleeper bundled as a built-in.
+**M2: The Breached app (Windows)**
+- Scripts to fetch Gecko/Firefox source, add our application directory, and cross-compile `breached.exe` for Windows with our mozconfig (no crash reporter, no default-browser agent, no maintenance service).
+- Breached's own interface, branding and settings page (section 4.6); Tab Sleeper bundled as a built-in.
 - CI build and nightly artifacts.
 
 **M3: Installer and updates**
@@ -249,4 +257,4 @@ Decided by LX (2026-10-15):
 1. Platform: Windows only.
 2. Sync: removed entirely (lightest option).
 3. Safe Browsing: off entirely (lightest option); see 4.4 for what still protects users.
-4. Breached is its own browser with a minimal, small custom UI (section 4.6).
+4. Breached is its own desktop app on Gecko with a minimal, small custom UI (section 4.6).
