@@ -4,6 +4,8 @@ name: Build Breached (dev)
 # code is compiled locally and Mozilla's prebuilt engine binaries are reused.
 # Produces a portable zip, runs the smoke test, and publishes screenshots to
 # the ci-screenshots branch.
+#
+# Superseded by build-shell.yml (Gecko-only shell); kept for manual runs.
 
 on:
   workflow_dispatch:
@@ -12,12 +14,6 @@ on:
         description: "Skip the build and smoke-test the zip from this earlier run"
         required: false
         default: ""
-  push:
-    paths:
-      - "app/**"
-      - "config/**"
-      - "scripts/build/**"
-      - ".github/workflows/build-dev.yml"
 
 permissions:
   contents: write

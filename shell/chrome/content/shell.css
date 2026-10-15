@@ -1,0 +1,183 @@
+/* Breached window, styled after qutebrowser's defaults. */
+
+:root {
+  --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  --font-size: 12px;
+  --bar-bg: #000;
+  --fg: #fff;
+  --tab-odd: #808080;
+  --tab-even: #a9a9a9;
+  --tab-selected: #000;
+  --tab-asleep-fg: #ccc;
+  --loading: #0000aa;
+  --loaded: #00aa00;
+  --error: #ff0000;
+  --tab-height: 20px;
+
+  height: 100%;
+  background: #000;
+  color: var(--fg);
+  font: var(--font-size) var(--font);
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- Tab bar (top or bottom, shown or auto-hidden) ---- */
+#tabbar {
+  order: 1;
+  display: flex;
+  flex: none;
+  height: var(--tab-height);
+  background: var(--bar-bg);
+  overflow: hidden;
+  user-select: none;
+}
+#content {
+  order: 2;
+}
+#bottom {
+  order: 3;
+}
+:root[tabs-position="bottom"] #tabbar {
+  order: 3;
+}
+:root[tabs-position="bottom"] #bottom {
+  order: 4;
+}
+/* Auto-hide: the bar takes no space and only appears, over the page, while
+   switching tabs or using the command bar. */
+:root[tabs-autohide] #tabbar {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 2;
+  visibility: hidden;
+}
+:root[tabs-autohide][tabs-position="top"] #tabbar {
+  top: 0;
+}
+:root[tabs-autohide][tabs-position="bottom"] #tabbar {
+  bottom: 0;
+}
+:root[tabs-autohide][tabs-position="bottom"][commandbar-open] #tabbar {
+  bottom: var(--tab-height);
+}
+:root[tabs-autohide][tabs-peek] #tabbar,
+:root[tabs-autohide][commandbar-open] #tabbar {
+  visibility: visible;
+}
+
+.tab {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 280px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 4px 6px;
+  border-inline-start: 3px solid var(--loaded);
+  white-space: nowrap;
+  cursor: default;
+}
+.tab:nth-child(odd) {
+  background: var(--tab-odd);
+}
+.tab:nth-child(even) {
+  background: var(--tab-even);
+}
+.tab[selected] {
+  background: var(--tab-selected);
+}
+.tab[busy] {
+  border-inline-start-color: var(--loading);
+}
+.tab[asleep] {
+  color: var(--tab-asleep-fg);
+  font-style: italic;
+}
+.tab-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.tab-icon:not([src]) {
+  display: none;
+}
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab[pinned] {
+  flex: none;
+  max-width: none;
+}
+.tab[pinned] .tab-label {
+  display: none;
+}
+
+/* ---- Web pages: all tabs share one cell, only the selected one shows ---- */
+#content {
+  flex: 1;
+  display: grid;
+  min-height: 0;
+  background: #fff;
+}
+#content > browser {
+  grid-area: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+  visibility: hidden;
+}
+#content > browser[selected] {
+  visibility: visible;
+}
+
+/* ---- Bottom: messages and the ":" command bar ---- */
+#bottom {
+  flex: none;
+  background: var(--bar-bg);
+}
+#message,
+#commandbar {
+  height: var(--tab-height);
+  display: flex;
+  align-items: center;
+  padding-inline: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#message[hidden],
+#commandbar[hidden] {
+  display: none;
+}
+#message[level="error"] {
+  background: var(--error);
+}
+#commandline {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+}
+#completion {
+  color: #888;
+  margin-inline-start: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Page fullscreen (videos): only the page. */
+:root[inDOMFullscreen] #tabbar,
+:root[inDOMFullscreen] #bottom {
+  display: none;
+}

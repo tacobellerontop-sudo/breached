@@ -1,0 +1,90 @@
+name: Build Breached
+
+# Packages the Breached shell (shell/) on Mozilla's prebuilt Gecko engine for
+# Windows, runs the built-in self-test with real key presses, publishes
+# screenshots to the ci-screenshots branch, and uploads a portable zip.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "shell/**"
+      - "config/breached.cfg"
+      - "scripts/build/package-shell.ps1"
+      - "scripts/build/cfg-to-prefs.py"
+      - ".github/workflows/build-shell.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Mozilla's Gecko (Firefox release build)
+        shell: pwsh
+        run: |
+          $version = (Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]
+          $url = "https://archive.mozilla.org/pub/firefox/releases/$version/win64/en-US/Firefox%20Setup%20$version.exe"
+          "Gecko $version from $url"
+          Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\gecko-setup.exe"
+
+      - name: Package Breached
+        shell: pwsh
+        run: scripts/build/package-shell.ps1 -Installer "$env:RUNNER_TEMP\gecko-setup.exe" -Out out
+
+      - name: Self-test
+        id: selftest
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $app = Resolve-Path out\breached
+          $shots = New-Item -ItemType Directory -Force screenshots
+          $env:BREACHED_SELFTEST = $shots.FullName
+          # Let the test's progress lines through to this log.
+          Set-Content "$app\profile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
+          $p = Start-Process "$app\firefox.exe" -PassThru -NoNewWindow `
+            -RedirectStandardOutput selftest-out.txt -RedirectStandardError selftest-err.txt `
+            -ArgumentList '-app', "$app\breached\application.ini", '-profile', "$app\profile", '-no-remote', '-headless', '-wait-for-browser', '-attach-console'
+          if (-not $p.WaitForExit(240000)) { $p.Kill($true); "Self-test did not finish" }
+          Get-Content selftest-out.txt, selftest-err.txt -ErrorAction SilentlyContinue | Select-String 'SELFTEST|Breached|error' | Select-Object -First 200
+          if (-not (Test-Path screenshots\report.json)) { throw 'no report.json' }
+          Get-Content screenshots\report.json
+          $report = Get-Content screenshots\report.json | ConvertFrom-Json
+          if (-not $report.passed) { throw 'self-test failed' }
+          # Clean the test's leftovers out of the shipped profile folder.
+          Remove-Item -Recurse -Force "$app\profile"
+          New-Item -ItemType Directory "$app\profile" | Out-Null
+
+      - name: Publish screenshots to the ci-screenshots branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p screenshots
+          cp selftest-out.txt selftest-err.txt screenshots/ 2>/dev/null || true
+          cd screenshots
+          echo "Run ${{ github.run_id }} for ${{ github.sha }}" > RUN.txt
+          git init -q . && git checkout -q -b ci-screenshots
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Screenshots for ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-screenshots
+
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive out\breached breached-win64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: breached-win64
+          path: breached-win64.zip
+
+      - name: Fail if the self-test failed
+        if: steps.selftest.outcome == 'failure'
+        run: exit 1

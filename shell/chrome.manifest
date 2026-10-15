@@ -1,0 +1,5 @@
+content breached chrome/content/
+resource breached modules/
+content branding chrome/branding/
+locale branding en-US chrome/branding/
+category l10n-registry 5-breached resource://app/localization/{locale}/
