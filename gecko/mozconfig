@@ -8,3 +8,6 @@ ac_add_options --disable-updater
 ac_add_options --disable-maintenance-service
 ac_add_options --disable-default-browser-agent
 mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-gecko
+# The 16 GB GitHub runner runs out of memory linking Rust with full LTO.
+ac_add_options --disable-release
+mk_add_options MOZ_PARALLEL_BUILD=3

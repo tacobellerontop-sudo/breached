@@ -36,6 +36,14 @@ jobs:
         with:
           path: breached
 
+      # 16 GB of RAM isn't enough for the big link steps; add swap.
+      - name: Grow the page file
+        uses: al-cheb/configure-pagefile-action@v1.4
+        with:
+          minimum-size: 16GB
+          maximum-size: 32GB
+          disk-root: "D:"
+
       - name: Free disk space check
         shell: pwsh
         run: Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}}
