@@ -74,8 +74,23 @@ var SelfTest = {
     // 1. The window and its first tab
     check("shell loaded with one tab", B.tabs.length == 1 && B.selectedBrowser);
     check("command bar hidden until ':'", $("commandbar").hidden);
-    B.run("open https://example.com/");
+    let homeDoc = () => B.selectedBrowser.contentDocument;
+    let homeShown = await waitFor(
+      () => B.selected.url == "breached:home" && homeDoc()?.getElementById("search")
+    );
+    check("the home page opens on start", homeShown);
+    await waitFor(() => homeDoc().readyState == "complete", 5000);
+    await wait(500);
+    await this.screenshot(outDir, "0-home.png");
+    // Search box on the home page
+    let typeOnHome = text => {
+      let doc = homeDoc();
+      doc.getElementById("search").value = text;
+      doc.getElementById("search-form").requestSubmit();
+    };
+    typeOnHome("example.com");
     let loaded = await waitFor(() => B.selected.title == "Example Domain");
+    check("the home page's box opens an address", loaded);
     check("a web page loads", loaded);
     report.info.remoteType = B.selectedBrowser.remoteType;
     check("pages run in a separate content process", B.selectedBrowser.isRemoteBrowser);
@@ -126,20 +141,29 @@ var SelfTest = {
     press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
     check("Escape closes the command bar", await waitFor(() => $("commandbar").hidden, 3000));
 
-    // 3. Ctrl+T, type an address, Enter
+    // 3. Ctrl+T: a new tab with the home page (or the command bar, if set)
+    Services.prefs.setStringPref("breached.newTab", "commandbar");
     B.selectedBrowser.focus();
     await wait(200);
     ctrl("t");
     let ctrlT = await waitFor(() => !$("commandbar").hidden, 3000);
-    check("Ctrl+T opens ':open -t'", ctrlT && $("commandline").value == "open -t ");
-    if (!ctrlT) {
-      B.openCommandLine("open -t ");
-    }
-    $("commandline").value += "example.org";
-    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-    check("Enter opens the address in a new tab", await waitFor(() => B.tabs.length == 2));
+    check("Ctrl+T can open ':open -t' (setting)", ctrlT && $("commandline").value == "open -t ");
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    Services.prefs.clearUserPref("breached.newTab");
+    await wait(200);
+    ctrl("t");
+    check(
+      "Ctrl+T opens a new tab with the home page",
+      await waitFor(() => B.tabs.length == 2 && B.selected.url == "breached:home" && homeDoc()?.getElementById("search"))
+    );
     check("the new tab is selected", B.tabs.indexOf(B.selected) == 1);
-    await waitFor(() => B.selected.title == "Example Domain");
+    await waitFor(() => homeDoc().readyState == "complete", 5000);
+    check(
+      "the home page's box has focus",
+      Services.focus.focusedElement === homeDoc().getElementById("search")
+    );
+    typeOnHome("example.org");
+    check("the new tab goes to the address", await waitFor(() => B.selected.title == "Example Domain"));
 
     // 4. Ctrl+W, Ctrl+Shift+T
     B.selectedBrowser.focus();
@@ -176,10 +200,41 @@ var SelfTest = {
     }
     check("javascript: is refused", blocked);
 
-    // 6. Tab bar options
-    B.run("set tabs.position top");
+    // 6. Settings page
+    B.run("settings");
+    let settingsDoc = () => B.selectedBrowser.contentDocument;
+    check(
+      ":settings opens the settings page",
+      await waitFor(() => B.selected.url == "breached:settings" && settingsDoc()?.querySelector("[data-setting]"))
+    );
+    await wait(500);
+    report.info.settings = [...settingsDoc().querySelectorAll("[data-setting]")].map(r => r.dataset.setting);
+    await this.screenshot(outDir, "6-settings.png");
+    let position = settingsDoc().getElementById("setting-breached-tabs-position");
+    position.value = "top";
+    position.dispatchEvent(new Event("change"));
     await wait(200);
-    check(":set tabs.position top moves the tab bar up", rect("tabbar").bottom <= rect("content").top + 1);
+    check(
+      "settings: tab bar position moves the tab bar up",
+      Services.prefs.getStringPref("breached.tabs.position") == "top" &&
+        rect("tabbar").bottom <= rect("content").top + 1
+    );
+    let search = settingsDoc().getElementById("setting-breached-searchUrl");
+    search.value = "https://www.google.com/search?q=%s";
+    search.dispatchEvent(new Event("change"));
+    check("settings: search engine changes searches", B.urlFor("a b").startsWith("https://www.google.com/search?q=a%20b"));
+    Services.prefs.clearUserPref("breached.searchUrl");
+    let tracking = settingsDoc().getElementById("setting-tracking");
+    check("settings: tracker blocking starts at Strict", tracking.value == "strict");
+    tracking.value = "standard";
+    tracking.dispatchEvent(new Event("change"));
+    check(
+      "settings: tracker blocking level applies",
+      !Services.prefs.getBoolPref("privacy.trackingprotection.enabled")
+    );
+    tracking.value = "strict";
+    tracking.dispatchEvent(new Event("change"));
+    B.run("close");
     B.run("set tabs.autohide true");
     await wait(2000);
     check(

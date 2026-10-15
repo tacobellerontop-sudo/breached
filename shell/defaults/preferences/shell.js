@@ -4,12 +4,13 @@
 pref("toolkit.defaultChromeURI", "chrome://breached/content/shell.xhtml");
 pref("toolkit.singletonWindowType", "breached:main");
 
-// Interface (change with :set, e.g. ":set tabs.position top")
+// Interface (change these on the settings page, or with :set)
 pref("breached.tabs.position", "bottom");        // "top" or "bottom"
 pref("breached.tabs.autohide", false);           // true: show only while switching tabs
 pref("breached.tabs.unloadAfterMinutes", 15);    // 0 turns tab unloading off
 pref("breached.tabs.maxAwake", 0);               // >0: also unload beyond this many loaded tabs
-pref("breached.homepage", "about:blank");
+pref("breached.homepage", "breached:home");      // breached:home, about:blank or any address
+pref("breached.newTab", "home");                  // Ctrl+T opens "home" or the "commandbar"
 pref("breached.searchUrl", "https://duckduckgo.com/?q=%s");
 pref("breached.restoreSession", true);
 

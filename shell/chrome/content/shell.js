@@ -22,7 +22,28 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.2.0";
+const BREACHED_VERSION = "0.3.0";
+
+// Breached's own pages, shown as breached:<name> in the tab and command bar.
+const PAGES = {
+  "breached:home": "chrome://breached/content/pages/home.html",
+  "breached:settings": "chrome://breached/content/pages/settings.html",
+};
+
+/** The address to load for a breached: page, or the address itself. */
+function realURL(url) {
+  return PAGES[url] ?? url;
+}
+
+/** The breached: name for one of our pages, or the address itself. */
+function displayURL(spec) {
+  for (let [name, real] of Object.entries(PAGES)) {
+    if (spec == real) {
+      return name;
+    }
+  }
+  return spec;
+}
 
 /** Our own page helpers, registered once per app run. */
 function registerActors() {
@@ -103,6 +124,7 @@ class Tab {
 }
 
 var Breached = {
+  version: BREACHED_VERSION,
   tabs: [],
   selected: null,
   closed: [], // for :undo
@@ -166,7 +188,7 @@ var Breached = {
       this.openTab(url);
     }
     if (!restored && !urls.length) {
-      this.openTab(this.pref("homepage", "about:blank"));
+      this.openTab(this.homepage());
     }
 
     this._unloadTimer = setInterval(() => this.unloadIdleTabs(), 60 * 1000);
@@ -175,6 +197,29 @@ var Breached = {
     if (selftest) {
       Services.scriptloader.loadSubScript("chrome://breached/content/selftest.js", window);
       window.SelfTest.run(selftest);
+    }
+  },
+
+  homepage() {
+    return this.pref("homepage", "breached:home") || "about:blank";
+  },
+
+  /** Ctrl+T: the home page, or the command bar if that's the setting. */
+  newTab() {
+    if (this.pref("newTab", "home") == "commandbar") {
+      this.openCommandLine("open -t ");
+    } else {
+      this.openTab(this.homepage());
+    }
+  },
+
+  /** Shows the settings page, reusing an open one. */
+  openSettings() {
+    let tab = this.tabs.find(t => t.url == "breached:settings");
+    if (tab) {
+      this.selectTab(tab);
+    } else {
+      this.openTab("breached:settings", { afterCurrent: true });
     }
   },
 
@@ -279,7 +324,7 @@ var Breached = {
   attachBrowser(tab, { url, openWindowInfo, openerBrowser, name } = {}) {
     let remoteType = openWindowInfo && !openWindowInfo.isRemote
       ? E10SUtils.NOT_REMOTE
-      : this.remoteTypeFor(url || tab.url, openerBrowser?.remoteType);
+      : this.remoteTypeFor(realURL(url || tab.url), openerBrowser?.remoteType);
     let b = this.createBrowser({ remoteType, openWindowInfo, name });
     tab.browser = b;
     b.tab = tab;
@@ -314,7 +359,7 @@ var Breached = {
         if (!webProgress.isTopLevel) {
           return;
         }
-        tab.url = location.spec;
+        tab.url = displayURL(location.spec);
         tab.title = b.contentTitle || "";
         tab.update();
         if (tab === Breached.selected) {
@@ -401,6 +446,7 @@ var Breached = {
   },
 
   load(browser, url, { triggeringPrincipal, referrerInfo, policyContainer } = {}) {
+    url = realURL(url);
     let uri;
     try {
       uri = Services.io.newURI(url);
@@ -467,7 +513,7 @@ var Breached = {
     tab.browser = null;
     if (!this.tabs.length) {
       this.selected = null;
-      this.openTab(this.pref("homepage", "about:blank"));
+      this.openTab(this.homepage());
       return;
     }
     if (tab === this.selected) {
@@ -800,7 +846,10 @@ var Breached = {
   urlFor(text) {
     text = text.trim();
     if (!text) {
-      return this.pref("homepage", "about:blank");
+      return this.homepage();
+    }
+    if (PAGES[text]) {
+      return text;
     }
     let looksLikeAddress =
       /^[a-z][a-z0-9+.-]*:/i.test(text) && !/^[a-z]+:\s/i.test(text)
@@ -1110,7 +1159,7 @@ var Downloads = {
 var Keys = {
   bindings: [
     // [key or keycode, modifiers, command]
-    ["t", "accel", () => Breached.openCommandLine("open -t ")],
+    ["t", "accel", () => Breached.newTab()],
     ["w", "accel", () => Breached.closeTab()],
     ["t", "accel,shift", () => Breached.undoCloseTab()],
     ["VK_TAB", "control", () => Breached.advance(1)],
@@ -1135,6 +1184,7 @@ var Keys = {
     ["0", "accel", () => Breached.run("zoom 100")],
     ["VK_F11", "", () => Breached.run("fullscreen")],
     ["q", "accel", () => Breached.run("quit")],
+    [",", "accel", () => Breached.openSettings()],
     ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => [String(n), "accel", () => Breached.run(`tab-focus ${n}`)]),
     ["9", "accel", () => Breached.run("tab-focus -1")],
   ],
@@ -1314,7 +1364,7 @@ var Commands = {
   },
   home: {
     run() {
-      Commands.open.run(Breached.pref("homepage", "about:blank"));
+      Commands.open.run(Breached.homepage());
     },
   },
   find: {
@@ -1438,6 +1488,12 @@ var Commands = {
         Services.prefs.setStringPref(full, value);
       }
       Breached.showMessage(`${name}=${Breached.pref(name)}`);
+    },
+  },
+  settings: {
+    usage: "settings  (open the settings page)",
+    run() {
+      Breached.openSettings();
     },
   },
   version: {

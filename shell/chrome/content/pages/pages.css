@@ -1,0 +1,64 @@
+/* Breached's own pages (home, settings): qutebrowser's black and grey. */
+
+:root {
+  --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  --bg: #000;
+  --panel: #111;
+  --line: #333;
+  --fg: #fff;
+  --muted: #a9a9a9;
+  --accent: #00aa00;
+  --error: #ff4444;
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 var(--font);
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--fg);
+}
+
+input,
+select,
+button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  padding: 4px 6px;
+}
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+  border-color: var(--accent);
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--muted);
+}
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+kbd {
+  font: inherit;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  padding: 0 4px;
+}
+
+.muted {
+  color: var(--muted);
+}

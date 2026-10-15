@@ -1,0 +1,90 @@
+body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+main {
+  width: min(640px, 90vw);
+  padding-block: 40px;
+}
+
+#brand {
+  font-size: 40px;
+  font-weight: normal;
+  letter-spacing: 2px;
+  margin: 0 0 24px;
+}
+#cursor {
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cursor {
+    animation: none;
+  }
+}
+
+#search-form {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+#search-form:focus-within {
+  border-color: var(--accent);
+}
+#prompt {
+  padding-inline: 8px 4px;
+  color: var(--accent);
+}
+#search {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 8px 8px 8px 0;
+  font-size: 15px;
+}
+
+#sites h2 {
+  font-size: 13px;
+  font-weight: normal;
+  margin: 28px 0 6px;
+}
+#site-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 16px;
+}
+#site-list a {
+  display: block;
+  padding: 3px 4px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#site-list a:hover,
+#site-list a:focus {
+  background: var(--panel);
+  outline: none;
+}
+#site-list .host {
+  color: var(--muted);
+}
+
+footer {
+  margin-top: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
