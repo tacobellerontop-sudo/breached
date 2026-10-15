@@ -1,41 +1,120 @@
-/* Breached minimal UI for the M0 settings pack.
+/* Breached minimal UI for the M0 settings pack, styled after qutebrowser.
    Copied into each Firefox profile's chrome folder by install.ps1.
-   Only hides clutter and tightens spacing; the fully custom UI comes with
-   our own build (docs/PLAN.md section 4.6). */
 
-/* Buttons for services and features Breached turns off */
+   - Thin, numbered, text-first tab bar; no other chrome on screen.
+   - The address bar stays hidden until you need it: Ctrl+L (or F6) shows it,
+     and so does hovering the tab bar. Vimium's "o" opens a command-style
+     address box instead, like qutebrowser's ":open".
+   - Monospace everywhere, qutebrowser's default colours.
+
+   The full qutebrowser-style interface (bottom status bar, ":" command line)
+   comes with Breached's own app; see docs/PLAN.md section 4.6. */
+
+:root {
+  --breached-font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+  --breached-font-size: 12px;
+  --breached-bar-bg: #000;
+  --breached-fg: #fff;
+  --breached-tab-odd: #808080;
+  --breached-tab-even: #a9a9a9;
+  --breached-tab-selected: #000;
+  --breached-loading: #0000aa;
+  --breached-loaded: #00aa00;
+  --tab-min-height: 22px !important;
+  --tab-block-margin: 0 !important;
+  --tab-border-radius: 0 !important;
+  --toolbarbutton-outer-padding: 1px !important;
+  --toolbarbutton-inner-padding: 5px !important;
+}
+
+/* ---- Hide everything qutebrowser doesn't show ---- */
 #firefox-view-button,
 #fxa-toolbar-menu-button,
 #sidebar-button,
 #alltabs-button,
+#new-tab-button,
+#tabs-newtab-button,
 #save-to-pocket-button,
 #pageActionButton,
+.tab-close-button,
+.tab-secondary-label,
+#nav-bar toolbarspring,
 .titlebar-spacer[type="pre-tabs"],
 .titlebar-spacer[type="post-tabs"] {
   display: none !important;
 }
 
-/* Hide the empty space Firefox reserves around the address bar */
-#nav-bar toolbarspring {
-  display: none !important;
+/* ---- Tab bar ---- */
+#TabsToolbar {
+  background: var(--breached-bar-bg) !important;
+  font-family: var(--breached-font) !important;
+  font-size: var(--breached-font-size) !important;
 }
-
-/* Slimmer tabs and toolbars */
-:root {
-  --tab-min-height: 28px !important;
-  --tab-block-margin: 2px !important;
-  --toolbarbutton-outer-padding: 1px !important;
-  --toolbarbutton-inner-padding: 6px !important;
+#tabbrowser-arrowscrollbox {
+  counter-reset: breached-tab;
 }
-#TabsToolbar .tabbrowser-tab {
+.tabbrowser-tab {
   min-height: var(--tab-min-height) !important;
+  padding-inline: 0 !important;
+  counter-increment: breached-tab;
 }
-#nav-bar {
-  padding-block: 2px !important;
+.tabbrowser-tab .tab-background {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-inline-start: 3px solid var(--breached-loaded) !important;
 }
-
-/* Dim unloaded (sleeping) tabs so it's clear they will reload when clicked */
+.tabbrowser-tab:nth-child(odd of .tabbrowser-tab) .tab-background {
+  background: var(--breached-tab-odd) !important;
+}
+.tabbrowser-tab:nth-child(even of .tabbrowser-tab) .tab-background {
+  background: var(--breached-tab-even) !important;
+}
+.tabbrowser-tab[visuallyselected] .tab-background {
+  background: var(--breached-tab-selected) !important;
+}
+/* Load indicator stripe, like qutebrowser's tab indicator */
+.tabbrowser-tab[busy] .tab-background {
+  border-inline-start-color: var(--breached-loading) !important;
+}
+.tabbrowser-tab .tab-label {
+  color: var(--breached-fg) !important;
+}
+/* Tab numbers ("1: title"), as qutebrowser shows them */
+.tabbrowser-tab .tab-label-container::before {
+  content: counter(breached-tab) ": ";
+  color: var(--breached-fg);
+  padding-inline-end: 2px;
+  align-self: center;
+}
+/* Sleeping (unloaded) tabs are dimmed; they reload when clicked */
 .tabbrowser-tab[pending] .tab-label,
 .tabbrowser-tab[pending] .tab-icon-image {
   opacity: 0.55;
+}
+
+/* ---- Address bar: hidden until focused, hovered or a menu is open ---- */
+#nav-bar {
+  max-height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: var(--breached-bar-bg) !important;
+  font-family: var(--breached-font) !important;
+  font-size: var(--breached-font-size) !important;
+  transition: max-height 80ms ease-out;
+}
+#navigator-toolbox:focus-within #nav-bar,
+#navigator-toolbox:hover #nav-bar,
+#nav-bar:has([open]) {
+  max-height: 48px !important;
+  overflow: visible !important;
+}
+#urlbar,
+#urlbar-input,
+.urlbarView {
+  font-family: var(--breached-font) !important;
+}
+#urlbar-background {
+  border-radius: 0 !important;
 }

@@ -15,7 +15,7 @@ The goals map to the plan like this:
 | 3. "1 process" | Not possible on any modern engine, and not desirable (section 6). Instead: no idle pre-launched processes, a capped content process count, and an opt-in **Lean mode** that isolates only high-value sites. Tab unloading and ad blocking save far more memory than merging processes would. |
 | 4. Remove telemetry and vendor services | Telemetry, studies/experiments, sponsored content, Pocket/Suggest, AI chatbot features, Firefox Accounts/Sync, Safe Browsing and the crash reporter are off or compiled out. Only updates, certificate revocation and the extension blocklist stay. |
 | 5. Fewer helpers and background tasks | Compile out the default-browser agent, background update tasks and maintenance service; disable translation, ML, prefetch/speculative connections and other background features by default. |
-| 6. Custom, minimal UI | Breached's own compact interface: one slim toolbar, no buttons for services we removed, no sidebar strip or bookmarks bar by default (section 4.6). |
+| 6. Custom, minimal UI | Breached's own qutebrowser-style interface: numbered tab bar, bottom status bar, `:` command line and vim-style keys, no toolbar buttons (section 4.6). |
 
 The first usable version is a **config pack on top of stock Firefox** (no compiling), so LX can daily-drive it almost immediately. Our own branded build follows.
 
@@ -142,19 +142,21 @@ Breached is a standalone Windows app (`breached.exe`) with its own interface. No
 
 Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. **Decided (LX, 2026-10-15): reuse the backend, but only the parts we need.** Rewriting would not make the running app lighter: these modules are mostly JavaScript that loads on demand, and nearly all memory goes to Gecko and the pages themselves. To keep the app small anyway, the Breached app directory pulls in only the backend modules it uses and leaves the rest out of the build (Firefox View, accounts/sync, Pocket, studies, AI features, migration wizards, and similar).
 
-Interface direction:
-- **One slim toolbar row** with back, forward, reload, the address bar, uBlock Origin, Tab Sleeper and the menu. Tabs in a compact strip above it, or optionally vertical tabs.
-- **Nothing for services we removed:** no account button, Firefox View, sidebar launcher, Pocket or feature tours.
-- **Sleeping tabs look different** (dimmed) so it's clear they reload when clicked.
-- **Simple settings:** a short Breached settings page with the few choices that matter (Tab Sleeper timeout, Lean mode, search engine, theme), with advanced options behind it.
+Interface direction: **like qutebrowser** (LX, 2026-10-15). Keyboard first, almost no chrome:
+- **Thin, numbered tab bar** at the top (`1: title`), qutebrowser's grey/black colours and a load indicator stripe. No close or new-tab buttons.
+- **No toolbar.** A one-line **status bar** at the bottom shows the mode, URL, load progress, scroll position and tab number.
+- **`:` command line** in the status bar for everything (`:open`, `:tab-close`, `:set`), with completion. Settings are commands and a plain text config file, not a settings page.
+- **Vim-style keys** built in: `o` open, `f` link hints, `J`/`K` switch tabs, `d` close, `u` undo close, `H`/`L` back/forward, `/` find.
+- **Sleeping tabs dimmed**; uBlock Origin and Tab Sleeper reachable by command, with their popups on a key.
+- Monospace font, dark by default.
 
 Delivery:
-- **M0 (stopgap, done):** a settings pack and stylesheet applied to stock Firefox, so the lightweight setup is usable before our app exists.
+- **M0 (stopgap, done):** a settings pack and stylesheet applied to stock Firefox: qutebrowser-style numbered tab bar, address bar hidden until Ctrl+L, monospace, plus the Vimium extension for the keyboard controls (`o`, `f`, `J`/`K`...). The bottom status bar and `:` command line need our own app.
 - **M2 onwards:** the Breached app itself: our own application directory in the Gecko source tree (like Thunderbird's), our interface, branding and settings page, linked against the reused layers above.
 
 ## 5. Settings model
 
-- One settings page section, "Breached", with two toggles at the top: **Tab Sleeper** (and timeout) and **Lean mode** (section 6).
+- Following qutebrowser: settings are `:set` commands plus a plain text config file. The main ones: Tab Sleeper timeout and Lean mode (section 6).
 - Everything we change is in one readable autoconfig file in this repo, grouped by goal, with a comment per pref explaining why. Prefs that protect privacy are locked; prefs that trade convenience are defaults the user can change.
 
 ## 6. The "1 process" idea, candidly

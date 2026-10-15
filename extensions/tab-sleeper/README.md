@@ -12,7 +12,7 @@ Release Firefox only installs extensions signed by Mozilla, so Tab Sleeper needs
 
 1. Create API keys at https://addons.mozilla.org/developers/addon/api/key/ (needs a Firefox account, used only for this).
 2. Add them to this GitHub repository as secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`.
-3. Run the **Sign Tab Sleeper** workflow in the Actions tab, download `tab-sleeper.xpi` and save it as `dist\tab-sleeper.xpi`.
+3. Bump `version` in `manifest.json`, then run the **Sign Tab Sleeper** workflow in the Actions tab. It commits the signed file to `dist/tab-sleeper.xpi`.
 4. Run `scripts\windows\install.ps1`; it installs Tab Sleeper automatically when that file exists.
 
 To try it unsigned: open `about:debugging#/runtime/this-firefox`, choose "Load Temporary Add-on" and pick `manifest.json`. It stays until Firefox restarts.

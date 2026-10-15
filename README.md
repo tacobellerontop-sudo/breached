@@ -19,6 +19,8 @@ The first milestone turns a normal Firefox install into Breached's setup without
    Windows will ask for admin rights, because the files go into Firefox's install folder.
 4. Start Firefox. `about:policies` lists what Breached changed, and uBlock Origin installs itself on first start.
 
+It also installs Vimium for qutebrowser-style keys (`o` to open, `f` for link hints, `J`/`K` to switch tabs). The address bar hides until you press Ctrl+L or hover the tab bar.
+
 Options: `-Lean` for Lean mode (fewer processes, weaker isolation between ordinary sites, see PLAN.md section 6), `-NoUI` to keep Firefox's normal interface. Run the script again after any change, or if a Firefox update removes the files. `scripts\windows\uninstall.ps1` undoes everything and restores any files it replaced.
 
 Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox will install it: see [extensions/tab-sleeper/README.md](extensions/tab-sleeper/README.md). Until then, Firefox still unloads tabs when Windows runs low on memory, and "Unload Tab" is in the tab right-click menu.
@@ -28,7 +30,7 @@ Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox w
 | Path | What it is |
 |---|---|
 | `config/` | Firefox policies and preferences, commented by goal |
-| `ui/userChrome.css` | Minimal UI for the settings pack |
+| `ui/userChrome.css` | qutebrowser-style minimal UI for the settings pack |
 | `extensions/tab-sleeper/` | Idle tab unloader |
 | `scripts/windows/` | Install and uninstall |
 | `scripts/check-config.py` | Checks every pref and policy still exists in the current Firefox |

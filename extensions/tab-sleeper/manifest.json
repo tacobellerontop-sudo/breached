@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Tab Sleeper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unloads tabs you haven't looked at for a while to free memory. Part of Breached.",
   "browser_specific_settings": {
     "gecko": {

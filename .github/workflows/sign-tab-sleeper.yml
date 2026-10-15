@@ -4,9 +4,16 @@ name: Sign Tab Sleeper
 # Sleeper as an unlisted (self-distributed) add-on; it is not published on
 # addons.mozilla.org. Needs repository secrets AMO_JWT_ISSUER and AMO_JWT_SECRET
 # (API keys from https://addons.mozilla.org/developers/addon/api/key/).
+# Each run needs a new "version" in manifest.json. The signed file is committed
+# to dist/tab-sleeper.xpi on the branch it ran on, where install.ps1 finds it.
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: sign-tab-sleeper
 
 jobs:
   sign:
@@ -25,6 +32,13 @@ jobs:
           npx --yes web-ext@8 sign --channel unlisted --source-dir . \
             --ignore-files "test/**" "README.md" --artifacts-dir ../../dist
           mv ../../dist/*.xpi ../../dist/tab-sleeper.xpi
+      - name: Commit the signed file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/tab-sleeper.xpi
+          git commit -m "Add signed Tab Sleeper $(jq -r .version extensions/tab-sleeper/manifest.json)"
+          git push origin HEAD:${{ github.ref_name }}
       - uses: actions/upload-artifact@v4
         with:
           name: tab-sleeper-xpi
