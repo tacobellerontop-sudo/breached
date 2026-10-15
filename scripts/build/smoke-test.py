@@ -72,11 +72,20 @@ try:
         report["checks"]["tab-focus works"] = driver.execute_script(
             "return document.getElementById('breached-tabindex').textContent"
         ) == "[1/2]"
-        driver.execute_script("Breached.run('nonsense')")
-        report["checks"]["unknown command reported"] = "no such command" in driver.execute_script(
-            "return document.getElementById('breached-message').textContent"
+        layout = driver.execute_script(
+            """
+            let top = id => document.getElementById(id).getBoundingClientRect().top;
+            return { browser: top("browser"), tabs: top("TabsToolbar"), status: top("breached-statusbar") };
+            """
         )
+        report["layout"] = layout
+        report["checks"]["tabs at the bottom, above the status bar"] = (
+            layout["browser"] < layout["tabs"] < layout["status"]
+        )
+        driver.execute_script("Breached.run('help')")
         driver.save_screenshot(str(out / "3-tabs-and-message.png"))
+        remaining = driver.execute_script("Breached.run('close 2'); return gBrowser.tabs.length;")
+        report["checks"]["close closes a tab"] = remaining == 1
 
         report["errors"] = driver.execute_script(
             """

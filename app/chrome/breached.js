@@ -200,7 +200,12 @@ var Breached = {
     let [name, ...args] = text.split(/\s+/);
     let command = this.commands[this.aliases[name] ?? name];
     if (!command) {
-      this.showMessage(`${name}: no such command`, "error");
+      // Not a command: treat it as an address or a search, like ":open".
+      try {
+        openTrustedLinkIn(this.urlFor(text), "current");
+      } catch (e) {
+        this.showMessage(`${name}: no such command`, "error");
+      }
       return;
     }
     try {
@@ -239,7 +244,7 @@ var Breached = {
   aliases: {
     o: "open",
     O: "tabopen",
-    q: "close",
+    q: "quit",
     qa: "quit",
     d: "tab-close",
     u: "undo",
@@ -405,9 +410,9 @@ var Breached = {
       },
     },
     close: {
-      help: "close: close this window",
-      run() {
-        window.close();
+      help: "close [N]: close this tab (or tab N)",
+      run(args) {
+        this.commands["tab-close"].run.call(this, args);
       },
     },
     quit: {

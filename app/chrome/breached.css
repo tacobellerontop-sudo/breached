@@ -40,19 +40,31 @@
   display: none !important;
 }
 
-/* ---- Tab bar: thin, numbered, qutebrowser colours ---- */
+/* ---- Layout: page, then the tab bar, then the status bar, at the bottom.
+   The window uses the normal Windows title bar (browser.tabs.inTitlebar = 0). ---- */
+#browser {
+  order: 1;
+}
+#navigator-toolbox {
+  order: 2;
+  border: none !important;
+}
+#breached-statusbar {
+  order: 3;
+}
+.titlebar-buttonbox-container {
+  display: none !important;
+}
+
+/* ---- Tab bar: thin, qutebrowser colours ---- */
 #TabsToolbar {
   background: var(--breached-bar-bg) !important;
   font-family: var(--breached-font) !important;
   font-size: var(--breached-font-size) !important;
 }
-#tabbrowser-arrowscrollbox {
-  counter-reset: breached-tab;
-}
 .tabbrowser-tab {
   min-height: var(--tab-min-height) !important;
   padding-inline: 0 !important;
-  counter-increment: breached-tab;
 }
 .tabbrowser-tab .tab-background {
   margin: 0 !important;
@@ -75,16 +87,6 @@
 }
 .tabbrowser-tab .tab-label {
   color: var(--breached-fg) !important;
-}
-.tabbrowser-tab .tab-label-container {
-  flex-direction: row !important;
-  align-items: baseline !important;
-}
-.tabbrowser-tab .tab-label-container::before {
-  content: counter(breached-tab) ": ";
-  color: var(--breached-fg);
-  padding-inline-end: 2px;
-  flex-shrink: 0;
 }
 .tabbrowser-tab[pending] .tab-label,
 .tabbrowser-tab[pending] .tab-icon-image {
