@@ -11,6 +11,12 @@
     "NoDefaultBookmarks": true,
     "OverrideFirstRunPage": "",
     "OverridePostUpdatePage": "",
+    "NewTabPage": false,
+    "Homepage": {
+      "URL": "about:blank",
+      "StartPage": "previous-session",
+      "Locked": false
+    },
     "AIControls": {
       "Default": {
         "Value": "blocked",

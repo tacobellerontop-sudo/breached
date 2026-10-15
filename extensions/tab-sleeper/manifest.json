@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Tab Sleeper",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Unloads tabs you haven't looked at for a while to free memory. Part of Breached.",
   "browser_specific_settings": {
     "gecko": {
@@ -43,9 +43,21 @@
   "browser_action": {
     "default_title": "Tab Sleeper",
     "default_popup": "popup.html",
-    "default_area": "navbar"
+    "default_area": "navbar",
+    "default_icon": "icons/moon.svg",
+    "theme_icons": [
+      {
+        "light": "icons/moon-light.svg",
+        "dark": "icons/moon.svg",
+        "size": 16
+      }
+    ]
   },
   "options_ui": {
     "page": "options.html"
+  },
+  "icons": {
+    "48": "icons/moon.svg",
+    "96": "icons/moon.svg"
   }
 }

@@ -36,6 +36,7 @@
 #tabs-newtab-button,
 #save-to-pocket-button,
 #pageActionButton,
+#sidebar-main,
 .tab-close-button,
 .tab-secondary-label,
 #nav-bar toolbarspring,
@@ -71,7 +72,8 @@
 .tabbrowser-tab:nth-child(even of .tabbrowser-tab) .tab-background {
   background: var(--breached-tab-even) !important;
 }
-.tabbrowser-tab[visuallyselected] .tab-background {
+/* The id keeps this above the odd/even rules in specificity */
+#tabbrowser-tabs .tabbrowser-tab[visuallyselected] .tab-background {
   background: var(--breached-tab-selected) !important;
 }
 /* Load indicator stripe, like qutebrowser's tab indicator */
@@ -81,12 +83,17 @@
 .tabbrowser-tab .tab-label {
   color: var(--breached-fg) !important;
 }
-/* Tab numbers ("1: title"), as qutebrowser shows them */
+/* Tab numbers ("1: title"), as qutebrowser shows them. The label container
+   is a vertical box, so lay it out as a row to keep the number inline. */
+.tabbrowser-tab .tab-label-container {
+  flex-direction: row !important;
+  align-items: center !important;
+}
 .tabbrowser-tab .tab-label-container::before {
   content: counter(breached-tab) ": ";
   color: var(--breached-fg);
   padding-inline-end: 2px;
-  align-self: center;
+  flex-shrink: 0;
 }
 /* Sleeping (unloaded) tabs are dimmed; they reload when clicked */
 .tabbrowser-tab[pending] .tab-label,
