@@ -1,0 +1,4 @@
+# Firefox source the Breached app builds on (github.com/mozilla-firefox/firefox).
+# Bump both lines together when moving to a new Firefox release.
+version=158.0.1
+revision=7e92a9e429dab30b7166890a7e778e3d1dd4cbeb

@@ -1,0 +1,118 @@
+name: Build Breached (dev)
+
+# Builds the Breached app for Windows as a fast "artifact build": our interface
+# code is compiled locally and Mozilla's prebuilt engine binaries are reused.
+# Produces a portable zip, runs the smoke test, and publishes screenshots to
+# the ci-screenshots branch.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "app/**"
+      - "config/**"
+      - "scripts/build/**"
+      - ".github/workflows/build-dev.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      MOZILLABUILD: C:\mozilla-build\
+      MOZBUILD_STATE_PATH: C:\mozbuild
+    steps:
+      - name: Configure git for the Firefox checkout
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+
+      - uses: actions/checkout@v4
+        with:
+          path: breached
+
+      - name: Fetch Firefox source
+        shell: bash
+        run: |
+          rev=$(grep '^revision=' breached/app/firefox-source.txt | cut -d= -f2)
+          mkdir -p /c/src && cd /c/src
+          git init -q .
+          git remote add origin https://github.com/mozilla-firefox/firefox
+          git fetch -q --depth 50 origin "$rev"
+          git checkout -q FETCH_HEAD
+          git log -1 --format='%H %s'
+
+      - name: Install MozillaBuild
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe -OutFile $env:RUNNER_TEMP\mozillabuild.exe
+          Start-Process $env:RUNNER_TEMP\mozillabuild.exe -ArgumentList '/S' -Wait
+          Get-ChildItem C:\mozilla-build | Select-Object Name
+
+      - name: Apply Breached overlay
+        run: python breached/scripts/build/apply-overlay.py C:\src
+
+      - name: Bootstrap, build and package
+        shell: cmd
+        env:
+          MOZCONFIG: C:\src\mozconfig
+          MSYSTEM: MSYS
+          MSYS2_PATH_TYPE: inherit
+          CHERE_INVOKING: "1"
+        working-directory: C:\src
+        run: >-
+          C:\mozilla-build\msys2\usr\bin\bash.exe --login -eo pipefail -c
+          "./mach --no-interactive bootstrap --application-choice browser_artifact_mode
+          && ./mach build
+          && ./mach package"
+
+      - name: Assemble portable zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem C:\src\obj-breached\dist\*.zip | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
+          if (-not $zip) { Get-ChildItem C:\src\obj-breached\dist; throw 'no package zip found' }
+          Expand-Archive $zip.FullName -DestinationPath $env:RUNNER_TEMP\out
+          $app = "$env:RUNNER_TEMP\out\breached"
+          Rename-Item "$env:RUNNER_TEMP\out\firefox" breached
+          New-Item -ItemType Directory -Force "$app\distribution\extensions" | Out-Null
+          Copy-Item breached\dist\tab-sleeper.xpi "$app\distribution\extensions\tab-sleeper@breached.xpi"
+          Copy-Item breached\config\policies.json "$app\distribution\policies.json"
+          # Portable: keep the profile next to the app, separate from any Firefox install.
+          Set-Content "$app\Breached.bat" '@start "" "%~dp0firefox.exe" -profile "%~dp0profile" -no-remote %*' -Encoding ascii
+          Compress-Archive "$env:RUNNER_TEMP\out\breached" breached-dev-win64.zip
+          "APP_EXE=$app\firefox.exe" | Out-File $env:GITHUB_ENV -Append
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: breached-dev-win64
+          path: breached-dev-win64.zip
+
+      - name: Smoke test
+        id: smoke
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet selenium
+          python breached/scripts/build/smoke-test.py "$env:APP_EXE" screenshots
+
+      - name: Publish screenshots to the ci-screenshots branch
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p screenshots
+          cd screenshots
+          echo "Run ${{ github.run_id }} for ${{ github.sha }}" > RUN.txt
+          git init -q . && git checkout -q -b ci-screenshots
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Screenshots for ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-screenshots
+
+      - name: Fail if the smoke test failed
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1

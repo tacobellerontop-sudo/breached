@@ -1,0 +1,6 @@
+# Breached dev build: compiles only the interface (JavaScript/CSS) and reuses
+# Mozilla's prebuilt engine binaries ("artifact build"), so a build takes
+# minutes instead of hours. Release builds will compile everything.
+ac_add_options --enable-artifact-builds
+ac_add_options --with-branding=browser/branding/breached
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-breached
