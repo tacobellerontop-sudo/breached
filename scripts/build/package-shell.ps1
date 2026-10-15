@@ -2,6 +2,8 @@
 #
 #   pwsh scripts/build/package-shell.ps1 -Installer "Firefox Setup 158.0.1.exe" -Out out
 #
+# -Installer can also be the zip from our own Gecko build (build-gecko.yml).
+#
 # Takes the engine (xul.dll, the Gecko runtime files) out of the official
 # Firefox installer, drops Firefox's own front end (browser\) and its helper
 # programs, and adds the Breached shell from shell\. Result: <Out>\breached\
@@ -19,7 +21,10 @@ $app = Join-Path $Out 'breached'
 Remove-Item -Recurse -Force $extract, $app -ErrorAction SilentlyContinue
 & 7z x $Installer "-o$extract" -y | Out-Null
 if ($LASTEXITCODE) { throw "7z failed on $Installer" }
-Move-Item (Join-Path $extract 'core') $app
+# Mozilla's installer keeps the files in core\; our own Gecko build's zip in firefox\.
+$engine = @('core', 'firefox') | ForEach-Object { Join-Path $extract $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $engine) { throw "no engine folder in $Installer" }
+Move-Item $engine $app
 
 # Firefox's front end and the background helpers Breached doesn't use.
 $drop = @(

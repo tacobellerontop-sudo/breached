@@ -1,0 +1,10 @@
+# Breached's own Gecko build: the full engine compiled from source once per
+# Gecko release, then reused by every Breached build (build-gecko.yml).
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+ac_add_options --disable-crashreporter
+ac_add_options --disable-updater
+ac_add_options --disable-maintenance-service
+ac_add_options --disable-default-browser-agent
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-gecko

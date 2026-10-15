@@ -31,10 +31,23 @@ jobs:
       - name: Download Mozilla's Gecko (Firefox release build)
         shell: pwsh
         run: |
-          $version = (Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]
-          $url = "https://archive.mozilla.org/pub/firefox/releases/$version/win64/en-US/Firefox%20Setup%20$version.exe"
-          "Gecko $version from $url"
-          Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\gecko-setup.exe"
+          # The release named in app/firefox-source.txt, or else the newest
+          # Windows release of the same major version, or else the newest one.
+          $wanted = (Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]
+          $major = $wanted.Split('.')[0]
+          $releases = (Invoke-WebRequest https://archive.mozilla.org/pub/firefox/releases/).Links.href |
+            ForEach-Object { if ($_ -match '/releases/(\d+\.\d+(\.\d+)?)/$') { $Matches[1] } } |
+            Sort-Object -Descending { [version]($_ + ('.0' * (3 - $_.Split('.').Count))) }
+          $candidates = @($wanted) + @($releases | Where-Object { $_.Split('.')[0] -eq $major }) + @($releases | Select-Object -First 3)
+          foreach ($version in $candidates) {
+            $url = "https://archive.mozilla.org/pub/firefox/releases/$version/win64/en-US/Firefox%20Setup%20$version.exe"
+            try {
+              Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\gecko-setup.exe"
+              "Gecko $version (wanted $wanted) from $url"
+              exit 0
+            } catch { "No Windows build at $url" }
+          }
+          throw 'no Gecko download found'
 
       - name: Package Breached
         shell: pwsh

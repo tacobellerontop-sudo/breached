@@ -1,0 +1,90 @@
+name: Build Gecko
+
+# Compiles the whole Gecko engine from source for Windows, once per Gecko
+# release (app/firefox-source.txt). The result is uploaded as the
+# gecko-win64-<revision> artifact so Breached builds can reuse it instead of
+# compiling again. Takes hours; run it when the Gecko release changes.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "gecko/mozconfig"
+      - ".github/workflows/build-gecko.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-gecko
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 355
+    env:
+      MOZILLABUILD: C:\mozilla-build\
+      MOZBUILD_STATE_PATH: C:\mozbuild
+    steps:
+      - name: Configure git for the Gecko checkout
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.longpaths true
+
+      - uses: actions/checkout@v4
+        with:
+          path: breached
+
+      - name: Free disk space check
+        shell: pwsh
+        run: Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}}
+
+      - name: Fetch Gecko source
+        shell: bash
+        run: |
+          rev=$(grep '^revision=' breached/app/firefox-source.txt | cut -d= -f2)
+          echo "GECKO_REV=$rev" >> "$GITHUB_ENV"
+          mkdir -p /c/src && cd /c/src
+          git init -q .
+          git remote add origin https://github.com/mozilla-firefox/firefox
+          git fetch -q --depth 1 origin "$rev"
+          git checkout -q FETCH_HEAD
+          git log -1 --format='%H %s'
+          cp "$GITHUB_WORKSPACE/breached/gecko/mozconfig" mozconfig
+
+      - name: Install MozillaBuild
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe -OutFile $env:RUNNER_TEMP\mozillabuild.exe
+          Start-Process $env:RUNNER_TEMP\mozillabuild.exe -ArgumentList '/S' -Wait
+
+      - name: Bootstrap, compile and package
+        shell: cmd
+        env:
+          MOZCONFIG: C:\src\mozconfig
+          MSYSTEM: MSYS
+          MSYS2_PATH_TYPE: inherit
+          CHERE_INVOKING: "1"
+        working-directory: C:\src
+        run: >-
+          C:\mozilla-build\msys2\usr\bin\bash.exe --login -eo pipefail -c
+          "./mach --no-interactive bootstrap --application-choice browser
+          && ./mach build
+          && ./mach package"
+
+      - name: Collect the engine zip
+        if: always()
+        shell: pwsh
+        run: |
+          Get-PSDrive C | Select-Object Name, @{n='FreeGB';e={[int]($_.Free/1GB)}}
+          $zip = Get-ChildItem C:\src\obj-gecko\dist\*.zip -ErrorAction SilentlyContinue | Where-Object Name -match 'win64\.zip$' | Select-Object -First 1
+          if (-not $zip) { Get-ChildItem C:\src\obj-gecko\dist -ErrorAction SilentlyContinue; throw 'no package zip found' }
+          Copy-Item $zip.FullName gecko-win64.zip
+          "{0:N0} MB" -f ((Get-Item gecko-win64.zip).Length / 1MB)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gecko-win64-${{ env.GECKO_REV }}
+          path: gecko-win64.zip
+          retention-days: 90
