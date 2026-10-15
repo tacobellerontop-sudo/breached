@@ -12,6 +12,7 @@ from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 
 binary, out = sys.argv[1], Path(sys.argv[2])
 out.mkdir(parents=True, exist_ok=True)
@@ -19,11 +20,11 @@ out.mkdir(parents=True, exist_ok=True)
 options = Options()
 options.binary_location = binary
 options.add_argument("-headless")
-options.add_argument("-remote-allow-system-access")  # needed for chrome-context checks
 options.set_preference("remote.prefs.recommended", True)
 
 report = {"checks": {}}
-driver = webdriver.Firefox(options=options)
+# Chrome-context checks need system access, which only geckodriver can grant.
+driver = webdriver.Firefox(options=options, service=Service(service_args=["--allow-system-access"]))
 driver.set_window_size(1280, 800)
 try:
     driver.get("https://example.com/")

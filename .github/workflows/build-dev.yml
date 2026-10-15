@@ -7,6 +7,11 @@ name: Build Breached (dev)
 
 on:
   workflow_dispatch:
+    inputs:
+      reuse_run_id:
+        description: "Skip the build and smoke-test the zip from this earlier run"
+        required: false
+        default: ""
   push:
     paths:
       - "app/**"
@@ -23,6 +28,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !inputs.reuse_run_id }}
     runs-on: windows-latest
     timeout-minutes: 150
     env:
@@ -93,6 +99,29 @@ jobs:
         with:
           name: breached-dev-win64
           path: breached-dev-win64.zip
+
+
+  smoke:
+    needs: build
+    if: ${{ always() && (needs.build.result == 'success' || inputs.reuse_run_id) }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: breached
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: breached-dev-win64
+          run-id: ${{ inputs.reuse_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Unpack
+        shell: pwsh
+        run: |
+          Expand-Archive breached-dev-win64.zip -DestinationPath $env:RUNNER_TEMP\out
+          "APP_EXE=$env:RUNNER_TEMP\out\breached\firefox.exe" | Out-File $env:GITHUB_ENV -Append
 
       - name: Smoke test
         id: smoke
