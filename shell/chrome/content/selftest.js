@@ -451,7 +451,7 @@ var SelfTest = {
     await this.screenshot(outDir, "11-mods.png");
     let click = el => {
       let r = el.getBoundingClientRect();
-      let win = el.ownerGlobal;
+      let win = el.ownerDocument.defaultView;
       win.synthesizeMouseEvent("mousedown", r.left + 5, r.top + 5, { button: 0, buttons: 1, clickCount: 1 });
       win.synthesizeMouseEvent("mouseup", r.left + 5, r.top + 5, { button: 0, buttons: 0, clickCount: 1 });
     };
