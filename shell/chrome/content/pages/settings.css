@@ -82,3 +82,7 @@ input[type="range"] {
   accent-color: var(--accent);
   flex: 1;
 }
+
+.row.mod-setting {
+  padding-left: 16px;
+}

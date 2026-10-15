@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Downloads</title>
+  <link rel="stylesheet" href="chrome://breached/content/pages/pages.css" />
+  <link rel="stylesheet" href="chrome://breached/content/pages/list.css" />
+  <script src="chrome://breached/content/pages/theme.js"></script>
+  <script src="chrome://breached/content/pages/common.js"></script>
+  <script src="chrome://breached/content/pages/downloads.js"></script>
+</head>
+<body>
+  <main>
+    <h1>downloads</h1>
+    <div class="toolbar">
+      <span id="folder" class="muted"></span>
+      <span style="flex: 1"></span>
+      <button id="open-folder">open downloads folder</button>
+      <button id="clear-finished">clear list</button>
+    </div>
+    <ul id="list" class="items"></ul>
+    <p id="empty" class="empty" hidden="hidden">No downloads yet.</p>
+  </main>
+</body>
+</html>

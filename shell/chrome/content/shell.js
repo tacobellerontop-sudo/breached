@@ -29,18 +29,23 @@ const BREACHED_VERSION = "0.3.0";
 const PAGES = {
   "breached:home": "chrome://breached/content/pages/home.html",
   "breached:settings": "chrome://breached/content/pages/settings.html",
+  "breached:history": "chrome://breached/content/pages/history.html",
+  "breached:downloads": "chrome://breached/content/pages/downloads.html",
+  "breached:extensions": "chrome://breached/content/pages/extensions.html",
 };
 
 /** The address to load for a breached: page, or the address itself. */
 function realURL(url) {
-  return PAGES[url] ?? url;
+  let [page, hash] = url.split("#", 2);
+  return PAGES[page] ? PAGES[page] + (hash ? "#" + hash : "") : url;
 }
 
 /** The breached: name for one of our pages, or the address itself. */
 function displayURL(spec) {
+  let [page, hash] = spec.split("#", 2);
   for (let [name, real] of Object.entries(PAGES)) {
-    if (spec == real) {
-      return name;
+    if (page == real) {
+      return name + (hash ? "#" + hash : "");
     }
   }
   return spec;
@@ -184,6 +189,7 @@ var Breached = {
     window.addEventListener("unload", this);
     Keys.install();
     Downloads.watch();
+    ModHost.init();
 
     let restored = this.pref("restoreSession", true) && this.restoreSession();
     let urls = this.commandLineURLs();
@@ -216,14 +222,24 @@ var Breached = {
     }
   },
 
-  /** Shows the settings page, reusing an open one. */
-  openSettings() {
-    let tab = this.tabs.find(t => t.url == "breached:settings");
-    if (tab) {
-      this.selectTab(tab);
-    } else {
-      this.openTab("breached:settings", { afterCurrent: true });
+  /** Shows one of our pages (breached:<name>), reusing an open one. */
+  openPage(name, hash = "") {
+    let page = "breached:" + name;
+    let url = hash ? page + "#" + hash : page;
+    let tab = this.tabs.find(t => t.url?.split("#")[0] == page);
+    if (!tab) {
+      return this.openTab(url, { afterCurrent: true });
     }
+    this.selectTab(tab);
+    if (hash && tab.url != url) {
+      tab.url = url;
+      this.load(tab.browser, url);
+    }
+    return tab;
+  },
+
+  openSettings(hash) {
+    return this.openPage("settings", hash);
   },
 
   /** URLs passed on the command line ("breached.bat https://...") */
@@ -251,6 +267,7 @@ var Breached = {
     clearInterval(this._unloadTimer);
     Services.prefs.removeObserver(PREF, this);
     Downloads.unwatch();
+    ModHost.uninit();
     this.saveSessionNow();
   },
 
@@ -321,6 +338,8 @@ var Breached = {
     if (topic == "nsPref:changed") {
       if (data.startsWith(PREF + "colors.") || data.startsWith(PREF + "transparency")) {
         this.applyTheme();
+      } else if (data.startsWith(PREF + "mods.")) {
+        // mods.js watches these
       } else {
         this.applyLayout();
       }
@@ -781,6 +800,29 @@ var Breached = {
 
   // -------------------------------------------------------------- command bar
 
+  /**
+   * Asks for one line of text in the command bar, e.g. a password.
+   * Resolves to the text, or null if cancelled. Never stored in the history.
+   */
+  prompt(label, { password = false } = {}) {
+    this._promptResolve?.(null);
+    return new Promise(resolve => {
+      this._promptResolve = resolve;
+      this.openCommandLine("");
+      document.getElementById("prompt").textContent = label;
+      this.$commandline.type = password ? "password" : "text";
+      document.getElementById("completion").textContent = "";
+    });
+  },
+
+  _endPrompt(value) {
+    let resolve = this._promptResolve;
+    this._promptResolve = null;
+    document.getElementById("prompt").textContent = ":";
+    this.$commandline.type = "text";
+    resolve?.(value);
+  },
+
   openCommandLine(text = "") {
     let input = this.$commandline;
     this.$commandbar.hidden = false;
@@ -794,6 +836,9 @@ var Breached = {
   },
 
   closeCommandLine() {
+    if (this._promptResolve) {
+      this._endPrompt(null);
+    }
     this.$commandbar.hidden = true;
     document.documentElement.removeAttribute("commandbar-open");
     this.$commandline.value = "";
@@ -807,6 +852,13 @@ var Breached = {
         this.closeCommandLine();
         break;
       case "Enter": {
+        if (this._promptResolve) {
+          let value = input.value;
+          input.value = "";
+          this._endPrompt(value);
+          this.closeCommandLine();
+          break;
+        }
         let text = input.value.trim();
         this.closeCommandLine();
         if (text) {
@@ -819,6 +871,9 @@ var Breached = {
       }
       case "ArrowUp":
       case "ArrowDown": {
+        if (this._promptResolve) {
+          break;
+        }
         let step = event.key == "ArrowUp" ? 1 : -1;
         let i = Math.max(-1, Math.min(this.history.length - 1, this.historyIndex + step));
         this.historyIndex = i;
@@ -826,6 +881,9 @@ var Breached = {
         break;
       }
       case "Tab": {
+        if (this._promptResolve) {
+          break;
+        }
         let matches = this.completions(input.value);
         if (matches.length) {
           input.value = matches[0] + " ";
@@ -856,6 +914,9 @@ var Breached = {
   },
 
   updateCompletion() {
+    if (this._promptResolve) {
+      return;
+    }
     let text = this.$commandline.value;
     let el = document.getElementById("completion");
     if (!text || text.includes(" ")) {
@@ -1247,6 +1308,8 @@ var Keys = {
     ["VK_F11", "", () => Breached.run("fullscreen")],
     ["q", "accel", () => Breached.run("quit")],
     [",", "accel", () => Breached.openSettings()],
+    ["h", "accel", () => Breached.openPage("history")],
+    ["j", "accel", () => Breached.openPage("downloads")],
     ...[1, 2, 3, 4, 5, 6, 7, 8].map(n => [String(n), "accel", () => Breached.run(`tab-focus ${n}`)]),
     ["9", "accel", () => Breached.run("tab-focus -1")],
   ],
@@ -1255,22 +1318,36 @@ var Keys = {
     let keyset = document.createXULElement("keyset");
     keyset.id = "breached-keys";
     for (let [key, modifiers, command] of this.bindings) {
-      let el = document.createXULElement("key");
-      el.setAttribute(key.startsWith("VK_") ? "keycode" : "key", key);
-      if (modifiers) {
-        el.setAttribute("modifiers", modifiers);
-      }
-      el.setAttribute("reserved", "true");
-      el.addEventListener("command", () => {
-        try {
-          command();
-        } catch (e) {
-          console.error(e);
-        }
-      });
-      keyset.append(el);
+      keyset.append(this.create(key, modifiers, command));
     }
     document.documentElement.append(keyset);
+  },
+
+  /** Adds a shortcut later on (mods). Returns an element to remove() to drop it. */
+  add(key, modifiers, command) {
+    // Gecko reads a keyset when it is inserted, so each later shortcut gets
+    // its own keyset.
+    let keyset = document.createXULElement("keyset");
+    keyset.append(this.create(key, modifiers, command));
+    document.documentElement.append(keyset);
+    return keyset;
+  },
+
+  create(key, modifiers, command) {
+    let el = document.createXULElement("key");
+    el.setAttribute(key.startsWith("VK_") ? "keycode" : "key", key);
+    if (modifiers) {
+      el.setAttribute("modifiers", modifiers);
+    }
+    el.setAttribute("reserved", "true");
+    el.addEventListener("command", () => {
+      try {
+        command();
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    return el;
   },
 };
 
@@ -1556,6 +1633,30 @@ var Commands = {
     usage: "settings  (open the settings page)",
     run() {
       Breached.openSettings();
+    },
+  },
+  history: {
+    usage: "history  (open the history page)",
+    run() {
+      Breached.openPage("history");
+    },
+  },
+  downloads: {
+    usage: "downloads  (open the download manager)",
+    run() {
+      Breached.openPage("downloads");
+    },
+  },
+  extensions: {
+    usage: "extensions  (open the extensions page)",
+    run() {
+      Breached.openPage("extensions");
+    },
+  },
+  mods: {
+    usage: "mods  (install or remove mods, in settings)",
+    run() {
+      Breached.openSettings("mods");
     },
   },
   version: {

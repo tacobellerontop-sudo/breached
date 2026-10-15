@@ -4,6 +4,7 @@
 "use strict";
 
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
+const { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
 
 const SEARCH_ENGINES = [
   ["https://duckduckgo.com/?q=%s", "DuckDuckGo"],
@@ -195,12 +196,21 @@ const SECTIONS = [
     ],
   },
   {
+    title: "extensions",
+    items: [{ id: "extensions", type: "extensions" }],
+  },
+  {
+    title: "mods",
+    items: [{ id: "mods", type: "mods" }],
+  },
+  {
     title: "about",
     items: [{ id: "about", type: "about" }],
   },
 ];
 
 const P = Services.prefs;
+const shell = () => window.browsingContext.topChromeWindow?.Breached;
 
 function read(pref) {
   switch (P.getPrefType(pref)) {
@@ -472,6 +482,110 @@ const BUILD = {
     return el("div", { class: "row" }, labelBlock(item), control);
   },
 
+  extensions() {
+    let open = el("button", { type: "button", id: "open-extensions" }, "Manage extensions");
+    open.addEventListener("click", () => shell()?.openPage("extensions"));
+    return el(
+      "div",
+      { class: "row" },
+      el(
+        "div",
+        { class: "label" },
+        "Firefox extensions, such as uBlock Origin",
+        el("span", { class: "hint muted" }, "Install from addons.mozilla.org or from a file.")
+      ),
+      el("div", { class: "control inline" }, open)
+    );
+  },
+
+  mods(item) {
+    let wrap = el("div", { id: "mods-list" });
+    let render = async () => {
+      let mods = await Mods.list();
+      let rows = [];
+      for (let mod of mods) {
+        let id = "mod-" + mod.id;
+        let button = el(
+          "button",
+          { type: "button", id: id + "-toggle" },
+          mod.installed ? "Remove" : "Install"
+        );
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            await (mod.installed ? Mods.uninstall(mod.id) : Mods.install(mod.id));
+          } catch (e) {
+            button.disabled = false;
+            say(e.message, true);
+          }
+        });
+        let title = `${mod.name}${mod.version ? " " + mod.version : ""}`;
+        let row = el(
+          "div",
+          { class: "row mod", id, "data-installed": mod.installed },
+          labelBlock({ label: title, hint: mod.description }),
+          el("div", { class: "control inline" }, mod.installed ? el("span", { class: "note" }, "installed") : null, button)
+        );
+        rows.push(row);
+        if (mod.installed) {
+          for (let setting of mod.settings) {
+            if (!/^breached\.mods\./.test(setting.pref ?? "")) {
+              continue; // mods only get their own settings
+            }
+            let settingId = "setting-" + setting.pref.replace(/\W/g, "-");
+            let type = setting.type == "bool" ? "bool" : "text";
+            let r = BUILD[type](setting, settingId);
+            r.classList.add("mod-setting");
+            rows.push(r);
+          }
+        }
+      }
+      if (!mods.length) {
+        rows.push(el("p", { class: "muted" }, "No mods yet."));
+      }
+      wrap.replaceChildren(...rows);
+    };
+    let add = el("button", { type: "button", id: "mod-add" }, "Add a mod from a folder…");
+    add.addEventListener("click", () => {
+      let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+      fp.init(window.browsingContext, "Choose a mod folder", Ci.nsIFilePicker.modeGetFolder);
+      fp.open(async result => {
+        if (result == Ci.nsIFilePicker.returnOK && fp.file) {
+          try {
+            let mod = await Mods.installFromFolder(fp.file.path);
+            say(`${mod.name} installed`);
+          } catch (e) {
+            say(e.message, true);
+          }
+        }
+      });
+    });
+    let addControl = el("div", { class: "control" }, add);
+    let say = note(addControl);
+    let observer = () => render();
+    P.addObserver("breached.mods.installed", observer);
+    window.addEventListener("unload", () => P.removeObserver("breached.mods.installed", observer));
+    render();
+    return el(
+      "div",
+      {},
+      el(
+        "p",
+        { class: "hint muted" },
+        "Mods add optional features to Breached. They run with the browser's full access, so only add mods you trust."
+      ),
+      wrap,
+      el("div", { class: "row" }, el("div", {}), addControl)
+    );
+  },
+
+  text(item, id) {
+    let input = el("input", { type: "text", id, spellcheck: false, placeholder: item.placeholder ?? "" });
+    input.value = read(item.pref) ?? "";
+    input.addEventListener("change", () => write(item.pref, input.value.trim()));
+    return el("div", { class: "row" }, labelBlock(item, id), el("div", { class: "control" }, input));
+  },
+
   about() {
     let version = window.browsingContext.topChromeWindow?.Breached?.version ?? "";
     let profile = Services.dirsvc.get("ProfD", Ci.nsIFile);
@@ -500,7 +614,7 @@ const BUILD = {
 window.addEventListener("DOMContentLoaded", () => {
   let root = document.getElementById("sections");
   for (let section of SECTIONS) {
-    let s = el("section", {}, el("h2", {}, section.title));
+    let s = el("section", { id: section.title.replace(/\W+/g, "-") }, el("h2", {}, section.title));
     for (let item of section.items) {
       let id = "setting-" + (item.pref ?? item.id).replace(/\W/g, "-");
       let row = BUILD[item.type](item, id);
@@ -511,5 +625,8 @@ window.addEventListener("DOMContentLoaded", () => {
       s.append(row);
     }
     root.append(s);
+  }
+  if (location.hash) {
+    document.getElementById(location.hash.slice(1))?.scrollIntoView();
   }
 });

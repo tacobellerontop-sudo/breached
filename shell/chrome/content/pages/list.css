@@ -1,0 +1,107 @@
+/* History, downloads and extensions: a title, a toolbar and a list. */
+
+main {
+  width: min(900px, 94vw);
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: normal;
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0;
+}
+.toolbar input[type="search"],
+.toolbar input[type="text"] {
+  flex: 1;
+}
+
+h2.group {
+  font-size: 14px;
+  font-weight: normal;
+  color: var(--accent);
+  margin: 20px 0 4px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 4px;
+}
+
+ul.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+ul.items > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px;
+  min-height: 24px;
+}
+ul.items > li:hover,
+ul.items > li:focus-within {
+  background: var(--panel);
+}
+.items .time {
+  color: var(--muted);
+  flex: none;
+  width: 5ch;
+}
+.items .main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.items .main a {
+  text-decoration: none;
+}
+.items .main a:hover {
+  text-decoration: underline;
+}
+.items .sub {
+  color: var(--muted);
+}
+.items .actions {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+.items .actions button {
+  padding: 0 6px;
+}
+.items .state.error {
+  color: var(--error);
+}
+.items .state.done {
+  color: var(--accent);
+}
+
+progress {
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border: none;
+  background: var(--line);
+  display: block;
+  margin-top: 2px;
+}
+progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+.empty {
+  color: var(--muted);
+  margin-top: 24px;
+}
+button.armed {
+  border-color: var(--error);
+  color: var(--error);
+}
