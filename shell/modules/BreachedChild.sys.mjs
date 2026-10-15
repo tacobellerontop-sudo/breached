@@ -12,6 +12,14 @@ const TEXT_INPUT_TYPES = new Set([
 ]);
 
 export class BreachedChild extends JSWindowActorChild {
+  receiveMessage(message) {
+    // Lets the window check this helper is running in a page.
+    if (message.name == "Breached:Ping") {
+      return "pong";
+    }
+    return undefined;
+  }
+
   handleEvent(event) {
     if (!event.isTrusted || event.defaultPrevented) {
       return;

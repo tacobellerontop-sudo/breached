@@ -90,6 +90,18 @@ var SelfTest = {
     // 2. ":" typed on the page opens the command bar at the bottom
     B.selectedBrowser.focus();
     await wait(300);
+    report.info.focus = {
+      element: Services.focus.focusedElement?.localName ?? null,
+      windowActive: Services.focus.activeWindow === window,
+      hasFocus: document.hasFocus(),
+    };
+    try {
+      report.info.pageHelper = await B.selectedBrowser.browsingContext.currentWindowGlobal
+        .getActor("Breached")
+        .sendQuery("Breached:Ping");
+    } catch (e) {
+      report.info.pageHelper = String(e);
+    }
     press(":", "Semicolon", KeyboardEvent.DOM_VK_SEMICOLON, ["Shift"]);
     let opened = await waitFor(() => !$("commandbar").hidden, 5000);
     check("':' on a page opens the command bar", opened);
