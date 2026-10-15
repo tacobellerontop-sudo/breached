@@ -1,15 +1,17 @@
-/* Breached's own pages (home, settings): qutebrowser's black and grey. */
+/* Breached's own pages (home, settings), in the browser's colours. */
 
 :root {
   --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
-  --bg: #000;
-  --panel: #111;
-  --line: #333;
+  /* --bar-bg, --fg, --accent and --error come from the colour settings
+     (theme.js); the rest is mixed from them. */
+  --bar-bg: #000;
   --fg: #fff;
-  --muted: #a9a9a9;
   --accent: #00aa00;
   --error: #ff4444;
-  color-scheme: dark;
+  --bg: var(--bar-bg);
+  --panel: color-mix(in srgb, var(--bar-bg) 92%, var(--fg));
+  --line: color-mix(in srgb, var(--bar-bg) 78%, var(--fg));
+  --muted: color-mix(in srgb, var(--fg) 65%, var(--bar-bg));
   background: var(--bg);
   color: var(--fg);
   font: 13px/1.5 var(--font);

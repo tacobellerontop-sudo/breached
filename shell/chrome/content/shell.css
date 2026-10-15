@@ -1,4 +1,5 @@
-/* Breached window, styled after qutebrowser's defaults. */
+/* Breached window, styled after qutebrowser's defaults. The colours are
+   settings (breached.colors.*); shell.js sets these variables from them. */
 
 :root {
   --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
@@ -8,16 +9,138 @@
   --tab-odd: #808080;
   --tab-even: #a9a9a9;
   --tab-selected: #000;
-  --tab-asleep-fg: #ccc;
+  --tab-selected-fg: #fff;
+  --accent: #00aa00;
   --loading: #0000aa;
   --loaded: #00aa00;
   --error: #ff0000;
   --tab-height: 20px;
+  --titlebar-height: 30px;
+  /* How much of each bar colour shows; below 100% only with transparency. */
+  --bar-opacity: 100%;
 
   height: 100%;
-  background: #000;
+  background: var(--bar-bg);
   color: var(--fg);
   font: var(--font-size) var(--font);
+}
+
+/* ---- See-through bars (Windows 11 Mica / Acrylic) ---- */
+@media (-moz-windows-mica) {
+  :root[transparency] {
+    --bar-opacity: var(--transparency-opacity, 60%);
+    background: transparent;
+  }
+}
+.bar-surface,
+#titlebar,
+#tabbar,
+#bottom {
+  background: color-mix(in srgb, var(--bar-bg) var(--bar-opacity), transparent);
+}
+
+/* ---- Title bar (replaces the Windows one) ---- */
+#titlebar {
+  order: 0;
+  flex: none;
+  display: none;
+  height: var(--titlebar-height);
+  align-items: stretch;
+  -moz-window-dragging: drag;
+  user-select: none;
+}
+:root[customtitlebar] #titlebar {
+  display: flex;
+}
+:root[sizemode="fullscreen"] #titlebar,
+:root[inDOMFullscreen] #titlebar {
+  display: none;
+}
+#titlebar-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding-inline-start: 8px;
+}
+#titlebar-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:root:-moz-window-inactive #titlebar-title {
+  opacity: 0.6;
+}
+/* Tabs on top share the title bar's row. */
+#titlebar-content > #tabbar {
+  flex: 1;
+  align-self: stretch;
+  height: auto;
+  margin-inline-start: -8px;
+  background: transparent;
+}
+#titlebar-content > #tabbar ~ #titlebar-title,
+#titlebar-content:has(> #tabbar) #titlebar-title {
+  display: none;
+}
+#titlebar-content > #tabbar .tab {
+  -moz-window-dragging: no-drag;
+  max-width: 220px;
+}
+#titlebar-buttons {
+  display: flex;
+  -moz-window-dragging: no-drag;
+}
+.titlebar-button {
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0 17px;
+  background: transparent;
+  color: var(--fg);
+  /* Windows' own caption glyphs (Windows 11 / Windows 10). */
+  font: 10px "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  -moz-window-dragging: no-drag;
+}
+.titlebar-button:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+.titlebar-button:hover:active {
+  background: color-mix(in srgb, var(--fg) 25%, transparent);
+}
+#titlebar-close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+/* -moz-default-appearance lets Windows 11 show snap layouts on maximize. */
+#titlebar-min {
+  -moz-default-appearance: -moz-window-button-minimize;
+}
+#titlebar-min::before {
+  content: "\e921";
+}
+#titlebar-max {
+  -moz-default-appearance: -moz-window-button-maximize;
+}
+#titlebar-max::before {
+  content: "\e922";
+}
+#titlebar-restore {
+  -moz-default-appearance: -moz-window-button-restore;
+}
+#titlebar-restore::before {
+  content: "\e923";
+}
+#titlebar-close {
+  -moz-default-appearance: -moz-window-button-close;
+}
+#titlebar-close::before {
+  content: "\e8bb";
+}
+:root[sizemode="maximized"] #titlebar-max,
+:root:not([sizemode="maximized"]) #titlebar-restore {
+  display: none;
 }
 
 body {
@@ -34,7 +157,6 @@ body {
   display: flex;
   flex: none;
   height: var(--tab-height);
-  background: var(--bar-bg);
   overflow: hidden;
   user-select: none;
 }
@@ -61,6 +183,9 @@ body {
 :root[tabs-autohide][tabs-position="top"] #tabbar {
   top: 0;
 }
+:root[tabs-autohide][tabs-position="top"][customtitlebar]:not([sizemode="fullscreen"]) #tabbar {
+  top: var(--titlebar-height);
+}
 :root[tabs-autohide][tabs-position="bottom"] #tabbar {
   bottom: 0;
 }
@@ -85,20 +210,23 @@ body {
   cursor: default;
 }
 .tab:nth-child(odd) {
-  background: var(--tab-odd);
+  background: color-mix(in srgb, var(--tab-odd) var(--bar-opacity), transparent);
 }
 .tab:nth-child(even) {
-  background: var(--tab-even);
+  background: color-mix(in srgb, var(--tab-even) var(--bar-opacity), transparent);
 }
 .tab[selected] {
-  background: var(--tab-selected);
+  background: color-mix(in srgb, var(--tab-selected) var(--bar-opacity), transparent);
+  color: var(--tab-selected-fg);
 }
 .tab[busy] {
   border-inline-start-color: var(--loading);
 }
 .tab[asleep] {
-  color: var(--tab-asleep-fg);
   font-style: italic;
+}
+.tab[asleep] .tab-label {
+  opacity: 0.7;
 }
 .tab-icon {
   width: 14px;
@@ -140,7 +268,9 @@ body {
 /* ---- Bottom: messages and the ":" command bar ---- */
 #bottom {
   flex: none;
-  background: var(--bar-bg);
+}
+#prompt {
+  color: var(--accent);
 }
 #message,
 #commandbar {
@@ -170,13 +300,14 @@ body {
   font: inherit;
 }
 #completion {
-  color: #888;
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
   margin-inline-start: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* Page fullscreen (videos): only the page. */
+:root[inDOMFullscreen] #titlebar,
 :root[inDOMFullscreen] #tabbar,
 :root[inDOMFullscreen] #bottom {
   display: none;

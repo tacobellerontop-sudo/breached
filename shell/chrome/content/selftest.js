@@ -234,12 +234,79 @@ var SelfTest = {
     );
     tracking.value = "strict";
     tracking.dispatchEvent(new Event("change"));
+
+    // 7. Title bar, colours, transparency
+    let root = document.documentElement;
+    check("Breached's own title bar replaces the Windows one", root.hasAttribute("customtitlebar"));
+    check(
+      "the title bar sits at the top with window buttons",
+      rect("titlebar").top < 1 && rect("titlebar").height > 0 && rect("titlebar-close").width > 0
+    );
+    check("tabs on top share the title bar's row", $("tabbar").parentNode.id == "titlebar-content");
+    check("the title bar shows the page title", $("titlebar-title").textContent == document.title);
+    let rgb = hex => `rgb(${hex.slice(1).match(/../g).map(h => parseInt(h, 16)).join(", ")})`;
+    let preset = settingsDoc().getElementById("setting-color-preset");
+    check("settings: colours start as qutebrowser's", preset.value == "qutebrowser");
+    preset.value = "nord";
+    preset.dispatchEvent(new Event("change"));
+    await wait(200);
+    check(
+      "settings: a colour set recolours the window",
+      getComputedStyle($("titlebar")).backgroundColor == rgb("#2e3440")
+    );
+    check(
+      "settings: the settings page follows the colours",
+      settingsDoc().defaultView.getComputedStyle(settingsDoc().documentElement).backgroundColor == rgb("#2e3440")
+    );
+    await this.screenshot(outDir, "7-colors-nord-tabs-in-titlebar.png");
+    let accent = settingsDoc().getElementById("setting-color-accent");
+    accent.value = "#ff00ff";
+    accent.dispatchEvent(new Event("input"));
+    check(
+      "settings: one colour can be changed",
+      Services.prefs.getStringPref("breached.colors.accent") == "#ff00ff" && preset.value == ""
+    );
+    let see = settingsDoc().getElementById("setting-breached-transparency");
+    see.value = "acrylic";
+    see.dispatchEvent(new Event("change"));
+    check(
+      "settings: transparency turns on the Windows backdrop",
+      root.hasAttribute("transparency") &&
+        Services.prefs.getBoolPref("widget.windows.mica") &&
+        Services.prefs.getIntPref("widget.windows.mica.toplevel-backdrop") == 2
+    );
+    report.info.micaAvailable = window.matchMedia("(-moz-windows-mica)").matches;
+    let strength = settingsDoc().getElementById("setting-breached-transparency-opacity");
+    strength.value = "30";
+    strength.dispatchEvent(new Event("input"));
+    check("settings: bar colour strength applies", root.style.getPropertyValue("--transparency-opacity") == "30%");
+    await wait(300);
+    await this.screenshot(outDir, "8-transparency.png");
+    see.value = "off";
+    see.dispatchEvent(new Event("change"));
+    check(
+      "settings: transparency turns off",
+      !root.hasAttribute("transparency") && !Services.prefs.getBoolPref("widget.windows.mica")
+    );
+    let titlebarSetting = settingsDoc().getElementById("setting-breached-titlebar");
+    titlebarSetting.value = "native";
+    titlebarSetting.dispatchEvent(new Event("change"));
+    await wait(200);
+    check(
+      "settings: the Windows title bar can come back",
+      !root.hasAttribute("customtitlebar") && rect("titlebar").height == 0 && $("tabbar").parentNode == document.body
+    );
+    ChromeUtils.importESModule("resource://breached/Theme.sys.mjs").applyPreset("qutebrowser");
+    for (let p of ["titlebar", "transparency", "transparency.opacity"]) {
+      Services.prefs.clearUserPref("breached." + p);
+    }
+    await wait(200);
     B.run("close");
     B.run("set tabs.autohide true");
     await wait(2000);
     check(
       ":set tabs.autohide true hides the tab bar",
-      getComputedStyle($("tabbar")).visibility == "hidden" && rect("content").top < 1
+      getComputedStyle($("tabbar")).visibility == "hidden" && rect("content").top <= rect("titlebar").bottom + 1
     );
     B.run("tab-next");
     check("the hidden tab bar shows while switching", getComputedStyle($("tabbar")).visibility == "visible");

@@ -6,6 +6,7 @@
       xmlns="http://www.w3.org/1999/xhtml"
       xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       windowtype="breached:main"
+      windowsmica="true"
       width="1280" height="800"
       persist="screenX screenY width height sizemode">
 <head>
@@ -16,6 +17,17 @@
   <script src="chrome://breached/content/shell.js"></script>
 </head>
 <body>
+  <div id="titlebar">
+    <div id="titlebar-content">
+      <span id="titlebar-title">Breached</span>
+    </div>
+    <div id="titlebar-buttons">
+      <button id="titlebar-min" class="titlebar-button" title="Minimize" tabindex="-1"></button>
+      <button id="titlebar-max" class="titlebar-button" title="Maximize" tabindex="-1"></button>
+      <button id="titlebar-restore" class="titlebar-button" title="Restore" tabindex="-1"></button>
+      <button id="titlebar-close" class="titlebar-button" title="Close" tabindex="-1"></button>
+    </div>
+  </div>
   <div id="tabbar" role="tablist"></div>
   <div id="content"></div>
   <div id="bottom">

@@ -71,3 +71,14 @@ section h2 {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+input[type="color"] {
+  width: 64px;
+  height: 24px;
+  padding: 1px;
+  cursor: pointer;
+}
+input[type="range"] {
+  accent-color: var(--accent);
+  flex: 1;
+}

@@ -13,6 +13,24 @@ pref("breached.homepage", "breached:home");      // breached:home, about:blank o
 pref("breached.newTab", "home");                  // Ctrl+T opens "home" or the "commandbar"
 pref("breached.searchUrl", "https://duckduckgo.com/?q=%s");
 pref("breached.restoreSession", true);
+pref("breached.titlebar", "custom");             // "custom" (Breached's own) or "native" (Windows')
+
+// Colours (#rrggbb), qutebrowser's by default. Presets are on the settings page.
+pref("breached.colors.background", "#000000");
+pref("breached.colors.text", "#ffffff");
+pref("breached.colors.tab", "#808080");
+pref("breached.colors.tabAlt", "#a9a9a9");
+pref("breached.colors.tabSelected", "#000000");
+pref("breached.colors.tabSelectedText", "#ffffff");
+pref("breached.colors.accent", "#00aa00");
+pref("breached.colors.loading", "#0000aa");
+pref("breached.colors.loaded", "#00aa00");
+pref("breached.colors.error", "#ff0000");
+
+// See-through bars on Windows 11: "off", "mica" or "acrylic", and how much
+// of the bar colour covers the see-through backdrop (percent).
+pref("breached.transparency", "off");
+pref("breached.transparency.opacity", 60);
 
 // Content windows (window.open, target=_blank) open as tabs.
 pref("browser.link.open_newwindow", 3);

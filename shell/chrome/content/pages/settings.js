@@ -3,6 +3,8 @@
 
 "use strict";
 
+const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
+
 const SEARCH_ENGINES = [
   ["https://duckduckgo.com/?q=%s", "DuckDuckGo"],
   ["https://www.google.com/search?q=%s", "Google"],
@@ -45,6 +47,46 @@ const SECTIONS = [
         label: "Hide the tab bar",
         hint: "It shows for a moment when you switch tabs, and while the command bar is open.",
         type: "bool",
+      },
+      {
+        pref: "breached.titlebar",
+        label: "Title bar",
+        hint: "With Breached's own title bar, tabs on top share its row.",
+        type: "choice",
+        options: [
+          ["custom", "Breached's own"],
+          ["native", "Windows' standard one"],
+        ],
+      },
+    ],
+  },
+  {
+    title: "colours",
+    items: [{ id: "colors", type: "colors" }],
+  },
+  {
+    title: "transparency",
+    items: [
+      {
+        pref: "breached.transparency",
+        label: "See-through bars",
+        hint: "Lets your desktop show through the title bar, tabs and command bar. Needs Windows 11.",
+        type: "choice",
+        options: [
+          ["off", "Off"],
+          ["mica", "Mica: tinted by your wallpaper"],
+          ["acrylic", "Acrylic: blurred see-through"],
+        ],
+      },
+      {
+        pref: "breached.transparency.opacity",
+        label: "Bar colour strength",
+        hint: "Lower shows more of what's behind the window.",
+        type: "range",
+        min: 0,
+        max: 100,
+        step: 5,
+        unit: "%",
       },
     ],
   },
@@ -289,6 +331,73 @@ const BUILD = {
       say("");
     });
     return el("div", { class: "row" }, labelBlock(item, id), control);
+  },
+
+  range(item, id) {
+    let input = el("input", {
+      type: "range",
+      id,
+      min: item.min,
+      max: item.max,
+      step: item.step ?? 1,
+      value: read(item.pref),
+    });
+    let shown = el("span", { class: "muted" }, `${input.value}${item.unit ?? ""}`);
+    input.addEventListener("input", () => {
+      shown.textContent = `${input.value}${item.unit ?? ""}`;
+      write(item.pref, Number(input.value));
+    });
+    return el("div", { class: "row" }, labelBlock(item, id), el("div", { class: "control inline" }, input, shown));
+  },
+
+  colors() {
+    let wrap = el("div", {});
+    let preset = el("select", { id: "setting-color-preset" });
+    for (let [name, text] of Object.entries(Theme.PRESET_NAMES)) {
+      preset.append(el("option", { value: name }, text));
+    }
+    preset.append(el("option", { value: "" }, "Custom"));
+    let pickers = {};
+    let refresh = () => {
+      preset.value = Theme.currentPreset() ?? "";
+      for (let c of Theme.COLORS) {
+        pickers[c.name].value = Theme.getColor(c.name);
+      }
+    };
+    preset.addEventListener("change", () => {
+      if (preset.value) {
+        Theme.applyPreset(preset.value);
+        refresh();
+      }
+    });
+    wrap.append(
+      el(
+        "div",
+        { class: "row" },
+        labelBlock({ label: "Colour set", hint: "Pick a set, then change any colour below." }, preset.id),
+        el("div", { class: "control" }, preset)
+      )
+    );
+    for (let c of Theme.COLORS) {
+      let id = "setting-color-" + c.name;
+      let picker = el("input", { type: "color", id, value: Theme.getColor(c.name) });
+      picker.addEventListener("input", () => {
+        Theme.setColor(c.name, picker.value);
+        preset.value = Theme.currentPreset() ?? "";
+      });
+      pickers[c.name] = picker;
+      wrap.append(
+        el("div", { class: "row" }, labelBlock({ label: c.label }, id), el("div", { class: "control inline" }, picker))
+      );
+    }
+    let reset = el("button", { type: "button" }, "Reset to the default colours");
+    reset.addEventListener("click", () => {
+      Theme.applyPreset("qutebrowser");
+      refresh();
+    });
+    wrap.append(el("div", { class: "row" }, el("div", {}), el("div", { class: "control inline" }, reset)));
+    refresh();
+    return wrap;
   },
 
   tracking(item, id) {

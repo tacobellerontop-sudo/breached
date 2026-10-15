@@ -11,6 +11,7 @@
 const { E10SUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/E10SUtils.sys.mjs"
 );
+const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
 const { SessionHistory } = ChromeUtils.importESModule(
   "resource://gre/modules/sessionstore/SessionHistory.sys.mjs"
 );
@@ -169,7 +170,9 @@ var Breached = {
     registerActors();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
-    Services.prefs.addObserver(PREF + "tabs.", this);
+    Services.prefs.addObserver(PREF, this);
+    this.applyTheme();
+    this.initTitlebar();
 
     this.$tabbar.addEventListener("mousedown", this);
     this.$tabbar.addEventListener("auxclick", this);
@@ -246,7 +249,7 @@ var Breached = {
 
   uninit() {
     clearInterval(this._unloadTimer);
-    Services.prefs.removeObserver(PREF + "tabs.", this);
+    Services.prefs.removeObserver(PREF, this);
     Downloads.unwatch();
     this.saveSessionNow();
   },
@@ -256,13 +259,71 @@ var Breached = {
   applyLayout() {
     let root = document.documentElement;
     let position = this.pref("tabs.position", "bottom") == "top" ? "top" : "bottom";
+    let autohide = this.pref("tabs.autohide", false);
+    let custom = this.pref("titlebar", "custom") != "native";
     root.setAttribute("tabs-position", position);
-    root.toggleAttribute("tabs-autohide", this.pref("tabs.autohide", false));
+    root.toggleAttribute("tabs-autohide", autohide);
+    root.toggleAttribute("customtitlebar", custom);
+    // Tabs on top share the row with our title bar.
+    let titlebarRow = document.getElementById("titlebar-content");
+    let inTitlebar = custom && position == "top" && !autohide;
+    if (inTitlebar && this.$tabbar.parentNode != titlebarRow) {
+      titlebarRow.prepend(this.$tabbar);
+    } else if (!inTitlebar && this.$tabbar.parentNode == titlebarRow) {
+      this.$content.before(this.$tabbar);
+    }
   },
 
-  observe(subject, topic) {
+  /** Colours and see-through bars, from the settings. */
+  applyTheme() {
+    let root = document.documentElement;
+    Theme.applyColors(root);
+    let mode = this.pref("transparency", "off");
+    let see = mode == "mica" || mode == "acrylic";
+    let opacity = Math.max(0, Math.min(100, this.pref("transparency.opacity", 60)));
+    root.style.setProperty("--transparency-opacity", opacity + "%");
+    root.toggleAttribute("transparency", see);
+    // Gecko's Windows 11 backdrop: 1 is Mica, 2 is Acrylic.
+    if (Services.prefs.getBoolPref("widget.windows.mica", false) != see) {
+      Services.prefs.setBoolPref("widget.windows.mica", see);
+    }
+    if (see) {
+      let backdrop = mode == "acrylic" ? 2 : 1;
+      if (Services.prefs.getIntPref("widget.windows.mica.toplevel-backdrop", 0) != backdrop) {
+        Services.prefs.setIntPref("widget.windows.mica.toplevel-backdrop", backdrop);
+      }
+    }
+  },
+
+  initTitlebar() {
+    let buttons = {
+      "titlebar-min": () => window.minimize(),
+      "titlebar-max": () => window.maximize(),
+      "titlebar-restore": () => window.restore(),
+      "titlebar-close": () => window.close(),
+    };
+    for (let [id, action] of Object.entries(buttons)) {
+      document.getElementById(id).addEventListener("click", action);
+    }
+    let updateSizeMode = () => {
+      let mode = {
+        [window.STATE_MAXIMIZED]: "maximized",
+        [window.STATE_MINIMIZED]: "minimized",
+        [window.STATE_FULLSCREEN]: "fullscreen",
+      }[window.windowState] ?? "normal";
+      document.documentElement.setAttribute("sizemode", mode);
+    };
+    window.addEventListener("sizemodechange", updateSizeMode);
+    updateSizeMode();
+  },
+
+  observe(subject, topic, data) {
     if (topic == "nsPref:changed") {
-      this.applyLayout();
+      if (data.startsWith(PREF + "colors.") || data.startsWith(PREF + "transparency")) {
+        this.applyTheme();
+      } else {
+        this.applyLayout();
+      }
     }
   },
 
@@ -280,6 +341,7 @@ var Breached = {
   updateTitle() {
     let tab = this.selected;
     document.title = tab ? `${tab.title || tab.url} - Breached` : "Breached";
+    document.getElementById("titlebar-title").textContent = document.title;
   },
 
   // -------------------------------------------------------------- browsers
