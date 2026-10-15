@@ -599,7 +599,17 @@ var SelfTest = {
       () => panel()?.state == "open" && panel().querySelector("browser")?.contentTitle == "test popup",
       15000
     );
-    report.info.popup = panel() ? { state: panel().state, title: panel().querySelector("browser")?.contentTitle } : null;
+    let pb = panel()?.querySelector("browser");
+    report.info.popup = panel()
+      ? {
+          state: panel().state,
+          title: pb?.contentTitle,
+          uri: pb?.currentURI?.spec,
+          frameLoader: !!pb?.frameLoader,
+          remoteType: pb?.remoteType,
+          size: pb ? [pb.clientWidth, pb.clientHeight] : null,
+        }
+      : null;
     check(":ext opens the extension's popup", popupShown);
     await wait(500);
     await this.screenshot(outDir, "14-extension-popup.png");

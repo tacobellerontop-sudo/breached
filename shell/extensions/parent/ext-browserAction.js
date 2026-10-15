@@ -94,10 +94,11 @@ const Popup = {
     }
     browser.style.width = "300px";
     browser.style.height = "200px";
+    // Listen before inserting: the frame loader can be made as soon as the
+    // browser is in the document.
+    let ready = extension.remote ? promiseEvent(browser, "XULFrameLoaderCreated") : Promise.resolve();
     panel.append(browser);
     doc.getElementById("mainPopupSet").append(panel);
-
-    let ready = extension.remote ? promiseEvent(browser, "XULFrameLoaderCreated") : Promise.resolve();
     let listener = {
       receiveMessage({ name, data }) {
         if (name == "Extension:BrowserResized") {
@@ -139,7 +140,9 @@ const Popup = {
       let content = doc.getElementById("content");
       panel.openPopup(content, "overlap", content.clientWidth - 8, 8);
     }
-    await ready;
+    if (!browser.frameLoader) {
+      await ready;
+    }
     init();
     browser.fixupAndLoadURIString(url, { triggeringPrincipal: extension.principal });
     return panel;
@@ -237,11 +240,7 @@ this.browserAction = class extends ExtensionAPIPersistent {
     button.disabled = !data.enabled;
     let icon = IconDetails.getPreferredIcon(data.icon ?? {}, this.extension, 16).icon;
     let img = button.querySelector("img");
-    if (icon) {
-      img.src = icon;
-    } else {
-      img.removeAttribute("src");
-    }
+    img.src = icon || "chrome://mozapps/skin/extensions/extensionGeneric.svg";
     let badge = button.querySelector(".ext-badge");
     badge.textContent = data.badgeText || "";
     badge.hidden = !data.badgeText;
