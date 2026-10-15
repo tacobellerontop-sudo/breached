@@ -25,6 +25,12 @@ Options: `-Lean` for Lean mode (fewer processes, weaker isolation between ordina
 
 Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox will install it: see [extensions/tab-sleeper/README.md](extensions/tab-sleeper/README.md). Until then, Firefox still unloads tabs when Windows runs low on memory, and "Unload Tab" is in the tab right-click menu.
 
+## The Breached app (dev builds)
+
+Every change to `app/` builds a portable Windows zip on GitHub: open the latest **Build Breached (dev)** run in the Actions tab, download `breached-dev-win64`, unzip it and run `Breached.bat`. It keeps its own profile in the `profile` folder next to it, so it doesn't touch an installed Firefox.
+
+Press `:` for the command line (`:open`, `:tabopen`, `:tab-close`, `:tab-focus 2`, `:undo`, `:set`, `:help`). Tab completes command names; Up/Down recalls history.
+
 ## What's here
 
 | Path | What it is |
@@ -34,3 +40,5 @@ Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox w
 | `extensions/tab-sleeper/` | Idle tab unloader |
 | `scripts/windows/` | Install and uninstall |
 | `scripts/check-config.py` | Checks every pref and policy still exists in the current Firefox |
+| `app/` | The Breached app: interface, actors, branding settings, build config |
+| `scripts/build/` | Turns Firefox source into Breached, and the smoke test |

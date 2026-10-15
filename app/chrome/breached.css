@@ -78,7 +78,7 @@
 }
 .tabbrowser-tab .tab-label-container {
   flex-direction: row !important;
-  align-items: center !important;
+  align-items: baseline !important;
 }
 .tabbrowser-tab .tab-label-container::before {
   content: counter(breached-tab) ": ";

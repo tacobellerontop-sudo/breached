@@ -229,6 +229,8 @@ Install and updates:
 - Breached's own interface, branding and settings page (section 4.6); Tab Sleeper bundled as a built-in.
 - CI build and nightly artifacts.
 
+Status (2026-10-15): the dev build works. GitHub Actions turns Firefox 158.0.1 into Breached with `scripts/build/apply-overlay.py` (branding, qutebrowser status bar and `:` command line, built-in prefs), packages a portable Windows zip, and a smoke test checks the interface and saves screenshots to the `ci-screenshots` branch. Dev builds are "artifact builds": our interface code is compiled, Mozilla's engine binaries are reused, so the exe is still `firefox.exe`. The full build (own `breached.exe`, compiled-out services) is the next M2 step.
+
 **M3: Installer and updates**
 - Per-user installer, startup update check, code signing.
 - First public release.
