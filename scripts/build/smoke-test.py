@@ -19,6 +19,7 @@ out.mkdir(parents=True, exist_ok=True)
 options = Options()
 options.binary_location = binary
 options.add_argument("-headless")
+options.add_argument("-remote-allow-system-access")  # needed for chrome-context checks
 options.set_preference("remote.prefs.recommended", True)
 
 report = {"checks": {}}
