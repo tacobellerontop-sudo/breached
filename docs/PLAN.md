@@ -140,7 +140,7 @@ Breached is a standalone Windows app (`breached.exe`) with its own interface. No
 | Browser backend modules | Session restore, password manager, permission and certificate prompts, the extension APIs uBO needs (`tabs`, `webRequest`) | Reused (recommended), not rewritten |
 | Interface | Windows, tabs, toolbars, menus, settings, new tab page | **Written by us** |
 
-Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. LX is choosing between the two; the plan assumes the recommended "reuse the backend".
+Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. **Decided (LX, 2026-10-15): reuse the backend, but only the parts we need.** Rewriting would not make the running app lighter: these modules are mostly JavaScript that loads on demand, and nearly all memory goes to Gecko and the pages themselves. To keep the app small anyway, the Breached app directory pulls in only the backend modules it uses and leaves the rest out of the build (Firefox View, accounts/sync, Pocket, studies, AI features, migration wizards, and similar).
 
 Interface direction:
 - **One slim toolbar row** with back, forward, reload, the address bar, uBlock Origin, Tab Sleeper and the menu. Tabs in a compact strip above it, or optionally vertical tabs.
