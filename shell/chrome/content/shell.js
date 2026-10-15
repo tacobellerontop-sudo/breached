@@ -105,9 +105,9 @@ class Tab {
     this.el = document.createElement("div");
     this.el.className = "tab";
     this.el.setAttribute("role", "tab");
-    this.label = document.createElement("span");
-    this.label.className = "tab-label";
-    this.el.append(this.label);
+    this.labelEl = document.createElement("span");
+    this.labelEl.className = "tab-label";
+    this.el.append(this.labelEl);
     this.el.tab = this;
     this.browser = null;
     this.url = "about:blank";
@@ -148,7 +148,7 @@ class Tab {
   }
 
   update() {
-    this.label.textContent = this.title || this.url;
+    this.labelEl.textContent = this.title || this.url;
     this.el.title = this.url;
     this.el.toggleAttribute("asleep", this.asleep);
     this.el.toggleAttribute("pinned", this.pinned);
