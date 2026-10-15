@@ -2,7 +2,7 @@
 
 ## 1. Summary
 
-Breached is a desktop browser that uses fewer system resources than a stock browser while still opening every modern website.
+Breached is a Windows desktop browser that uses fewer system resources than a stock browser while still opening every modern website.
 
 **Decision: build on Firefox (Gecko), in the style of LibreWolf.** We ship Firefox's engine unchanged, and change only the browser shell: preferences, policies, build flags, a small patch set, and a bundled tab-unloading component. uBlock Origin is bundled and runs at full strength, which is no longer possible in any mainstream Chromium browser.
 
@@ -13,18 +13,18 @@ The five goals map to the plan like this:
 | 1. Unload idle tabs | A bundled "Tab Sleeper" that discards tabs after a period of inactivity, on top of Firefox's built-in low-memory unloading. Tabs restored after restart stay unloaded until clicked. |
 | 2. Block page junk | uBlock Origin (full Manifest V2 version) pre-installed and enabled in private windows, plus Firefox's own tracking protection set to Strict. |
 | 3. "1 process" | Not possible on any modern engine, and not desirable (section 6). Instead: no idle pre-launched processes, a capped content process count, and an opt-in **Lean mode** that isolates only high-value sites. Tab unloading and ad blocking save far more memory than merging processes would. |
-| 4. Remove telemetry and vendor services | Telemetry, studies/experiments, sponsored content, Pocket/Suggest, AI chatbot features, accounts/sync prompts and the crash reporter are off or compiled out. Only security services (updates, certificate revocation, extension blocklist) stay. |
+| 4. Remove telemetry and vendor services | Telemetry, studies/experiments, sponsored content, Pocket/Suggest, AI chatbot features, Firefox Accounts/Sync, Safe Browsing and the crash reporter are off or compiled out. Only updates, certificate revocation and the extension blocklist stay. |
 | 5. Fewer helpers and background tasks | Compile out the default-browser agent, background update tasks and maintenance service; disable translation, ML, prefetch/speculative connections and other background features by default. |
 
 The first usable version is a **config pack on top of stock Firefox** (no compiling), so LX can daily-drive it almost immediately. Our own branded build follows.
 
 ## 2. What "lightweight" means (measurable targets)
 
-We will not claim "lighter" without numbers. Every release is measured against stock Firefox and Chrome on the same machine with the same tab set (section 9).
+We will not claim "lighter" without numbers. Every release is measured on Windows against stock Firefox and Chrome on the same machine with the same tab set (section 9).
 
-- **Memory:** total memory (PSS on Linux, private working set on Windows) with a fixed 20-tab session, measured after 30 minutes idle. Target: clearly below stock Firefox and Chrome, with most of the gain from tab unloading and blocking.
+- **Memory:** total memory (private working set) with a fixed 20-tab session, measured after 30 minutes idle. Target: clearly below stock Firefox and Chrome, with most of the gain from tab unloading and blocking.
 - **Background work:** CPU wakeups per second with the browser idle and minimized. Target: below stock Firefox.
-- **Silence:** zero outbound connections at startup and while idle, other than the allow-listed security services (update check, certificate revocation data, extension and safe-browsing lists). Verified with a capture proxy in CI.
+- **Silence:** zero outbound connections at startup and while idle, other than the allow-listed security services (Breached update check, certificate revocation data, extension blocklist). Verified with a capture proxy in CI.
 - **Process count:** fewer processes than stock Firefox at idle with the same tab set.
 - **Compatibility:** the top-sites smoke test (section 9) passes at the same rate as stock Firefox. Anything we break, we fix or revert.
 
@@ -39,7 +39,7 @@ We will not claim "lighter" without numbers. Every release is measured against s
 | Telemetry and vendor services | Mostly controllable by prefs and policies, a few build flags. Proven by LibreWolf, Mullvad Browser, Floorp. | Proven by ungoogled-chromium, but requires a large, constantly rebased patch set (Google services are wired deep into Chromium). | Brave adds its own services (rewards, wallet, VPN, news, AI) that we would then have to remove. | n/a |
 | Process and memory tuning | Exposed as prefs (process count, isolation strategy, prelaunch). | Mostly hard-coded; site isolation is not tunable without patches. | Same as Chromium. | n/a |
 | Maintenance cost | Moderate: a pref overlay plus a small patch set, rebased every 4 weeks. Builds are heavy but scriptable. | High: Chromium releases every 4 weeks with huge diffs; the MV2 patches alone are a running cost. | Very high: two upstreams (Chromium and Brave) to track. | n/a |
-| DRM video (Netflix etc.) | Widevine available on Windows, macOS and Linux x86_64. Some services cap resolution in Firefox-based browsers. | Widevine is only available to licensed builds; unofficial Chromium forks often cannot ship it at all. | Brave has a license; a fork does not inherit it. | n/a |
+| DRM video (Netflix etc.) | Widevine available on Windows. Some services cap resolution in Firefox-based browsers. | Widevine is only available to licensed builds; unofficial Chromium forks often cannot ship it at all. | Brave has a license; a fork does not inherit it. | n/a |
 
 ### Decision and reasoning
 
@@ -65,14 +65,14 @@ We track **Firefox Release** (every 4 weeks), not ESR. ESR is easier to maintain
 
 ### 4.1 Unload idle tabs ("Tab Sleeper")
 
-Firefox already has the building blocks: it can discard a tab (free its page memory and process) while keeping it in the tab strip, it restores session tabs lazily, and it unloads tabs under memory pressure on Windows and macOS. What it lacks is **unloading on a timer**.
+Firefox already has the building blocks: it can discard a tab (free its page memory and process) while keeping it in the tab strip, it restores session tabs lazily, and it unloads tabs under memory pressure on Windows. What it lacks is **unloading on a timer**.
 
 Plan:
 - Ship Tab Sleeper as a **bundled built-in WebExtension** using the standard `tabs.discard()` API. Using the extension API instead of patching Firefox internals means it survives Firefox updates without rebasing.
 - Default rule: a background tab that has not been viewed for **30 minutes** is unloaded. Configurable (5 minutes to never).
 - Never unload: the active tab in each window, pinned tabs (configurable), tabs playing audio or video, tabs using camera, microphone or screen sharing, tabs in Picture-in-Picture, and sites on a user allow-list.
 - Open item: protecting tabs with unsaved form input. Test whether `tabs.discard()` respects pages that register a "leave page?" prompt; if not, add a small content script that marks tabs with edited forms as "do not unload".
-- Prefs: keep `browser.sessionstore.restore_on_demand` on (restored tabs load only when clicked), keep `browser.tabs.unloadOnLowMemory` on, and enable the "Unload tab" context menu item.
+- Prefs: keep `browser.sessionstore.restore_on_demand` on (restored tabs load only when clicked), keep `browser.tabs.unloadOnLowMemory` on (Windows reports low memory to Firefox, so this works out of the box), and enable the "Unload tab" context menu item.
 - UI: unloaded tabs show dimmed; an "Unload other tabs" menu item and a toolbar button showing how many tabs are asleep.
 
 ### 4.2 Block page junk (uBlock Origin)
@@ -92,7 +92,7 @@ See section 6. In short: no single-process mode; fewer and smaller processes ins
 Three layers, cheapest first:
 
 **Enterprise policies (`policies.json`)**
-`DisableTelemetry`, `DisableFirefoxStudies`, `DisablePocket`, `DisableFirefoxAccounts` (opt-in later, see below), `DisableFeedbackCommands`, `DontCheckDefaultBrowser`, `UserMessaging` (no "what's new", feature tours or extension recommendations), `FirefoxHome` (no sponsored tiles or stories), `FirefoxSuggest` (no sponsored or web suggestions), `OverrideFirstRunPage`.
+`DisableTelemetry`, `DisableFirefoxStudies`, `DisablePocket`, `DisableFirefoxAccounts`, `DisableFeedbackCommands`, `DontCheckDefaultBrowser`, `UserMessaging` (no "what's new", feature tours or extension recommendations), `FirefoxHome` (no sponsored tiles or stories), `FirefoxSuggest` (no sponsored or web suggestions), `OverrideFirstRunPage`.
 
 **Preferences (autoconfig file, locked where it matters)**
 - Telemetry and data reporting: `toolkit.telemetry.*`, `datareporting.*`, usage pings, crash report auto-submit.
@@ -100,7 +100,7 @@ Three layers, cheapest first:
 - New tab and address bar: sponsored shortcuts, stories, quick suggest, search suggestions off by default.
 - AI features: `browser.ml.enable`, `browser.ml.chat.enabled` and related link-preview and smart-tab-group features off.
 - Background network chatter: captive portal checks, connectivity checks, link prefetching, DNS prefetching, speculative pre-connections, "discovery" recommendations.
-- Safe Browsing: keep phishing and malware **list** checks (local, downloaded lists; they protect a daily driver), turn off remote download-reputation lookups that send file data to Google. Users can turn lists off entirely.
+- Safe Browsing: **off entirely** (no list downloads, no lookups to Google). This is the lightest option, and it removes the browser's own phishing and malware warning pages. What still protects the user: uBO's malware-domain list (URLhaus) and Windows Defender/SmartScreen scanning of downloaded files. The settings page notes this so users can choose to re-enable it.
 
 **Build flags and patches**
 - Build without the crash reporter, the default-browser agent (a Windows scheduled task), the maintenance service and background update tasks.
@@ -109,9 +109,9 @@ Three layers, cheapest first:
 
 **What stays on, deliberately**
 - Breached's own update check (an outdated browser is the real risk).
-- Remote Settings for security data only: certificate revocation (CRLite), the extension and plugin blocklist, and Safe Browsing lists. These are pulled, not reporting.
+- Remote Settings for security data only: certificate revocation (CRLite) and the extension blocklist. These are pulled, not reporting.
 - WebCompat interventions (site fixes; see 3).
-- Firefox Accounts/Sync is off by default but can be enabled in settings for users who want it. It is useful, not telemetry, but it is a vendor service, so it is opt-in.
+- Firefox Accounts/Sync is **removed**: disabled by policy and its UI hidden. Users move bookmarks and passwords with the built-in import/export instead.
 
 ### 4.5 Fewer helpers and built-ins
 
@@ -128,7 +128,7 @@ Background throttling: keep Firefox's background-tab timer throttling on, and en
 
 ## 5. Settings model
 
-- One settings page section, "Breached", with three toggles at the top: **Tab Sleeper** (and timeout), **Lean mode** (section 6), **Sync** (off).
+- One settings page section, "Breached", with two toggles at the top: **Tab Sleeper** (and timeout) and **Lean mode** (section 6).
 - Everything we change is in one readable autoconfig file in this repo, grouped by goal, with a comment per pref explaining why. Prefs that protect privacy are locked; prefs that trade convenience are defaults the user can change.
 
 ## 6. The "1 process" idea, candidly
@@ -171,16 +171,19 @@ bench/             memory, wakeup, network-silence and compat harness
 .github/workflows/ CI: build, test, measure, release
 ```
 
-Platforms: **Linux x86_64 and Windows x86_64 first** (default choice; tell us if you need macOS earlier). macOS follows once signing and notarization are set up, since Apple requires a paid developer account.
+Platform: **Windows x86_64 only** (decided). Windows ARM64 can be added later with the same scripts.
 
-CI: Firefox builds exceed the standard free CI runner limits, so we either use larger hosted runners, a self-hosted build machine, or compiler caching (sccache). Decide at milestone M2.
+Build: Mozilla itself builds Windows Firefox by cross-compiling from Linux with clang, so our CI can do the same on Linux runners (cheaper and faster than Windows runners). Firefox builds exceed the standard free CI runner limits, so we either use larger hosted runners, a self-hosted build machine, or compiler caching (sccache). Decide at milestone M1.
 
-Updates: Linux via Flatpak and an AppImage/tarball; Windows via an installer plus a small update checker that points to our GitHub releases (since we compile out Mozilla's updater and its background service).
+Install and updates:
+- **Per-user install** into `%LOCALAPPDATA%` by default, so installing and updating never needs an admin (UAC) prompt and we need no background update service.
+- A small built-in update check on startup (no scheduled task, no Windows service) that compares against our GitHub releases and offers the new installer.
+- Code-sign the installer and executables, otherwise SmartScreen warns on every download. A signing certificate is a recurring cost; until we have one, early builds will show the "unknown publisher" warning.
 
 ## 8. Milestones
 
 **M0: Config pack (daily drivable on stock Firefox)**
-- `policies.json` + autoconfig prefs + uBO install, applied to an installed stock Firefox with one script per OS.
+- `policies.json` + autoconfig prefs + uBO install, applied to an installed stock Firefox on Windows with one PowerShell script.
 - Tab Sleeper extension v1, loaded as a normal extension.
 - Benchmark harness baseline: stock Firefox vs. Firefox + config pack vs. Chrome.
 - Exit: LX uses it as the main browser for a week; regressions logged.
@@ -190,13 +193,13 @@ Updates: Linux via Flatpak and an AppImage/tarball; Windows via an installer plu
 - Network-silence test in CI (capture proxy, allow-list).
 - Compat smoke test on top sites.
 
-**M2: Own build (Linux)**
-- Scripts to fetch Firefox source, apply patches, build with our mozconfig (no crash reporter, no default-browser agent, no maintenance service).
+**M2: Own Windows build**
+- Scripts to fetch Firefox source, apply patches, cross-compile for Windows with our mozconfig (no crash reporter, no default-browser agent, no maintenance service).
 - Breached branding; Tab Sleeper bundled as a built-in.
 - CI build and nightly artifacts.
 
-**M3: Windows build and updates**
-- Windows build, installer, update checker.
+**M3: Installer and updates**
+- Per-user installer, startup update check, code signing.
 - First public release.
 
 **M4: Release automation**
@@ -219,8 +222,9 @@ Updates: Linux via Flatpak and an AppImage/tarball; Windows via an installer plu
 | Lean mode weakens security more than expected | Opt-in only, clearly labelled, and dropped if measurements show little memory saving. |
 | Build infrastructure cost | Decide hosted vs. self-hosted runners at M2; the config pack (M0) needs no build infrastructure at all. |
 | Trademark | Remove all Firefox branding before any public build. |
+| No Safe Browsing warnings | uBO malware-domain list plus Windows Defender/SmartScreen; users can re-enable Safe Browsing in settings. |
 
-Open questions for LX:
-1. Platforms: Linux and Windows first, macOS later. OK?
-2. Sync: off by default but available. OK, or remove entirely?
-3. Safe Browsing lists: keep on by default (recommended), or off like LibreWolf?
+Decided by LX (2026-10-15):
+1. Platform: Windows only.
+2. Sync: removed entirely (lightest option).
+3. Safe Browsing: off entirely (lightest option); see 4.4 for what still protects users.
