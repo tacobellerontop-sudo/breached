@@ -39,6 +39,8 @@ function registerActors() {
       },
       allFrames: true,
       messageManagerGroups: ["browsers"],
+      // Allowed in the processes that run web pages.
+      safeForUntrustedWebProcess: true,
     },
     // Page fullscreen (video players), copied from Firefox.
     DOMFullscreen: {
@@ -57,6 +59,8 @@ function registerActors() {
       },
       allFrames: true,
       messageManagerGroups: ["browsers"],
+      // Allowed in the processes that run web pages.
+      safeForUntrustedWebProcess: true,
     },
   };
   for (let [name, options] of Object.entries(actors)) {

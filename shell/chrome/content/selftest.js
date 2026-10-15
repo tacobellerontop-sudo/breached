@@ -102,6 +102,14 @@ var SelfTest = {
     } catch (e) {
       report.info.pageHelper = String(e);
     }
+    check("page helper runs in web pages", report.info.pageHelper == "pong");
+    let fsActor = null;
+    try {
+      fsActor = B.selectedBrowser.browsingContext.currentWindowGlobal.getActor("DOMFullscreen");
+    } catch (e) {
+      report.info.fullscreenHelper = String(e);
+    }
+    check("page fullscreen helper runs in web pages", !!fsActor);
     press(":", "Semicolon", KeyboardEvent.DOM_VK_SEMICOLON, ["Shift"]);
     let opened = await waitFor(() => !$("commandbar").hidden, 5000);
     check("':' on a page opens the command bar", opened);
