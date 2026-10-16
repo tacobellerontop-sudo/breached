@@ -402,7 +402,7 @@ const BUILD = {
     }
     let reset = el("button", { type: "button" }, "Reset to the default colours");
     reset.addEventListener("click", () => {
-      Theme.applyPreset("qutebrowser");
+      Theme.applyPreset(Theme.DEFAULT_PRESET);
       refresh();
     });
     wrap.append(el("div", { class: "row" }, el("div", {}), el("div", { class: "control inline" }, reset)));

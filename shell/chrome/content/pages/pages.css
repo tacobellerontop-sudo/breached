@@ -4,10 +4,10 @@
   --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   /* --bar-bg, --fg, --accent and --error come from the colour settings
      (theme.js); the rest is mixed from them. */
-  --bar-bg: #000;
-  --fg: #fff;
-  --accent: #00aa00;
-  --error: #ff4444;
+  --bar-bg: #cfd3da;
+  --fg: #2f3136;
+  --accent: #ee9f66;
+  --error: #e07b7b;
   --bg: var(--bar-bg);
   --panel: color-mix(in srgb, var(--bar-bg) 92%, var(--fg));
   --line: color-mix(in srgb, var(--bar-bg) 78%, var(--fg));

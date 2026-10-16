@@ -1,8 +1,9 @@
 /* Bitwarden mod: fills logins from your vault through the Bitwarden CLI.
  *
  *   :bw.exe          fill the login for this page (asks for your master
- *                    password the first time; picks if there are several)
- *   :bw.exe <n>      fill login number n of the last list
+ *                    password the first time). With several logins they
+ *                    show as rows above the command bar: type to narrow,
+ *                    Up/Down or Tab to move, Enter to fill.
  *   :bw.exe totp     copy this page's two-step code
  *   :bw.exe sync     fetch the latest vault
  *   :bw.exe lock     forget the unlock key
@@ -18,8 +19,6 @@ const { Subprocess } = ChromeUtils.importESModule("resource://gre/modules/Subpro
 
 const Bitwarden = {
   session: null,
-  matches: [], // logins for the last page, for ":bw.exe <n>"
-  matchesURL: null,
   _lockTimer: null,
 
   async exe() {
@@ -89,7 +88,6 @@ const Bitwarden = {
   lock() {
     clearTimeout(this._lockTimer);
     this.session = null;
-    this.matches = [];
   },
 
   /** Makes sure the vault is unlocked, asking for the master password. */
@@ -226,31 +224,31 @@ const Bitwarden = {
       }
     }
     let url = this.currentURL();
-    if (/^\d+$/.test(sub ?? "")) {
-      let item = this.matchesURL == url ? this.matches[parseInt(sub, 10) - 1] : null;
-      if (!item) {
-        throw new Error("no such login: run :bw.exe first");
-      }
-      await this.fill(item);
-      return;
-    }
     if (sub) {
       throw new Error(`unknown: ${sub} (try fill, lock, sync, totp, login, status)`);
     }
     await this.unlock();
     let logins = await this.logins(url);
     this.touch();
-    this.matches = logins;
-    this.matchesURL = url;
     if (!logins.length) {
       Breached.showMessage("No Bitwarden logins for this site", "error");
-    } else if (logins.length == 1) {
+      return;
+    }
+    if (logins.length == 1) {
       await this.fill(logins[0]);
-    } else {
-      Breached.showMessage(
-        "Pick one with :bw.exe <n>: " +
-          logins.map((l, i) => `${i + 1} ${l.login.username || l.name}`).join("  ")
-      );
+      return;
+    }
+    let picked = await Breached.pick(
+      "bitwarden:",
+      logins.map(login => ({
+        label: login.login.username || "(no username)",
+        detail: login.name,
+        login,
+      }))
+    );
+    // The page may have changed while the list was open.
+    if (picked && Breached.selectedBrowser?.currentURI?.spec == url) {
+      await this.fill(picked.login);
     }
   },
 };
@@ -272,7 +270,7 @@ const ACTOR = Mod.actor("Bitwarden", {
 });
 
 Mod.command("bw.exe", {
-  usage: "bw.exe [n|totp|sync|lock|login|status]  (fill this page's login from Bitwarden)",
+  usage: "bw.exe [totp|sync|lock|login|status]  (fill this page's login from Bitwarden)",
   run(args) {
     Bitwarden.run(args).catch(e => {
       if (e.message != "cancelled") {

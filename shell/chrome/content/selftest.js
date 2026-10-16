@@ -274,7 +274,7 @@ var SelfTest = {
     check("the title bar shows the page title", $("titlebar-title").textContent == document.title);
     let rgb = hex => `rgb(${hex.slice(1).match(/../g).map(h => parseInt(h, 16)).join(", ")})`;
     let preset = settingsDoc().getElementById("setting-color-preset");
-    check("settings: colours start as qutebrowser's", preset.value == "qutebrowser");
+    check("settings: colours start as pastel silver and orange", preset.value == "pastel");
     preset.value = "nord";
     preset.dispatchEvent(new Event("change"));
     await wait(200);
@@ -325,7 +325,7 @@ var SelfTest = {
       "settings: the Windows title bar can come back",
       !root.hasAttribute("customtitlebar") && rect("titlebar").height == 0 && $("tabbar").parentNode == document.body
     );
-    ChromeUtils.importESModule("resource://breached/Theme.sys.mjs").applyPreset("qutebrowser");
+    ChromeUtils.importESModule("resource://breached/Theme.sys.mjs").applyPreset("pastel");
     for (let p of ["titlebar", "transparency", "transparency.opacity"]) {
       Services.prefs.clearUserPref("breached." + p);
     }
@@ -489,12 +489,29 @@ var SelfTest = {
           press(c, code, KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
         }
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        // Two logins: they show as rows to pick from.
+        let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
+        let listed = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
+        check(":bw.exe lists the site's logins as rows", listed);
+        check("the first row starts selected", rows()[0]?.hasAttribute("selected"));
+        press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
+        check("Down moves to the next row", rows()[1]?.hasAttribute("selected"));
+        await this.screenshot(outDir, "13-bitwarden-pick.png");
+        for (let c of "breached") {
+          press(c, "Key" + c.toUpperCase(), KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+        }
+        check(
+          "typing narrows the rows",
+          rows().length == 1 && rows()[0].textContent.includes("breached-user") && rows()[0].hasAttribute("selected")
+        );
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         let filled = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
+        check("the rows close after picking", document.getElementById("picker").hidden);
         report.info.bitwardenTitle = B.selected.title;
         report.info.bitwardenMessage = document.getElementById("message").textContent;
         check(":bw.exe fills the page's login form", filled);
         check("the password isn't kept in the command history", !B.history.includes("hunter2"));
-        await this.screenshot(outDir, "13-bitwarden-filled.png");
+        await this.screenshot(outDir, "14-bitwarden-filled.png");
       }
       B.closeTab(B.selected);
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
@@ -612,7 +629,7 @@ var SelfTest = {
       : null;
     check(":ext opens the extension's popup", popupShown);
     await wait(500);
-    await this.screenshot(outDir, "14-extension-popup.png");
+    await this.screenshot(outDir, "15-extension-popup.png");
     panel()?.hidePopup();
     B.run("extensions");
     let doc = () => B.selectedBrowser?.contentDocument;
@@ -621,7 +638,7 @@ var SelfTest = {
       await waitFor(() => B.selected.url == "breached:extensions" && doc()?.querySelector('[data-id="selftest@breached.browser"]'))
     );
     await wait(300);
-    await this.screenshot(outDir, "15-extensions.png");
+    await this.screenshot(outDir, "16-extensions.png");
     await addon.uninstall();
     check(
       "removing an extension removes its button",

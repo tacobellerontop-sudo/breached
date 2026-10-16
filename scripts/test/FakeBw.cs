@@ -30,7 +30,8 @@ class FakeBw
                     Console.Error.Write("Vault is locked.");
                     return 1;
                 }
-                Console.Write("[{\"id\":\"1\",\"type\":1,\"name\":\"test login\",\"login\":{\"username\":\"breached-user\",\"password\":\"breached-pass\",\"totp\":null}}]");
+                Console.Write("[{\"id\":\"1\",\"type\":1,\"name\":\"test login\",\"login\":{\"username\":\"breached-user\",\"password\":\"breached-pass\",\"totp\":null}}," +
+                    "{\"id\":\"2\",\"type\":1,\"name\":\"second login\",\"login\":{\"username\":\"other-user\",\"password\":\"other-pass\",\"totp\":null}}]");
                 return 0;
             case "sync":
             case "lock":

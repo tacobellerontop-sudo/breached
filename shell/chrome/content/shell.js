@@ -888,6 +888,86 @@ var Breached = {
     });
   },
 
+  /**
+   * Shows choices as rows above the command bar, like qutebrowser's
+   * completion list. Typing narrows the rows; Up/Down (or Tab/Shift+Tab)
+   * move; Enter or a click picks. Resolves to the picked item, or null if
+   * cancelled. Items are { label, detail } plus anything the caller needs.
+   */
+  pick(label, items) {
+    this._pick?.resolve(null);
+    return new Promise(resolve => {
+      this._pick = { items, resolve, rows: items, selected: 0 };
+      this.openCommandLine("");
+      document.getElementById("prompt").textContent = label;
+      document.getElementById("completion").textContent = "";
+      this._renderPick();
+    });
+  },
+
+  _renderPick() {
+    let pick = this._pick;
+    let list = document.getElementById("picker");
+    if (!pick) {
+      list.hidden = true;
+      list.textContent = "";
+      return;
+    }
+    let words = this.$commandline.value.toLowerCase().split(/\s+/).filter(Boolean);
+    pick.rows = pick.items.filter(item => {
+      let text = `${item.label} ${item.detail ?? ""}`.toLowerCase();
+      return words.every(w => text.includes(w));
+    });
+    pick.selected = Math.max(0, Math.min(pick.selected, pick.rows.length - 1));
+    list.textContent = "";
+    pick.rows.forEach((item, i) => {
+      let row = document.createElement("div");
+      row.className = "picker-row";
+      row.toggleAttribute("selected", i == pick.selected);
+      let label = document.createElement("span");
+      label.className = "picker-label";
+      label.textContent = item.label;
+      let detail = document.createElement("span");
+      detail.className = "picker-detail";
+      detail.textContent = item.detail ?? "";
+      row.append(label, detail);
+      row.addEventListener("mousedown", event => {
+        event.preventDefault();
+        pick.selected = i;
+        this._endPick(true);
+      });
+      list.append(row);
+    });
+    if (!pick.rows.length) {
+      let row = document.createElement("div");
+      row.className = "picker-row picker-empty";
+      row.textContent = "no matches";
+      list.append(row);
+    }
+    list.hidden = false;
+    list.querySelector("[selected]")?.scrollIntoView({ block: "nearest" });
+  },
+
+  _movePick(step) {
+    let pick = this._pick;
+    if (pick.rows.length) {
+      pick.selected = (pick.selected + step + pick.rows.length) % pick.rows.length;
+      this._renderPick();
+    }
+  },
+
+  _endPick(picked) {
+    let pick = this._pick;
+    this._pick = null;
+    let item = picked ? pick.rows[pick.selected] ?? null : null;
+    this._renderPick();
+    document.getElementById("prompt").textContent = ":";
+    if (picked) {
+      this.closeCommandLine();
+    }
+    pick.resolve(item);
+  },
+
   _endPrompt(value) {
     let resolve = this._promptResolve;
     this._promptResolve = null;
@@ -912,6 +992,9 @@ var Breached = {
     if (this._promptResolve) {
       this._endPrompt(null);
     }
+    if (this._pick) {
+      this._endPick(false);
+    }
     this.$commandbar.hidden = true;
     document.documentElement.removeAttribute("commandbar-open");
     this.$commandline.value = "";
@@ -920,6 +1003,36 @@ var Breached = {
 
   onCommandLineKey(event) {
     let input = this.$commandline;
+    if (this._pick) {
+      switch (event.key) {
+        case "Enter":
+          this._endPick(true);
+          break;
+        case "ArrowDown":
+          this._movePick(1);
+          break;
+        case "ArrowUp":
+          this._movePick(-1);
+          break;
+        case "Tab":
+          this._movePick(event.shiftKey ? -1 : 1);
+          break;
+        case "Escape":
+          this.closeCommandLine();
+          break;
+        case "Backspace":
+          if (!input.value) {
+            this.closeCommandLine();
+            break;
+          }
+          return;
+        default:
+          return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     switch (event.key) {
       case "Escape":
         this.closeCommandLine();
@@ -987,6 +1100,11 @@ var Breached = {
   },
 
   updateCompletion() {
+    if (this._pick) {
+      this._pick.selected = 0;
+      this._renderPick();
+      return;
+    }
     if (this._promptResolve) {
       return;
     }

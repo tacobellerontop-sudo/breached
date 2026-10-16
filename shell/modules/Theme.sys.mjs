@@ -21,8 +21,10 @@ export const COLORS = [
   { name: "error", label: "Errors", css: "--error" },
 ];
 
-// Order matches COLORS.
+// Order matches COLORS. The first one is the default.
+export const DEFAULT_PRESET = "pastel";
 export const PRESETS = {
+  pastel: ["#cfd3da", "#2f3136", "#bcc1c9", "#c6cad1", "#f5b183", "#2f3136", "#ee9f66", "#9db8d9", "#ee9f66", "#e07b7b"],
   qutebrowser: ["#000000", "#ffffff", "#808080", "#a9a9a9", "#000000", "#ffffff", "#00aa00", "#0000aa", "#00aa00", "#ff0000"],
   graphite: ["#1e1e1e", "#d4d4d4", "#2d2d2d", "#333333", "#0e639c", "#ffffff", "#3794ff", "#c5a332", "#3794ff", "#f14c4c"],
   nord: ["#2e3440", "#eceff4", "#3b4252", "#434c5e", "#88c0d0", "#2e3440", "#88c0d0", "#ebcb8b", "#a3be8c", "#bf616a"],
@@ -32,7 +34,8 @@ export const PRESETS = {
 };
 
 export const PRESET_NAMES = {
-  qutebrowser: "qutebrowser (default)",
+  pastel: "Pastel silver and orange (default)",
+  qutebrowser: "qutebrowser",
   graphite: "Graphite",
   nord: "Nord",
   gruvbox: "Gruvbox",
@@ -60,7 +63,7 @@ export function applyPreset(preset) {
     throw new Error(`no colour preset called ${preset}`);
   }
   COLORS.forEach((c, i) => Services.prefs.clearUserPref(PREF + c.name));
-  if (preset != "qutebrowser") {
+  if (preset != DEFAULT_PRESET) {
     COLORS.forEach((c, i) => setColor(c.name, values[i]));
   }
 }

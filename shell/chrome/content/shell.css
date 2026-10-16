@@ -1,19 +1,20 @@
-/* Breached window, styled after qutebrowser's defaults. The colours are
-   settings (breached.colors.*); shell.js sets these variables from them. */
+/* Breached window, laid out like qutebrowser. The colours are settings
+   (breached.colors.*, pastel silver and orange by default); shell.js sets
+   these variables from them. */
 
 :root {
   --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   --font-size: 12px;
-  --bar-bg: #000;
-  --fg: #fff;
-  --tab-odd: #808080;
-  --tab-even: #a9a9a9;
-  --tab-selected: #000;
-  --tab-selected-fg: #fff;
-  --accent: #00aa00;
-  --loading: #0000aa;
-  --loaded: #00aa00;
-  --error: #ff0000;
+  --bar-bg: #cfd3da;
+  --fg: #2f3136;
+  --tab-odd: #bcc1c9;
+  --tab-even: #c6cad1;
+  --tab-selected: #f5b183;
+  --tab-selected-fg: #2f3136;
+  --accent: #ee9f66;
+  --loading: #9db8d9;
+  --loaded: #ee9f66;
+  --error: #e07b7b;
   --tab-height: 20px;
   --titlebar-height: 30px;
   /* How much of each bar colour shows; below 100% only with transparency. */
@@ -298,6 +299,40 @@ body {
   background: transparent;
   color: var(--fg);
   font: inherit;
+}
+/* Rows to pick from (e.g. Bitwarden logins), like qutebrowser's completion. */
+#picker {
+  max-height: calc(var(--tab-height) * 10);
+  overflow-y: auto;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 25%, transparent);
+}
+#picker[hidden] {
+  display: none;
+}
+.picker-row {
+  height: var(--tab-height);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-inline: 4px;
+  white-space: nowrap;
+  cursor: default;
+}
+.picker-row[selected] {
+  background: var(--accent);
+  color: var(--tab-selected-fg);
+}
+.picker-label {
+  flex: 0 1 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-detail,
+.picker-empty {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, currentColor 65%, transparent);
 }
 #completion {
   color: color-mix(in srgb, var(--fg) 55%, transparent);

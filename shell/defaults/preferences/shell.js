@@ -15,17 +15,17 @@ pref("breached.searchUrl", "https://duckduckgo.com/?q=%s");
 pref("breached.restoreSession", true);
 pref("breached.titlebar", "custom");             // "custom" (Breached's own) or "native" (Windows')
 
-// Colours (#rrggbb), qutebrowser's by default. Presets are on the settings page.
-pref("breached.colors.background", "#000000");
-pref("breached.colors.text", "#ffffff");
-pref("breached.colors.tab", "#808080");
-pref("breached.colors.tabAlt", "#a9a9a9");
-pref("breached.colors.tabSelected", "#000000");
-pref("breached.colors.tabSelectedText", "#ffffff");
-pref("breached.colors.accent", "#00aa00");
-pref("breached.colors.loading", "#0000aa");
-pref("breached.colors.loaded", "#00aa00");
-pref("breached.colors.error", "#ff0000");
+// Colours (#rrggbb): pastel silver and orange by default (Theme.sys.mjs). Presets are on the settings page.
+pref("breached.colors.background", "#cfd3da");
+pref("breached.colors.text", "#2f3136");
+pref("breached.colors.tab", "#bcc1c9");
+pref("breached.colors.tabAlt", "#c6cad1");
+pref("breached.colors.tabSelected", "#f5b183");
+pref("breached.colors.tabSelectedText", "#2f3136");
+pref("breached.colors.accent", "#ee9f66");
+pref("breached.colors.loading", "#9db8d9");
+pref("breached.colors.loaded", "#ee9f66");
+pref("breached.colors.error", "#e07b7b");
 
 // See-through bars on Windows 11: "off", "mica" or "acrylic", and how much
 // of the bar colour covers the see-through backdrop (percent).
