@@ -43,7 +43,7 @@ foreach ($name in $drop) {
 
 # The engine's program is breached.exe. Gecko starts its child processes from
 # its own path, so the name doesn't matter to it.
-Rename-Item (Join-Path $app 'firefox.exe') 'breached.exe'
+Copy-Item (Join-Path $app 'firefox.exe') (Join-Path $app 'breached.exe')
 
 # The shell, with config/breached.cfg baked in as defaults.
 Copy-Item -Recurse (Join-Path $repo 'shell') (Join-Path $app 'breached')

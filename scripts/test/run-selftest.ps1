@@ -10,7 +10,8 @@
 param(
     [Parameter(Mandatory)] [string] $App,
     [Parameter(Mandatory)] [string] $Shots,
-    [switch] $NoAppArg
+    [switch] $NoAppArg,
+    [string] $Exe = 'breached.exe'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path "$PSScriptRoot\..\.."
@@ -26,20 +27,28 @@ $server = Start-Process python -PassThru -NoNewWindow -ArgumentList '-m', 'http.
 $env:BREACHED_TEST_LOGIN_PAGE = 'http://127.0.0.1:8123/login.html'
 
 # A throwaway profile; let the test's progress lines through to the log.
-$profile = Join-Path $env:RUNNER_TEMP "breached-selftest-profile-$(Get-Random)"
-New-Item -ItemType Directory $profile | Out-Null
-Set-Content "$profile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
+$testProfile = Join-Path $env:RUNNER_TEMP "breached-selftest-profile-$(Get-Random)"
+New-Item -ItemType Directory $testProfile | Out-Null
+Set-Content "$testProfile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
 
 $argList = @()
 if (-not $NoAppArg) { $argList += '-app', "$app\breached\application.ini" }
-$argList += '-profile', $profile, '-no-remote', '-headless', '-wait-for-browser', '-attach-console'
+$argList += '-profile', $testProfile, '-no-remote', '-headless', '-wait-for-browser', '-attach-console'
 $out = Join-Path $shots 'selftest-out.txt'
 $err = Join-Path $shots 'selftest-err.txt'
-$p = Start-Process "$app\breached.exe" -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $argList
-if (-not $p.WaitForExit(360000)) { $p.Kill($true); "Self-test did not finish" }
-Get-Content $out, $err -ErrorAction SilentlyContinue | Select-String 'SELFTEST|Breached|error' | Select-Object -First 200
+"Starting $Exe $($argList -join ' ')"
+$p = Start-Process "$app\$Exe" -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $argList
+if (-not $p.WaitForExit(360000)) {
+    "Self-test did not finish. Running processes:"
+    Get-Process | Where-Object { $_.Path -like "$app*" } | Format-Table Id, Name, StartTime -AutoSize | Out-String
+    $p.Kill($true)
+    "--- stdout"; Get-Content $out -Tail 60 -ErrorAction SilentlyContinue
+    "--- stderr"; Get-Content $err -Tail 60 -ErrorAction SilentlyContinue
+} else {
+    Get-Content $out, $err -ErrorAction SilentlyContinue | Select-String 'SELFTEST|Breached|error' | Select-Object -First 200
+}
 Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force $profile -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $testProfile -ErrorAction SilentlyContinue
 
 $report = Join-Path $shots 'report.json'
 if (-not (Test-Path $report)) { throw 'no report.json' }
