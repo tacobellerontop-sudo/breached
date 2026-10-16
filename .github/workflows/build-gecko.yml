@@ -1,15 +1,16 @@
 name: Build Gecko
 
 # Compiles the whole Gecko engine from source for Windows, once per Gecko
-# release (app/firefox-source.txt). The result is uploaded as the
-# gecko-win64-<revision> artifact so Breached builds can reuse it instead of
+# release (app/firefox-source.txt), with Breached's patches (gecko/patches).
+# The result is uploaded as the gecko-win64-<revision> artifact so Breached builds can reuse it instead of
 # compiling again. Takes hours; run it when the Gecko release changes.
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - "gecko/mozconfig"
+      - "gecko/**"
+      - "branding/breached.ico"
       - ".github/workflows/build-gecko.yml"
 
 permissions:
@@ -66,6 +67,21 @@ jobs:
           git checkout -q FETCH_HEAD
           git log -1 --format='%H %s'
           cp "$GITHUB_WORKSPACE/breached/gecko/mozconfig" mozconfig
+
+      # Breached's changes: the engine runs the Breached shell next to it when
+      # started with no -app (gecko/patches), and carries Breached's icon and
+      # name instead of Firefox Nightly's.
+      - name: Apply Breached patches and branding
+        shell: bash
+        working-directory: D:\src
+        run: |
+          for p in "$GITHUB_WORKSPACE"/breached/gecko/patches/*.patch; do
+            echo "Applying $(basename "$p")"
+            git apply "$p"
+          done
+          cp "$GITHUB_WORKSPACE/breached/branding/breached.ico" browser/branding/unofficial/firefox.ico
+          sed -i 's/^MOZ_APP_DISPLAYNAME=.*/MOZ_APP_DISPLAYNAME=Breached/' browser/branding/unofficial/configure.sh
+          git status --short
 
       - name: Install MozillaBuild
         shell: pwsh

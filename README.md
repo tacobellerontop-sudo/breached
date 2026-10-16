@@ -25,6 +25,14 @@ Options: `-Lean` for Lean mode (fewer processes, weaker isolation between ordina
 
 Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox will install it: see [extensions/tab-sleeper/README.md](extensions/tab-sleeper/README.md). Until then, Firefox still unloads tabs when Windows runs low on memory, and "Unload Tab" is in the tab right-click menu.
 
+## Install Breached
+
+Download **BreachedSetup-<version>.exe** from the [latest release](https://github.com/tacobellerontop-sudo/breached/releases/latest) and run it. It installs for your Windows account without admin rights (or for everyone, if you pick that), adds Breached to the Start menu, and keeps your profile in `%APPDATA%\Breached`. The portable zip on the same page needs no install: unzip it and run `Breached.bat`.
+
+The files aren't code-signed yet, so SmartScreen may warn the first time: choose More info, then Run anyway.
+
+Releases run on Breached's own build of the Gecko engine (`.github/workflows/build-gecko.yml`, with the changes in `gecko/patches/`), so `breached.exe` is the engine itself and carries the Breached icon (`branding/`, drawn by `scripts/build/make-icon.py`). The **Release** workflow packages it, runs the self-test, builds the installer (`installer/breached.iss`) and publishes the release.
+
 ## The Breached app (dev builds)
 
 Every change to `app/` builds a portable Windows zip on GitHub: open the latest **Build Breached (dev)** run in the Actions tab, download `breached-dev-win64`, unzip it and run `Breached.bat`. It keeps its own profile in the `profile` folder next to it, so it doesn't touch an installed Firefox.

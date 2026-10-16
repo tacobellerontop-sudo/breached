@@ -1,0 +1,128 @@
+name: Release
+
+# Builds a Breached release on our own Gecko engine (the newest successful
+# Build Gecko run): breached.exe with Breached's icon, the self-test on it,
+# a Windows installer (Inno Setup) and a portable zip, then publishes them
+# as a GitHub release tagged v<version>.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version, like 0.1.0"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the version
+        shell: pwsh
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') { throw "version must look like 0.1.0, not $env:VERSION" }
+          gh release view "v$env:VERSION" 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "v$env:VERSION is already released" }
+          exit 0
+
+      - name: Download our Gecko engine
+        shell: pwsh
+        run: |
+          $run = gh run list --workflow build-gecko.yml --status success --limit 1 --json databaseId,headSha,createdAt | ConvertFrom-Json
+          if (-not $run) { throw 'no successful Build Gecko run' }
+          "Gecko from Build Gecko run $($run[0].databaseId) ($($run[0].headSha), $($run[0].createdAt))"
+          "GECKO_RUN=$($run[0].databaseId)" | Out-File -Append $env:GITHUB_ENV
+          gh run download $run[0].databaseId --dir "$env:RUNNER_TEMP\gecko"
+          $zip = Get-ChildItem -Recurse "$env:RUNNER_TEMP\gecko" -Filter gecko-win64.zip | Select-Object -First 1
+          if (-not $zip) { throw 'no gecko-win64.zip in that run' }
+          "GECKO_ZIP=$($zip.FullName)" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Package Breached
+        shell: pwsh
+        run: scripts/build/package-shell.ps1 -Installer $env:GECKO_ZIP -Out out
+
+      # breached.exe on its own (no -app): proves the engine finds the shell.
+      - name: Self-test
+        shell: pwsh
+        run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots -NoAppArg
+
+      - name: Check breached.exe's icon and name
+        shell: pwsh
+        run: |
+          $info = (Get-Item out\breached\breached.exe).VersionInfo
+          "ProductName: $($info.ProductName), FileDescription: $($info.FileDescription), version $($info.ProductVersion)"
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path out\breached\breached.exe))
+          $icon.ToBitmap().Save("$PWD\screenshots\exe-icon.png")
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress | Out-Null
+            $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          }
+          & $iscc /Q "/DAppVersion=$env:VERSION" "/DAppDir=$PWD\out\breached" "/DOutDir=$PWD\release" installer\breached.iss
+          if ($LASTEXITCODE) { throw 'Inno Setup failed' }
+          Compress-Archive out\breached "release\Breached-$env:VERSION-win64-portable.zip"
+          Get-ChildItem release | Select-Object Name, @{n='MB';e={[math]::Round($_.Length / 1MB)}}
+
+      # Install it silently for this user, check the files and that it
+      # starts, then uninstall.
+      - name: Test the installer
+        shell: pwsh
+        run: |
+          $setup = Get-Item "release\BreachedSetup-$env:VERSION.exe"
+          $p = Start-Process $setup.FullName -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART', "/LOG=$PWD\install.log"
+          if ($p.ExitCode) { Get-Content install.log -Tail 30; throw "installer exited with $($p.ExitCode)" }
+          $dir = "$env:LOCALAPPDATA\Programs\Breached"
+          foreach ($f in 'breached.exe', 'xul.dll', 'breached\application.ini', 'unins000.exe') {
+            if (-not (Test-Path "$dir\$f")) { throw "installed app has no $f" }
+          }
+          if (Test-Path "$dir\Breached.bat") { throw 'portable start script was installed' }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Breached.lnk'
+          if (-not $lnk) { throw 'no Start menu shortcut' }
+          "Installed to $dir, shortcut $($lnk[0].FullName)"
+          $u = Start-Process "$dir\unins000.exe" -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
+          Start-Sleep 10
+          if (Test-Path "$dir\breached.exe") { throw 'uninstall left breached.exe behind' }
+          "Uninstalled (exit $($u.ExitCode))"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-check
+          path: |
+            screenshots
+            install.log
+
+      - name: Publish the GitHub release
+        shell: pwsh
+        run: |
+          $notes = @"
+          Breached $env:VERSION for Windows 10 and 11 (64-bit), on Breached's own build of the Gecko engine (Firefox $((Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]) source).
+
+          - **BreachedSetup-$env:VERSION.exe**: the installer. It installs for you alone without admin rights, or for everyone if you choose that.
+          - **Breached-$env:VERSION-win64-portable.zip**: no install. Unzip and run Breached.bat; the profile stays in the profile folder next to it.
+
+          The files aren't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
+
+          Built by [this run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) from commit ${{ github.sha }}, with Gecko from [Build Gecko run $env:GECKO_RUN](https://github.com/${{ github.repository }}/actions/runs/$env:GECKO_RUN).
+          "@
+          $notes = ($notes -split "`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`n"
+          Set-Content notes.md $notes
+          gh release create "v$env:VERSION" (Get-ChildItem release\*).FullName --target ${{ github.sha }} --title "Breached $env:VERSION" --notes-file notes.md

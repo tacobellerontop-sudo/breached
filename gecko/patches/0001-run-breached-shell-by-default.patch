@@ -1,0 +1,47 @@
+Breached: run the Breached shell next to the engine when started without -app.
+
+diff --git a/browser/app/nsBrowserApp.cpp b/browser/app/nsBrowserApp.cpp
+index 1fbef26..1dc95bc 100644
+--- a/browser/app/nsBrowserApp.cpp
++++ b/browser/app/nsBrowserApp.cpp
+@@ -22,6 +22,7 @@
+ #endif
+ 
+ #include <stdio.h>
++#include <string.h>
+ #include <stdarg.h>
+ #include <time.h>
+ 
+@@ -240,6 +241,32 @@ static int do_main(int argc, char* argv[], char* envp[]) {
+     return gBootstrap->XRE_XPCShellMain(--argc, argv, envp, &shellData);
+   }
+ 
++#ifdef XP_WIN
++  // Breached: with no -app, run the Breached shell that ships next to the
++  // engine (breached\application.ini), so breached.exe needs no arguments
++  // and a pinned taskbar icon starts Breached too.
++  static char sBreachedIni[MAXPATHLEN + 32];
++  if ((!appDataFile || !*appDataFile) &&
++      NS_SUCCEEDED(BinaryPath::Get(sBreachedIni))) {
++    char* slash = strrchr(sBreachedIni, '\\');
++    if (slash && (slash - sBreachedIni) + 32 < MAXPATHLEN) {
++      strcpy(slash + 1, "breached\\application.ini");
++      wchar_t wide[MAXPATHLEN + 32];
++      if (MultiByteToWideChar(CP_UTF8, 0, sBreachedIni, -1, wide,
++                              MAXPATHLEN + 32) &&
++          GetFileAttributesW(wide) != INVALID_FILE_ATTRIBUTES) {
++        char appEnv[MAXPATHLEN + 48];
++        SprintfLiteral(appEnv, "XUL_APP_FILE=%s", sBreachedIni);
++        if (putenv(strdup(appEnv))) {
++          Output("Couldn't set %s.\n", appEnv);
++          return 255;
++        }
++        appDataFile = sBreachedIni;
++      }
++    }
++  }
++#endif
++
+   BootstrapConfig config;
+ 
+   if (appDataFile && *appDataFile) {
