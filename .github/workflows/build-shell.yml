@@ -58,13 +58,7 @@ jobs:
         id: selftest
         continue-on-error: true
         shell: pwsh
-        run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots -Exe firefox.exe
-
-      # Temporary: does the renamed engine start the same way?
-      - name: Self-test as breached.exe
-        continue-on-error: true
-        shell: pwsh
-        run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots-renamed
+        run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots
 
       - name: Publish screenshots to the ci-screenshots branch
         if: always()

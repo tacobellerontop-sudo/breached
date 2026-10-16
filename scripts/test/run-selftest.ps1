@@ -15,9 +15,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path "$PSScriptRoot\..\.."
-$app = Resolve-Path $App
-$shots = New-Item -ItemType Directory -Force $Shots
-$env:BREACHED_SELFTEST = $shots.FullName
+$appDir = (Resolve-Path $App).Path
+# (PowerShell names ignore case: these must differ from -App and -Shots.)
+$shotDir = (New-Item -ItemType Directory -Force $Shots).FullName
+$env:BREACHED_SELFTEST = $shotDir
 
 # Test helpers: a stand-in bw.exe and a local login page.
 $tools = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\breached-test"
@@ -32,15 +33,15 @@ New-Item -ItemType Directory $testProfile | Out-Null
 Set-Content "$testProfile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
 
 $argList = @()
-if (-not $NoAppArg) { $argList += '-app', "$app\breached\application.ini" }
+if (-not $NoAppArg) { $argList += '-app', "$appDir\breached\application.ini" }
 $argList += '-profile', $testProfile, '-no-remote', '-headless', '-wait-for-browser', '-attach-console'
-$out = Join-Path $shots 'selftest-out.txt'
-$err = Join-Path $shots 'selftest-err.txt'
+$out = Join-Path $shotDir 'selftest-out.txt'
+$err = Join-Path $shotDir 'selftest-err.txt'
 "Starting $Exe $($argList -join ' ')"
-$p = Start-Process "$app\$Exe" -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $argList
+$p = Start-Process "$appDir\$Exe" -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $argList
 if (-not $p.WaitForExit(360000)) {
     "Self-test did not finish. Running processes:"
-    Get-Process | Where-Object { $_.Path -like "$app*" } | Format-Table Id, Name, StartTime -AutoSize | Out-String
+    Get-Process | Where-Object { $_.Path -like "$appDir*" } | Format-Table Id, Name, StartTime -AutoSize | Out-String
     $p.Kill($true)
     "--- stdout"; Get-Content $out -Tail 60 -ErrorAction SilentlyContinue
     "--- stderr"; Get-Content $err -Tail 60 -ErrorAction SilentlyContinue
@@ -50,7 +51,7 @@ if (-not $p.WaitForExit(360000)) {
 Stop-Process -Id $server.Id -ErrorAction SilentlyContinue
 Remove-Item -Recurse -Force $testProfile -ErrorAction SilentlyContinue
 
-$report = Join-Path $shots 'report.json'
+$report = Join-Path $shotDir 'report.json'
 if (-not (Test-Path $report)) { throw 'no report.json' }
 Get-Content $report
 if (-not (Get-Content $report | ConvertFrom-Json).passed) { throw 'self-test failed' }
