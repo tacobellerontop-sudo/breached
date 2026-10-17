@@ -632,6 +632,20 @@ var SelfTest = {
     let siteTab = await waitFor(() => B.selected.url == site && B.selected.title == "Breached mods" && B.selected, 15000);
     check("settings: Get mods opens the mods site", !!siteTab);
     let marked = await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.root?.breached == B.version, 10000);
+    if (!marked) {
+      // Why not: is the site's helper there, and what does it answer?
+      let wg = B.selectedBrowser.browsingContext.currentWindowGlobal;
+      info.pageURI = wg?.documentURI?.spec;
+      try {
+        let actor = wg.getActor("BreachedModsSite");
+        info.siteState = await actor.receiveMessage({ name: "ModsSite:State", data: {} });
+        actor.sendAsyncMessage("ModsSite:Refresh", {});
+        marked = await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.root?.breached == B.version, 5000);
+        info.markedAfterRefresh = marked;
+      } catch (e) {
+        info.siteActorError = String(e);
+      }
+    }
     let link = await this.element("a[data-breached-mod=bitwarden]");
     info.siteLink = link;
     check("the mods site knows it's open in Breached", marked && link?.text == "Install");
@@ -1242,6 +1256,7 @@ var SelfTest = {
     // Password manager: asks to save a login, then fills it in next time.
     check("saved passwords are off without the Password manager mod", !Services.prefs.getBoolPref("signon.rememberSignons"));
     check("the Password manager mod installs", await install("passwords"));
+    Services.prefs.setBoolPref("signon.debug", true);
     let loginPage = "http://127.0.0.1:8123/login.html";
     let tab = B.openTab(loginPage);
     await waitFor(() => tab.title == "login" && !tab.el.hasAttribute("busy"), 10000);
@@ -1250,6 +1265,16 @@ var SelfTest = {
     let save = await picking("Save the password for tester");
     info.savePrompt = document.getElementById("prompt").textContent;
     check("passwords: sending a login form asks to save it", save);
+    try {
+      info.loginActor = !!tab.browser.browsingContext.currentWindowGlobal?.getActor("LoginManager");
+    } catch (e) {
+      info.loginActor = String(e);
+    }
+    info.loginLog = Services.console
+      .getMessageArray()
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => /login|password|signon/i.test(m))
+      .slice(-40);
     await this.screenshot(outDir, "25-password-save.png");
     enter();
     let saved = await waitFor(async () => (await Services.logins.getAllLogins()).length == 1, 5000);
@@ -1260,7 +1285,8 @@ var SelfTest = {
     info.fillTitle = tab.title;
     check("passwords: the saved login fills in next time", filled);
     B.closeTab(tab);
-    Services.logins.removeAllUserFacingLogins();
+    Services.logins.removeAllLogins();
+    Services.prefs.clearUserPref("signon.debug");
     await ModHost.Mods.uninstall("passwords");
     check(
       "passwords: removing the mod turns saved passwords off again",
