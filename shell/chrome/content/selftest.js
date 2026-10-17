@@ -425,9 +425,19 @@ var SelfTest = {
       let parts = {};
       let add = (key, bytes) => (parts[key] = (parts[key] ?? 0) + bytes);
       let mgr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
-      mgr.getReportsForThisProcess(
+      let finish = () => {
+        let mb = {};
+        for (let [k, v] of Object.entries(parts).sort((a, b) => b[1] - a[1])) {
+          if (v > 1048576) {
+            mb[k] = Math.round(v / 104857.6) / 10;
+          }
+        }
+        resolve(mb);
+      };
+      mgr.getReports(
         (process, path, kind, units, amount) => {
-          if (units != Ci.nsIMemoryReporter.UNITS_BYTES || !path.startsWith("explicit/")) {
+          // The main process reports with an empty process name.
+          if (process || units != Ci.nsIMemoryReporter.UNITS_BYTES || !path.startsWith("explicit/")) {
             return;
           }
           let [, first, second] = path.split("/");
@@ -437,15 +447,10 @@ var SelfTest = {
           }
         },
         null,
+        finish,
+        null,
         true
       );
-      let mb = {};
-      for (let [k, v] of Object.entries(parts).sort((a, b) => b[1] - a[1])) {
-        if (v > 1048576) {
-          mb[k] = Math.round(v / 104857.6) / 10;
-        }
-      }
-      resolve(mb);
     });
   },
 
