@@ -81,7 +81,8 @@ function remember(principal, kinds, allow) {
 }
 
 function windowFor(browser) {
-  return browser?.ownerGlobal?.Breached ? browser.ownerGlobal : Services.wm.getMostRecentWindow("breached:main");
+  let win = browser?.browsingContext?.topChromeWindow;
+  return win?.Breached ? win : Services.wm.getMostRecentWindow("breached:main");
 }
 
 /**

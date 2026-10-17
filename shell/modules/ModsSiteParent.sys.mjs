@@ -9,7 +9,7 @@ const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 export class BreachedModsSiteParent extends JSWindowActorParent {
   async receiveMessage(message) {
     let browser = this.browsingContext.top.embedderElement;
-    let shell = browser?.ownerGlobal?.Breached;
+    let shell = this.browsingContext.topChromeWindow?.Breached;
     let host = shell?.mods;
     if (!host || !Mods.onSite(this.manager.documentURI?.spec ?? "")) {
       return null;
