@@ -1,0 +1,197 @@
+Crash Annotation GraphicsCriticalError: |[0][GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt (t=0.716865) [GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt
+SELFTEST PASS shell loaded with one tab
+SELFTEST PASS command bar hidden until ':'
+SELFTEST PASS the home page opens on start
+SELFTEST PASS the home page's box opens an address
+SELFTEST PASS a web page loads
+SELFTEST PASS pages run in a separate content process
+SELFTEST PASS window title shows the page
+SELFTEST PASS tab bar at the bottom by default
+SELFTEST PASS page helper runs in web pages
+SELFTEST PASS page fullscreen helper runs in web pages
+SELFTEST PASS ':' on a page opens the command bar
+SELFTEST PASS command bar sits at the bottom of the window
+SELFTEST PASS Escape closes the command bar
+SELFTEST PASS Ctrl+T can open ':open -t' (setting)
+SELFTEST PASS Ctrl+T opens a new tab with the home page
+SELFTEST PASS the new tab is selected
+SELFTEST PASS the home page's box has focus
+SELFTEST PASS the new tab goes to the address
+SELFTEST PASS Ctrl+W closes the tab
+SELFTEST PASS Ctrl+Shift+T reopens it
+SELFTEST PASS :tab-focus switches tabs
+SELFTEST PASS :tab-sleep unloads a tab
+SELFTEST PASS a sleeping tab wakes when selected
+SELFTEST PASS it comes back on the same page
+SELFTEST PASS idle tabs unload on their own
+SELFTEST PASS plain words search
+SELFTEST PASS typing an address in the command bar starts connecting to it
+SELFTEST PASS addresses open as addresses
+SELFTEST PASS javascript: is refused
+SELFTEST PASS :settings opens the settings page
+SELFTEST PASS settings opens on one page, Appearance
+SELFTEST PASS settings: the side list switches pages
+SELFTEST PASS settings: the side list goes back
+SELFTEST PASS dropdowns open as a popup list
+SELFTEST PASS picking from a dropdown changes the setting
+SELFTEST PASS settings: tab bar position moves the tab bar up
+SELFTEST PASS settings: search engine changes searches
+SELFTEST PASS settings: tracker blocking starts at Strict
+SELFTEST PASS settings: tracker blocking level applies
+SELFTEST PASS Breached's own title bar replaces the Windows one
+SELFTEST PASS the title bar sits at the top with window buttons
+SELFTEST PASS tabs on top share the title bar's row
+SELFTEST PASS the title bar shows the page title
+SELFTEST PASS settings: colours start as pastel silver and orange
+SELFTEST PASS settings: a colour set recolours the window
+SELFTEST PASS settings: the settings page follows the colours
+SELFTEST PASS settings: one colour can be changed
+SELFTEST PASS settings: transparency turns on the Windows backdrop
+SELFTEST PASS settings: bar colour strength applies
+SELFTEST PASS settings: transparency turns off
+SELFTEST PASS settings: the Windows title bar can come back
+SELFTEST PASS updates: versions compare by number
+SELFTEST PASS updates: a test copy isn't an installed one
+SELFTEST PASS :update opens settings at Updates
+SELFTEST PASS updates: checking GitHub finishes with an answer
+SELFTEST PASS :set tabs.autohide true hides the tab bar
+SELFTEST PASS the hidden tab bar shows while switching
+SELFTEST PASS :close closes the current tab
+SELFTEST PASS :history opens the history page
+SELFTEST PASS history lists visited pages
+SELFTEST PASS history search narrows the list
+SELFTEST PASS a download saves to the downloads folder
+SELFTEST PASS :downloads opens the download manager
+SELFTEST PASS the download manager shows finished downloads with open and folder buttons
+SELFTEST PASS :bw.exe without the mod says which mod it needs
+SELFTEST PASS :mods opens settings at the mods section, with a link to the mods site
+SELFTEST PASS settings: no mods come installed
+SELFTEST PASS settings: Get mods opens the mods site
+SELFTEST PASS the mods site knows it's open in Breached
+SELFTEST PASS Install on the mods site asks first
+SELFTEST PASS the mods site installs the Bitwarden mod, which adds :bw.exe
+SELFTEST PASS the mods site then shows it as installed
+SELFTEST PASS settings: the installed mod shows with its settings
+SELFTEST PASS :bw.exe asks for the master password
+SELFTEST PASS :bw.exe lists the site's logins as rows
+SELFTEST PASS the first row starts selected
+SELFTEST PASS Down moves to the next row
+SELFTEST PASS typing narrows the rows
+SELFTEST PASS the rows close after picking
+SELFTEST PASS :bw.exe fills the page's login form
+SELFTEST PASS the password isn't kept in the command history
+SELFTEST PASS ':' in a page's text field types there
+SELFTEST PASS after Esc, ':' opens the command bar
+SELFTEST PASS a site making a passkey offers to keep it in Bitwarden
+SELFTEST PASS signing in shows Bitwarden's passkeys as rows
+SELFTEST PASS the site accepts the Bitwarden passkey's signature
+SELFTEST PASS settings: removing the mod takes :bw.exe away again
+SELFTEST PASS the extension manager is running
+SELFTEST PASS a test extension installs
+SELFTEST PASS extensions: tabs.query, windows.getCurrent and tabs.create work
+SELFTEST PASS extensions: tabs.executeScript runs in pages
+SELFTEST PASS extensions: contextMenus calls don't break extensions
+SELFTEST PASS extensions: the extension's button shows
+SELFTEST PASS extensions: badges show on the button
+SELFTEST PASS :ext opens the extension's popup
+SELFTEST PASS :extensions lists installed extensions
+SELFTEST PASS removing an extension removes its button
+SELFTEST PASS a site asking for the camera and microphone asks in the command bar
+SELFTEST PASS the question offers allow, always, block and never
+SELFTEST PASS allowing gives the page the camera and microphone
+SELFTEST PASS "always" is remembered for the site
+SELFTEST PASS the tab is marked while the camera is on
+SELFTEST PASS a tab using the camera isn't unloaded
+SELFTEST PASS a remembered site isn't asked again
+SELFTEST PASS a site asking for your location asks in the command bar
+SELFTEST PASS Escape blocks it this time
+SELFTEST PASS blocking once isn't remembered
+SELFTEST PASS :permissions lists the saved answers in settings
+SELFTEST PASS settings: a saved answer can be forgotten
+SELFTEST PASS the new tab page has a pinned section
+SELFTEST PASS :pin adds sites to the new tab page
+SELFTEST PASS pinned sites keep their order
+SELFTEST PASS pinned sites can be reordered
+SELFTEST PASS a pinned site can be unpinned from the page
+SELFTEST PASS :unpin takes one off
+SELFTEST PASS private: :private opens a window with the page
+SELFTEST PASS private: the window is private
+SELFTEST PASS private: its pages load privately
+SELFTEST PASS private: the title says so
+SELFTEST PASS private: no history kept
+SELFTEST PASS private: closing its last tab closes it
+SELFTEST PASS menu: right-click on a link shows link items
+SELFTEST PASS menu: extension items show
+SELFTEST PASS menu: Copy link
+SELFTEST PASS menu: a text field gets cut, copy, paste
+SELFTEST PASS menu: Paste pastes the copied link into the page
+SELFTEST PASS menu: an image gets image items
+SELFTEST PASS menu: Save image downloads it
+SELFTEST PASS menu: the page gets back, reload, print, view source
+SELFTEST PASS menu: an extension's item tells the extension what was clicked
+SELFTEST PASS zoom: kept for the site's other pages
+SELFTEST PASS zoom: other sites aren't zoomed
+SELFTEST PASS zoom: 100% forgets the site
+SELFTEST PASS print: Ctrl+P prints the page
+SELFTEST PASS print: Ctrl+P asks once
+SELFTEST PASS print: a page's print button prints
+SELFTEST PASS print: no tab is left behind
+SELFTEST PASS tabs on the left: a column beside the page
+SELFTEST PASS tabs on the right: a column beside the page
+SELFTEST PASS hidden column: the page takes the whole width
+SELFTEST PASS hidden column: hidden
+SELFTEST PASS show on hover: the mouse at the right edge shows the column
+SELFTEST PASS show on hover: it goes again when the mouse leaves
+SELFTEST PASS hidden bottom bar starts hidden
+SELFTEST PASS show on hover: the mouse at the bottom edge shows the tab bar
+SELFTEST PASS show on hover can be turned off
+SELFTEST PASS back and forward show in the tab bar
+SELFTEST PASS back is greyed out with nowhere to go
+SELFTEST PASS back turns on after a second page
+SELFTEST PASS the back button goes back
+SELFTEST PASS forward turns on after going back
+SELFTEST PASS the forward button goes forward
+SELFTEST PASS tabs stay in order beside the buttons
+SELFTEST PASS the buttons can be switched off
+SELFTEST PASS reader view: :reader opens the article in about:reader
+SELFTEST PASS reader view: :reader again goes back to the page
+SELFTEST PASS protected video starts off, without its mod
+SELFTEST PASS a site wanting protected video offers the Protected video mod
+SELFTEST PASS get the mod installs it from the mods site
+SELFTEST PASS the mod downloads Widevine
+SELFTEST PASS the page gets Widevine after the reload
+SELFTEST PASS removing the mod turns protected video off
+SELFTEST PASS saved passwords are off without the Password manager mod
+SELFTEST PASS the Password manager mod installs
+SELFTEST PASS passwords: sending a login form asks to save it
+SELFTEST PASS passwords: save keeps it in the password store
+SELFTEST PASS passwords: the saved login fills in next time
+SELFTEST PASS passwords: removing the mod turns saved passwords off again
+SELFTEST PASS the Bookmarks mod installs
+SELFTEST PASS bookmarks: Ctrl+D bookmarks the page
+SELFTEST PASS bookmarks: :bookmarks lists them as rows
+SELFTEST PASS bookmarks: picking one opens it
+SELFTEST PASS bookmarks: removing the mod takes Ctrl+D away
+SELFTEST PASS Mozilla accounts are off without the Firefox Sync mod
+SELFTEST PASS the Firefox Sync mod installs
+SELFTEST PASS sync: the mod turns Mozilla accounts on, with history, bookmarks and passwords
+SELFTEST PASS sync: :sync in opens the Mozilla account sign-in page
+SELFTEST PASS sync: removing the mod turns Mozilla accounts off again
+SELFTEST PASS the welcome page doesn't show for a profile that's been used
+SELFTEST PASS after that check it's marked done
+SELFTEST PASS :welcome opens the welcome page
+SELFTEST PASS welcome: starts on colours
+SELFTEST PASS welcome: a colour scheme applies at once
+SELFTEST PASS welcome: the dial makes its own scheme
+SELFTEST PASS welcome: the dial's scheme is marked chosen
+SELFTEST PASS welcome: Dark makes dark bars
+SELFTEST PASS welcome: Next goes to the tab bar
+SELFTEST PASS welcome: picking a place moves the tab bar
+SELFTEST PASS welcome: Next goes to mods
+SELFTEST PASS welcome: lists the mods site's mods
+SELFTEST PASS welcome: the last step says Finish
+SELFTEST PASS welcome: Finish installs the ticked mod
+SELFTEST PASS welcome: then goes to the home page
+SELFTEST PASS welcome: finishing marks it done
+SELFTEST PASS no Breached script errors
+SELFTEST PASSED

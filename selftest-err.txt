@@ -1,0 +1,94 @@
+*** You are running in headless mode.
+Missing chrome or resource URL: resource:///modules/BrowserContentHandler.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserContentHandler.sys.mjs
+Missing chrome or resource URL: resource:///modules/taskbartabs/TaskbarTabsCmd.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/taskbartabs/TaskbarTabsCmd.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserContentHandler.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserContentHandler.sys.mjs
+Missing chrome or resource URL: resource:///modules/DevToolsStartup.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/DevToolsStartup.sys.mjs
+Missing chrome or resource URL: resource:///modules/profiles/SelectableProfileService.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/profiles/SelectableProfileService.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserContentHandler.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserContentHandler.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource://devtools/client/jsonview/Sniffer.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource://devtools/client/jsonview/Sniffer.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource://devtools/client/jsonview/Sniffer.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: moz-src:///browser/components/sessionstore/SessionStore.sys.mjs, line 7156: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
+Missing chrome or resource URL: resource:///modules/BrowserWindowTracker.sys.mjs
+JavaScript error: , line 0: Error: Failed to load resource:///modules/BrowserWindowTracker.sys.mjs
