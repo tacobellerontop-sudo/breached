@@ -642,6 +642,12 @@ var SelfTest = {
         actor.sendAsyncMessage("ModsSite:Refresh", {});
         marked = await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.root?.breached == B.version, 5000);
         info.markedAfterRefresh = marked;
+        info.siteChecks = {
+          onSite: ModHost.Mods.onSite(info.pageURI),
+          sameBrowser: actor.browsingContext.top.embedderElement === B.selectedBrowser,
+          hasModHost: !!actor.browsingContext.top.embedderElement?.ownerGlobal?.ModHost,
+          managerURI: actor.manager?.documentURI?.spec,
+        };
       } catch (e) {
         info.siteActorError = String(e);
       }
@@ -1256,7 +1262,9 @@ var SelfTest = {
     // Password manager: asks to save a login, then fills it in next time.
     check("saved passwords are off without the Password manager mod", !Services.prefs.getBoolPref("signon.rememberSignons"));
     check("the Password manager mod installs", await install("passwords"));
-    Services.prefs.setBoolPref("signon.debug", true);
+    // Gecko saves only what a person typed (a real key press or click);
+    // the test fills the form from here.
+    Services.prefs.setBoolPref("signon.userInputRequiredToCapture.enabled", false);
     let loginPage = "http://127.0.0.1:8123/login.html";
     let tab = B.openTab(loginPage);
     await waitFor(() => tab.title == "login" && !tab.el.hasAttribute("busy"), 10000);
@@ -1285,8 +1293,8 @@ var SelfTest = {
     info.fillTitle = tab.title;
     check("passwords: the saved login fills in next time", filled);
     B.closeTab(tab);
-    Services.logins.removeAllLogins();
-    Services.prefs.clearUserPref("signon.debug");
+    await Services.logins.removeAllUserFacingLoginsAsync();
+    Services.prefs.clearUserPref("signon.userInputRequiredToCapture.enabled");
     await ModHost.Mods.uninstall("passwords");
     check(
       "passwords: removing the mod turns saved passwords off again",
