@@ -210,6 +210,17 @@ var SelfTest = {
     await wait(500);
     report.info.settings = [...settingsDoc().querySelectorAll("[data-setting]")].map(r => r.dataset.setting);
     await this.screenshot(outDir, "6-settings.png");
+    // Settings is split into pages; the side list shows one at a time.
+    let shownPages = () => [...settingsDoc().querySelectorAll(".page")].filter(p => !p.hidden).map(p => p.dataset.page);
+    report.info.settingsPages = [...settingsDoc().querySelectorAll("#nav button")].map(b => b.textContent);
+    check("settings opens on one page, Appearance", shownPages().join() == "appearance");
+    let showSettingsPage = async name => {
+      settingsDoc().getElementById("nav-" + name).click();
+      await wait(200);
+      return shownPages().join() == name;
+    };
+    check("settings: the side list switches pages", await showSettingsPage("browsing"));
+    await this.screenshot(outDir, "6a-settings-browsing.png");
     // A dropdown on a page opens as a real popup list.
     let dropdownEl = settingsDoc().getElementById("setting-breached-tabs-position");
     let r = dropdownEl.getBoundingClientRect();
@@ -272,6 +283,7 @@ var SelfTest = {
     );
     check("tabs on top share the title bar's row", $("tabbar").parentNode.id == "titlebar-content");
     check("the title bar shows the page title", $("titlebar-title").textContent == document.title);
+    await showSettingsPage("appearance");
     let rgb = hex => `rgb(${hex.slice(1).match(/../g).map(h => parseInt(h, 16)).join(", ")})`;
     let preset = settingsDoc().getElementById("setting-color-preset");
     check("settings: colours start as pastel silver and orange", preset.value == "pastel");
@@ -330,6 +342,7 @@ var SelfTest = {
       Services.prefs.clearUserPref("breached." + p);
     }
     await wait(200);
+    await this.updates(B, check, waitFor, wait, outDir, report, settingsDoc, shownPages);
     B.run("close");
     B.run("set tabs.autohide true");
     await wait(2000);
@@ -370,6 +383,28 @@ var SelfTest = {
       "no Breached script errors",
       !report.errors.some(e => /breached/i.test(e))
     );
+  },
+
+  // Settings > Updates asks GitHub for the newest release.
+  async updates(B, check, waitFor, wait, outDir, report, settingsDoc, shownPages) {
+    let Updates = ChromeUtils.importESModule("resource://breached/Updates.sys.mjs");
+    check(
+      "updates: versions compare by number",
+      Updates.compare("0.1.10", "0.1.9") > 0 && Updates.compare("v0.1.1", "0.1.1") == 0 && Updates.compare("0.2", "0.10.0") < 0
+    );
+    check("updates: a test copy isn't an installed one", !Updates.isInstalled());
+    B.run("update");
+    check(
+      ":update opens settings at Updates",
+      await waitFor(() => shownPages().join() == "updates" && settingsDoc().getElementById("update-status"), 5000)
+    );
+    let status = () => settingsDoc().getElementById("update-status").textContent;
+    // GitHub may limit CI's requests; any answer but "Checking" is a finished check.
+    let done = await waitFor(() => !/Checking|^You have Breached/.test(status()), 20000);
+    report.info.updateStatus = status();
+    check("updates: checking GitHub finishes with an answer", done);
+    await this.screenshot(outDir, "8b-updates.png");
+    Services.prefs.clearUserPref("breached.update.lastCheck");
   },
 
   async historyAndDownloads(B, check, waitFor, wait, outDir, report) {
@@ -448,7 +483,7 @@ var SelfTest = {
     B.run("mods");
     check(
       ":mods opens settings at the mods section",
-      await waitFor(() => B.selected.url == "breached:settings#mods" && doc()?.getElementById("mod-bitwarden-toggle"))
+      await waitFor(() => B.selected.url == "breached:settings#mods" && doc()?.getElementById("mod-bitwarden-toggle")?.checkVisibility())
     );
     await wait(500);
     await this.screenshot(outDir, "11-mods.png");

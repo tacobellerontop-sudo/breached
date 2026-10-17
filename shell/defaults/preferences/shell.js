@@ -68,3 +68,7 @@ pref("extensions.getAddons.link.url", "https://addons.mozilla.org/%LOCALE%/firef
 pref("extensions.webapi.enabled", true);
 pref("extensions.postDownloadThirdPartyPrompt", false);
 pref("permissions.manager.defaultsUrl", "resource://app/defaults/permissions");
+
+// Updates from GitHub releases (settings > updates, modules/Updates.sys.mjs)
+pref("breached.update.autoCheck", true);
+pref("breached.update.lastCheck", 0);

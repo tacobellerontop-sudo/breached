@@ -5,6 +5,7 @@
 
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
 const { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
+const Updates = ChromeUtils.importESModule("resource://breached/Updates.sys.mjs");
 
 const SEARCH_ENGINES = [
   ["https://duckduckgo.com/?q=%s", "DuckDuckGo"],
@@ -33,6 +34,7 @@ const TRACKING_LEVELS = {
 const SECTIONS = [
   {
     title: "look",
+    page: "appearance",
     items: [
       {
         pref: "breached.tabs.position",
@@ -63,10 +65,12 @@ const SECTIONS = [
   },
   {
     title: "colours",
+    page: "appearance",
     items: [{ id: "colors", type: "colors" }],
   },
   {
     title: "transparency",
+    page: "appearance",
     items: [
       {
         pref: "breached.transparency",
@@ -93,6 +97,7 @@ const SECTIONS = [
   },
   {
     title: "start and search",
+    page: "browsing",
     items: [
       {
         pref: "breached.homepage",
@@ -139,6 +144,7 @@ const SECTIONS = [
   },
   {
     title: "tabs and memory",
+    page: "browsing",
     items: [
       {
         pref: "breached.tabs.unloadAfterMinutes",
@@ -168,6 +174,7 @@ const SECTIONS = [
   },
   {
     title: "privacy",
+    page: "privacy",
     items: [
       { id: "tracking", label: "Block trackers", type: "tracking" },
       {
@@ -186,6 +193,7 @@ const SECTIONS = [
   },
   {
     title: "downloads",
+    page: "downloads",
     items: [
       { id: "download-dir", label: "Save files to", type: "download-dir" },
       {
@@ -197,16 +205,43 @@ const SECTIONS = [
   },
   {
     title: "extensions",
+    page: "add-ons",
     items: [{ id: "extensions", type: "extensions" }],
   },
   {
     title: "mods",
+    page: "add-ons",
     items: [{ id: "mods", type: "mods" }],
   },
   {
+    title: "updates",
+    page: "updates",
+    items: [
+      { id: "updates", type: "updates" },
+      {
+        pref: "breached.update.autoCheck",
+        label: "Check for updates once a day",
+        hint: "Breached tells you in the message bar when a new version is out.",
+        type: "bool",
+      },
+    ],
+  },
+  {
     title: "about",
+    page: "about",
     items: [{ id: "about", type: "about" }],
   },
+];
+
+// The pages down the side, in order. Sections name theirs with "page".
+const PAGES = [
+  ["appearance", "Appearance"],
+  ["browsing", "Browsing"],
+  ["privacy", "Privacy"],
+  ["downloads", "Downloads"],
+  ["add-ons", "Extensions and mods"],
+  ["updates", "Updates"],
+  ["about", "About"],
 ];
 
 const P = Services.prefs;
@@ -586,6 +621,65 @@ const BUILD = {
     return el("div", { class: "row" }, labelBlock(item, id), el("div", { class: "control" }, input));
   },
 
+  updates() {
+    let current = shell()?.version ?? "";
+    let status = el("span", { id: "update-status", class: "hint muted" }, `You have Breached ${current}.`);
+    let checkButton = el("button", { type: "button", id: "update-check" }, "Check for updates");
+    let installButton = el("button", { type: "button", id: "update-install", hidden: true }, "Download and install");
+    let pageButton = el("button", { type: "button", id: "update-page", hidden: true }, "Open the release page");
+    let found = null;
+    let say = (text, isError = false) => {
+      status.textContent = text;
+      status.classList.toggle("error", isError);
+    };
+    checkButton.addEventListener("click", async () => {
+      checkButton.disabled = true;
+      installButton.hidden = pageButton.hidden = true;
+      say("Checking GitHub…");
+      try {
+        found = await Updates.check(window.fetch.bind(window), current);
+        if (!found) {
+          say(`You have the newest version (${current}).`);
+        } else if (Updates.isInstalled() && found.installer) {
+          say(`Breached ${found.version} is out.`);
+          installButton.hidden = false;
+          pageButton.hidden = false;
+        } else {
+          say(`Breached ${found.version} is out. This copy isn't installed, so get it from the release page.`);
+          pageButton.hidden = false;
+        }
+      } catch (e) {
+        say(`Couldn't check: ${e.message}`, true);
+      } finally {
+        checkButton.disabled = false;
+      }
+    });
+    pageButton.addEventListener("click", () => found && shell()?.openTab(found.url));
+    installButton.addEventListener("click", async () => {
+      installButton.disabled = checkButton.disabled = true;
+      try {
+        let path = await Updates.download(window.fetch.bind(window), found, f =>
+          say(`Downloading Breached ${found.version}… ${Math.round(f * 100)}%`)
+        );
+        say("Installing. Breached will close and start again.");
+        Updates.install(path);
+      } catch (e) {
+        say(`Couldn't update: ${e.message}`, true);
+        installButton.disabled = checkButton.disabled = false;
+      }
+    });
+    if (location.hash == "#updates" && shell()?._checkUpdatesOnOpen) {
+      shell()._checkUpdatesOnOpen = false;
+      setTimeout(() => checkButton.click(), 0);
+    }
+    return el(
+      "div",
+      { class: "row" },
+      el("div", { class: "label" }, "Updates come from Breached's releases on GitHub", status),
+      el("div", { class: "control inline" }, checkButton, installButton, pageButton)
+    );
+  },
+
   about() {
     let version = window.browsingContext.topChromeWindow?.Breached?.version ?? "";
     let profile = Services.dirsvc.get("ProfD", Ci.nsIFile);
@@ -611,10 +705,51 @@ const BUILD = {
   },
 };
 
+// :mods or :update while settings is already open only changes the hash.
+window.addEventListener("hashchange", () => {
+  let name = location.hash.slice(1);
+  let target = document.getElementById(name);
+  let page = target?.closest(".page")?.dataset.page;
+  if (page) {
+    showPage(page);
+    if (target.localName == "section") {
+      target.scrollIntoView();
+    }
+  }
+  if (name == "updates" && shell()?._checkUpdatesOnOpen) {
+    shell()._checkUpdatesOnOpen = false;
+    document.getElementById("update-check")?.click();
+  }
+});
+
+function showPage(name) {
+  for (let page of document.querySelectorAll(".page")) {
+    page.hidden = page.dataset.page != name;
+  }
+  for (let link of document.querySelectorAll("#nav button")) {
+    link.toggleAttribute("selected", link.dataset.page == name);
+  }
+  document.documentElement.scrollTop = 0;
+}
+
 window.addEventListener("DOMContentLoaded", () => {
+  let nav = document.getElementById("nav");
   let root = document.getElementById("sections");
+  let pages = {};
+  for (let [name, title] of PAGES) {
+    let button = el("button", { type: "button", id: "nav-" + name }, title);
+    button.dataset.page = name;
+    button.addEventListener("click", () => {
+      history.replaceState(null, "", "#" + name);
+      showPage(name);
+    });
+    nav.append(button);
+    pages[name] = el("div", { class: "page", id: "page-" + name }, el("h2", { class: "page-title" }, title));
+    pages[name].dataset.page = name;
+    root.append(pages[name]);
+  }
   for (let section of SECTIONS) {
-    let s = el("section", { id: section.title.replace(/\W+/g, "-") }, el("h2", {}, section.title));
+    let s = el("section", { id: section.title.replace(/\W+/g, "-") }, el("h3", {}, section.title));
     for (let item of section.items) {
       let id = "setting-" + (item.pref ?? item.id).replace(/\W/g, "-");
       let row = BUILD[item.type](item, id);
@@ -624,9 +759,13 @@ window.addEventListener("DOMContentLoaded", () => {
       row.dataset.setting = item.pref ?? item.id;
       s.append(row);
     }
-    root.append(s);
+    pages[section.page].append(s);
   }
-  if (location.hash) {
-    document.getElementById(location.hash.slice(1))?.scrollIntoView();
+  // "#mods" names a section, "#updates" a page: show the page holding it.
+  let target = location.hash && document.getElementById(location.hash.slice(1));
+  let page = target?.closest(".page")?.dataset.page ?? (pages[location.hash.slice(1)] ? location.hash.slice(1) : PAGES[0][0]);
+  showPage(page);
+  if (target && target.localName == "section") {
+    target.scrollIntoView();
   }
 });

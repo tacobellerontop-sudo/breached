@@ -29,6 +29,8 @@ Tab Sleeper (unloading idle tabs) needs a one-time signing step before Firefox w
 
 Download **BreachedSetup-<version>.exe** from the [latest release](https://github.com/tacobellerontop-sudo/breached/releases/latest) and run it. It installs for your Windows account without admin rights (or for everyone, if you pick that), adds Breached to the Start menu, and keeps your profile in `%APPDATA%\Breached`. The portable zip on the same page needs no install: unzip it and run `Breached.bat`.
 
+To update, open settings > Updates (or type `:update`). An installed copy downloads the new installer from GitHub, runs it and starts again; a portable copy opens the release page. Breached also checks once a day and says so in the message bar; turn that off on the same page. Version numbers live in `BREACHED_VERSION` in `shell/chrome/content/shell.js`, which the Release workflow checks against the version you enter, and `docs/releases/<version>.md` holds each release's notes.
+
 The files aren't code-signed yet, so SmartScreen may warn the first time: choose More info, then Run anyway.
 
 Releases run on Breached's own build of the Gecko engine (`.github/workflows/build-gecko.yml`, with the changes in `gecko/patches/`), so `breached.exe` is the engine itself and carries the Breached icon (`branding/`, drawn by `scripts/build/make-icon.py`). The **Release** workflow packages it, runs the self-test, builds the installer (`installer/breached.iss`) and publishes the release.

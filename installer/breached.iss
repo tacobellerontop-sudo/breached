@@ -60,3 +60,12 @@ Name: "{autodesktop}\Breached"; Filename: "{app}\breached.exe"; Tasks: desktopic
 
 [Run]
 Filename: "{app}\breached.exe"; Description: "Start Breached"; Flags: nowait postinstall skipifsilent
+; Updates from settings run this installer with /SILENT /update=1 after
+; Breached has quit; start it again when the files are in place.
+Filename: "{app}\breached.exe"; Flags: nowait; Check: IsUpdate
+
+[Code]
+function IsUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:update|0}') = '1';
+end;

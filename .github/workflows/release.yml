@@ -34,6 +34,9 @@ jobs:
         shell: pwsh
         run: |
           if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') { throw "version must look like 0.1.0, not $env:VERSION" }
+          # The app compares this with GitHub's newest release to offer updates.
+          $inApp = [regex]::Match((Get-Content -Raw shell/chrome/content/shell.js), 'const BREACHED_VERSION = "([^"]+)"').Groups[1].Value
+          if ($inApp -ne $env:VERSION) { throw "shell.js says BREACHED_VERSION = $inApp; set it to $env:VERSION first" }
           gh release view "v$env:VERSION" 2>$null
           if ($LASTEXITCODE -eq 0) { throw "v$env:VERSION is already released" }
           exit 0
@@ -113,6 +116,7 @@ jobs:
       - name: Publish the GitHub release
         shell: pwsh
         run: |
+          $changes = "docs/releases/$env:VERSION.md"
           $notes = @"
           Breached $env:VERSION for Windows 10 and 11 (64-bit), on Breached's own build of the Gecko engine (Firefox $((Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]) source).
 
@@ -124,5 +128,6 @@ jobs:
           Built by [this run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) from commit ${{ github.sha }}, with Gecko from [Build Gecko run $env:GECKO_RUN](https://github.com/${{ github.repository }}/actions/runs/$env:GECKO_RUN).
           "@
           $notes = ($notes -split "`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`n"
+          if (Test-Path $changes) { $notes = (Get-Content -Raw $changes).Trim() + "`n`n" + $notes }
           Set-Content notes.md $notes
           gh release create "v$env:VERSION" (Get-ChildItem release\*).FullName --target ${{ github.sha }} --title "Breached $env:VERSION" --notes-file notes.md

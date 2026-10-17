@@ -23,7 +23,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.3.0";
+const BREACHED_VERSION = "0.1.1";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -251,6 +251,24 @@ var Breached = {
     if (selftest) {
       Services.scriptloader.loadSubScript("chrome://breached/content/selftest.js", window);
       window.SelfTest.run(selftest);
+    } else {
+      setTimeout(() => this.autoCheckForUpdates(), 30 * 1000);
+    }
+  },
+
+  /** The daily look at GitHub for a newer Breached (settings > updates). */
+  async autoCheckForUpdates() {
+    let Updates = ChromeUtils.importESModule("resource://breached/Updates.sys.mjs");
+    if (!Updates.autoCheckDue()) {
+      return;
+    }
+    try {
+      let release = await Updates.check(window.fetch.bind(window), BREACHED_VERSION);
+      if (release) {
+        this.showMessage(`Breached ${release.version} is out. Type :update to get it.`);
+      }
+    } catch (e) {
+      console.warn("Breached update check:", e);
     }
   },
 
@@ -1856,6 +1874,13 @@ var Commands = {
     usage: "mods  (install or remove mods, in settings)",
     run() {
       Breached.openSettings("mods");
+    },
+  },
+  update: {
+    usage: "update  (check GitHub for a newer Breached, in settings)",
+    run() {
+      Breached._checkUpdatesOnOpen = true;
+      Breached.openSettings("updates");
     },
   },
   version: {

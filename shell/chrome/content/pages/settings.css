@@ -1,5 +1,5 @@
 main {
-  width: min(760px, 92vw);
+  width: min(960px, 94vw);
   margin: 0 auto;
   padding: 32px 0 64px;
 }
@@ -10,16 +10,69 @@ h1 {
   margin: 0;
 }
 
+/* Pages down the side; one shows at a time. */
+#layout {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 32px;
+  margin-top: 24px;
+  align-items: start;
+}
+#nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 16px;
+}
+#nav button {
+  text-align: start;
+  background: transparent;
+  border: none;
+  border-inline-start: 2px solid transparent;
+  padding: 6px 10px;
+}
+#nav button:hover {
+  background: var(--panel);
+}
+#nav button[selected] {
+  background: var(--panel);
+  border-inline-start-color: var(--accent);
+}
+.page[hidden] {
+  display: none;
+}
+.page-title {
+  font-size: 18px;
+  font-weight: normal;
+  margin: 0 0 4px;
+}
 section {
-  margin-top: 28px;
+  margin-top: 20px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
 }
-section h2 {
+.page-title + section {
+  margin-top: 8px;
+}
+section h3 {
   font-size: 14px;
   font-weight: normal;
   color: var(--accent);
   margin: 0 0 8px;
+}
+#update-status.error {
+  color: var(--error);
+}
+@media (max-width: 700px) {
+  #layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 .row {
