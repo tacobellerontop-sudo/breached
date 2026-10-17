@@ -33,6 +33,8 @@ function hostOf(url) {
 /** Opens url here, or in a new tab with Ctrl or the middle button. */
 function linkTo(a, url) {
   a.href = url;
+  // Pointing at a site starts connecting to it.
+  a.addEventListener("mouseenter", () => shellWindow()?.Breached?.preconnect(url));
   a.addEventListener("click", event => {
     if (event.button == 0 && !event.ctrlKey) {
       event.preventDefault();
@@ -198,6 +200,7 @@ async function showMostVisited() {
 
 window.addEventListener("DOMContentLoaded", () => {
   let input = document.getElementById("search");
+  input.addEventListener("input", () => shellWindow()?.Breached?.preconnectTyped(input.value));
   document.getElementById("search-form").addEventListener("submit", event => {
     event.preventDefault();
     if (input.value.trim()) {

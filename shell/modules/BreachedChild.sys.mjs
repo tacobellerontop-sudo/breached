@@ -7,6 +7,8 @@
 // - Esc in a text field leaves it (like leaving insert mode in qutebrowser),
 //   so ":" works next without reaching for the mouse.
 // - Ctrl+click or middle-click on a link opens it in a new background tab.
+// - Pressing the mouse on a link starts connecting to its site, so the page
+//   loads sooner once the click lands.
 
 const TEXT_INPUT_TYPES = new Set([
   "text", "search", "url", "email", "password", "tel", "number",
@@ -34,6 +36,8 @@ export class BreachedChild extends JSWindowActorChild {
       this.#onKey(event);
     } else if (event.type == "click" || event.type == "auxclick") {
       this.#onClick(event);
+    } else if (event.type == "mousedown") {
+      this.#onMouseDown(event);
     }
   }
 
@@ -71,6 +75,19 @@ export class BreachedChild extends JSWindowActorChild {
         doc.activeElement?.blur?.();
       }
     }, 0);
+  }
+
+  #onMouseDown(event) {
+    if (event.button > 1) {
+      return;
+    }
+    let link = event.composedPath().find(
+      n => n.nodeType == 1 && (n.localName == "a" || n.localName == "area") && n.href
+    );
+    // Only other sites: this one's connection is already open.
+    if (link && /^https?:/i.test(link.href) && link.origin != this.contentWindow?.location.origin) {
+      this.sendAsyncMessage("Breached:Preconnect", { url: link.href });
+    }
   }
 
   #onClick(event) {

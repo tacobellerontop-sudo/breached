@@ -35,7 +35,10 @@ $drop = @(
     'updater.exe', 'updater.ini', 'update-settings.ini', 'pingsender.exe',
     'private_browsing.exe', 'private_browsing.VisualElementsManifest.xml',
     'crashreporter.exe', 'crashhelper.exe', 'minidump-analyzer.exe', 'nmhproxy.exe',
-    'firefox.VisualElementsManifest.xml', 'precomplete', 'removed-files'
+    'firefox.VisualElementsManifest.xml', 'precomplete', 'removed-files',
+    # Firefox's own emoji font: Windows' Segoe UI Emoji is already loaded by
+    # the system (see font.name-list.emoji). The ClearKey test media plugin.
+    'fonts', 'gmp-clearkey'
 )
 foreach ($name in $drop) {
     Remove-Item -Recurse -Force (Join-Path $app $name) -ErrorAction SilentlyContinue

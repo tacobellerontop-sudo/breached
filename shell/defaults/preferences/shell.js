@@ -83,3 +83,6 @@ pref("geo.provider.ms-windows-location", true);
 
 // Pinned websites on the new tab page (modules/Pins.sys.mjs)
 pref("breached.pinnedSites", "[]");
+
+// Emoji from Windows' own font (the app doesn't ship Firefox's Twemoji copy).
+pref("font.name-list.emoji", "Segoe UI Emoji");

@@ -61,6 +61,7 @@ function registerActors() {
         esModuleURI: "resource://breached/BreachedChild.sys.mjs",
         events: {
           keydown: { capture: true },
+          mousedown: { capture: true },
           click: { capture: true },
           auxclick: { capture: true },
         },
@@ -1252,6 +1253,63 @@ var Breached = {
     el.textContent = this.completions(text).join("  ");
   },
 
+  // ------------------------------------------------------------ preconnect
+
+  _preconnected: new Map(), // host -> when, so each site is warmed once a minute
+
+  /**
+   * Opens the network connection (DNS, TCP, TLS) to a site the user is
+   * about to visit, so the page starts loading sooner. Costs one idle socket
+   * that closes by itself if it isn't used.
+   */
+  preconnect(url) {
+    let uri;
+    try {
+      uri = Services.io.newURI(url);
+    } catch (e) {
+      return;
+    }
+    if (!uri.schemeIs("https") && !uri.schemeIs("http")) {
+      return;
+    }
+    let key = uri.prePath;
+    let now = Date.now();
+    if (now - (this._preconnected.get(key) ?? 0) < 60 * 1000) {
+      return;
+    }
+    this._preconnected.set(key, now);
+    if (this._preconnected.size > 50) {
+      this._preconnected.delete(this._preconnected.keys().next().value);
+    }
+    let principal = Services.scriptSecurityManager.createContentPrincipal(uri, {});
+    try {
+      Services.io.speculativeConnect(uri, principal, null, false);
+    } catch (e) {
+      // Speculative connections turned off (network.http.speculative-parallel-limit).
+    }
+  },
+
+  /** Preconnects to what the command bar would open, while it's typed. */
+  preconnectTyped(text) {
+    clearTimeout(this._preconnectTimer);
+    this._preconnectTimer = setTimeout(() => {
+      let [name, ...rest] = text.trim().split(/\s+/);
+      let target;
+      if (name == "open" || name == "o") {
+        target = rest.filter(w => !/^-[tbw]$/.test(w)).join(" ");
+      } else if (name && !Commands[name] && !ModHost.modCommands.has(name)) {
+        target = text;
+      }
+      if (target?.trim()) {
+        try {
+          this.preconnect(this.urlFor(target));
+        } catch (e) {
+          // not an address
+        }
+      }
+    }, 150);
+  },
+
   /** Runs a command line, e.g. "open -t example.com". */
   run(text) {
     let [name, ...rest] = text.trim().split(/\s+/);
@@ -1355,6 +1413,7 @@ var Breached = {
         break;
       case "input":
         this.updateCompletion();
+        this.preconnectTyped(this.$commandline.value);
         break;
       case "blur":
         // Clicking back into the page closes the command bar.

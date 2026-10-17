@@ -12,6 +12,9 @@ export class BreachedParent extends JSWindowActorParent {
       case "Breached:OpenCommandLine":
         shell.openCommandLine();
         break;
+      case "Breached:Preconnect":
+        shell.preconnect(message.data.url);
+        break;
       case "Breached:OpenLinkInTab":
         shell.openTab(message.data.url, {
           background: true,

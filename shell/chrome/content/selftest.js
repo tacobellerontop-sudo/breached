@@ -91,6 +91,7 @@ var SelfTest = {
     };
     await wait(500);
     report.info.speed.memoryAtStartMB = await this.memoryMB();
+    report.info.speed.parentMemoryAtStart = await this.memoryBreakdown();
     await this.screenshot(outDir, "0-home.png");
     // Search box on the home page
     let typeOnHome = text => {
@@ -203,6 +204,11 @@ var SelfTest = {
     check("idle tabs unload on their own", B.unloadIdleTabs() == 1 && B.tabs[1].asleep);
     Services.prefs.clearUserPref("breached.tabs.unloadAfterMinutes");
     check("plain words search", B.urlFor("hello world").startsWith("https://duckduckgo.com/?q=hello%20world"));
+    B.preconnectTyped("open -t example.org");
+    check(
+      "typing an address in the command bar starts connecting to it",
+      await waitFor(() => [...B._preconnected.keys()].some(k => k.includes("example.org")), 2000)
+    );
     check("addresses open as addresses", /^https?:\/\/example\.net\/$/.test(B.urlFor("example.net")));
     let blocked = false;
     try {
@@ -411,6 +417,36 @@ var SelfTest = {
       processes: all.length,
       byType: all.map(p => `${p.type}:${Math.round((p.memory ?? 0) / 1048576)}`),
     };
+  },
+
+  /** The main process's memory reports, MB per part (like about:memory). */
+  memoryBreakdown() {
+    return new Promise(resolve => {
+      let parts = {};
+      let add = (key, bytes) => (parts[key] = (parts[key] ?? 0) + bytes);
+      let mgr = Cc["@mozilla.org/memory-reporter-manager;1"].getService(Ci.nsIMemoryReporterManager);
+      mgr.getReportsForThisProcess(
+        (process, path, kind, units, amount) => {
+          if (units != Ci.nsIMemoryReporter.UNITS_BYTES || !path.startsWith("explicit/")) {
+            return;
+          }
+          let [, first, second] = path.split("/");
+          add(first, amount);
+          if (["js-non-window", "window-objects", "gfx", "images", "atoms"].includes(first) && second) {
+            add(`${first}/${second.replace(/\(.*$/, "")}`, amount);
+          }
+        },
+        null,
+        true
+      );
+      let mb = {};
+      for (let [k, v] of Object.entries(parts).sort((a, b) => b[1] - a[1])) {
+        if (v > 1048576) {
+          mb[k] = Math.round(v / 104857.6) / 10;
+        }
+      }
+      resolve(mb);
+    });
   },
 
   // Settings > Updates asks GitHub for the newest release.
