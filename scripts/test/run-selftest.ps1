@@ -38,7 +38,8 @@ $testProfile = Join-Path $env:RUNNER_TEMP "breached-selftest-profile-$(Get-Rando
 New-Item -ItemType Directory $testProfile | Out-Null
 Set-Content "$testProfile\user.js" @(
     'user_pref("browser.dom.window.dump.enabled", true);',
-    'user_pref("breached.mods.site", "http://127.0.0.1:8123/mods-site/");'
+    'user_pref("breached.mods.site", "http://127.0.0.1:8123/mods-site/");',
+    'user_pref("breached.welcome.done", true);'
 )
 
 $argList = @()

@@ -6,6 +6,7 @@ pref("toolkit.singletonWindowType", "breached:main");
 
 // Interface (change these on the settings page, or with :set)
 pref("breached.tabs.position", "bottom");        // "top", "bottom", "left" or "right" (vertical)
+pref("breached.welcome.done", false);           // the first-start page has been shown
 pref("breached.tabs.navButtons", true);          // back and forward buttons in the tab bar
 pref("breached.tabs.autohide", false);           // true: show only while switching tabs
 pref("breached.tabs.showOnHover", true);         // with autohide: show while the mouse is at its edge

@@ -34,6 +34,7 @@ const PAGES = {
   "breached:history": "chrome://breached/content/pages/history.html",
   "breached:downloads": "chrome://breached/content/pages/downloads.html",
   "breached:extensions": "chrome://breached/content/pages/extensions.html",
+  "breached:welcome": "chrome://breached/content/pages/welcome.html",
 };
 
 /** The address to load for a breached: page, or the address itself. */
@@ -318,7 +319,9 @@ var Breached = {
     for (let url of urls) {
       this.openTab(url);
     }
-    if (!restored && !urls.length) {
+    if (this.firstRun(restored)) {
+      this.openTab("breached:welcome");
+    } else if (!restored && !urls.length) {
       this.openTab(this.homepage());
     }
 
@@ -347,6 +350,23 @@ var Breached = {
     } catch (e) {
       console.warn("Breached update check:", e);
     }
+  },
+
+  /** Whether to show the welcome page: only in a brand new profile. */
+  firstRun(restored) {
+    if (this.isPrivate || this.pref("welcome.done", false)) {
+      return false;
+    }
+    // Profiles from before the welcome page never see it.
+    let used =
+      restored ||
+      Services.prefs.prefHasUserValue("breached.update.lastCheck") ||
+      Services.prefs.prefHasUserValue("breached.mods.installed") ||
+      Services.prefs.prefHasUserValue(PREF + "colors.background") ||
+      Services.prefs.prefHasUserValue(PREF + "tabs.position");
+    // Shown once; :welcome brings it back.
+    Services.prefs.setBoolPref(PREF + "welcome.done", true);
+    return !used;
   },
 
   homepage() {
@@ -2250,6 +2270,12 @@ var Commands = {
         Services.prefs.setStringPref(full, value);
       }
       Breached.showMessage(`${name}=${Breached.pref(name)}`);
+    },
+  },
+  welcome: {
+    usage: "welcome  (the first-start page: colours, tab bar, mods)",
+    run() {
+      Breached.openPage("welcome");
     },
   },
   settings: {

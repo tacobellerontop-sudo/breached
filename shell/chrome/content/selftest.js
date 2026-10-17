@@ -411,6 +411,9 @@ var SelfTest = {
     // 14. The other mods: passwords, bookmarks, Firefox Sync
     await this.moreMods(B, check, waitFor, wait, press, outDir, report);
 
+    // 15. The first-start welcome page
+    await this.welcome(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -1277,6 +1280,71 @@ var SelfTest = {
   },
 
   // The other mods on the mods site: passwords, bookmarks, Firefox Sync.
+  async welcome(B, check, waitFor, wait, outDir, report) {
+    let Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
+    let { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
+    let P = Services.prefs;
+    let info = (report.info.welcome = {});
+    P.setBoolPref("breached.welcome.done", false);
+    check("the welcome page doesn't show for a profile that's been used", !B.firstRun(true));
+    check("after that check it's marked done", P.getBoolPref("breached.welcome.done", false));
+    P.setBoolPref("breached.welcome.done", false);
+    B.run("welcome");
+    let doc = () => B.selectedBrowser.contentDocument;
+    let ready = await waitFor(() => B.selected.url == "breached:welcome" && doc()?.querySelector(".preset"));
+    check(":welcome opens the welcome page", !!ready);
+    if (!ready) {
+      return;
+    }
+    let $ = id => doc().getElementById(id);
+    let visible = id => !$(id).hidden;
+    check("welcome: starts on colours", visible("step-colours") && !visible("step-tabs"));
+    $("preset-nord").click();
+    check("welcome: a colour scheme applies at once", Theme.currentPreset() == "nord");
+    let before = Theme.getColor("accent");
+    let dial = $("dial");
+    dial.focus();
+    for (let i = 0; i < 12; i++) {
+      dial.dispatchEvent(new doc().defaultView.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    }
+    info.dialAccent = Theme.getColor("accent");
+    check("welcome: the dial makes its own scheme", Theme.currentPreset() == null && Theme.getColor("accent") != before);
+    check("welcome: the dial's scheme is marked chosen", $("custom").hasAttribute("selected"));
+    $("dark").click();
+    let [r, g, b] = Theme.getColor("background").slice(1).match(/../g).map(h => parseInt(h, 16));
+    check("welcome: Dark makes dark bars", r * 0.299 + g * 0.587 + b * 0.114 < 80);
+    await wait(300);
+    await this.screenshot(outDir, "30-welcome-colours.png");
+
+    $("next").click();
+    check("welcome: Next goes to the tab bar", visible("step-tabs") && !visible("step-colours"));
+    $("position-top").click();
+    check("welcome: picking a place moves the tab bar", P.getStringPref("breached.tabs.position", "") == "top" && $("position-top").hasAttribute("selected"));
+    await wait(300);
+    await this.screenshot(outDir, "31-welcome-tabs.png");
+
+    $("next").click();
+    check("welcome: Next goes to mods", visible("step-mods"));
+    let free = await waitFor(() => doc().querySelector("#mods input:not(:disabled)"), 10000);
+    info.mods = [...doc().querySelectorAll("#mods input")].map(i => `${i.value}${i.disabled ? " (installed)" : ""}`);
+    check("welcome: lists the mods site's mods", info.mods.length >= 3);
+    check("welcome: the last step says Finish", $("next").textContent == "Finish");
+    await this.screenshot(outDir, "32-welcome-mods.png");
+    if (free) {
+      free.click();
+      let id = free.value;
+      info.installed = id;
+      $("next").click();
+      check("welcome: Finish installs the ticked mod", !!(await waitFor(async () => (await Mods.get(id))?.installed, 20000)));
+      check("welcome: then goes to the home page", !!(await waitFor(() => B.selected.url == "breached:home", 10000)));
+      await Mods.uninstall(id);
+    }
+    check("welcome: finishing marks it done", P.getBoolPref("breached.welcome.done", false));
+    Theme.applyPreset(Theme.DEFAULT_PRESET);
+    P.clearUserPref("breached.tabs.position");
+    await wait(300);
+  },
+
   async moreMods(B, check, waitFor, wait, press, outDir, report) {
     let info = (report.info.moreMods = {});
     let enter = () => press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
