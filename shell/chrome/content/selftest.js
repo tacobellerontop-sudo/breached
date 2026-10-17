@@ -1265,6 +1265,7 @@ var SelfTest = {
     // Gecko saves only what a person typed (a real key press or click);
     // the test fills the form from here.
     Services.prefs.setBoolPref("signon.userInputRequiredToCapture.enabled", false);
+    Services.prefs.setBoolPref("signon.debug", true);
     let loginPage = "http://127.0.0.1:8123/login.html";
     let tab = B.openTab(loginPage);
     await waitFor(() => tab.title == "login" && !tab.el.hasAttribute("busy"), 10000);
@@ -1278,11 +1279,18 @@ var SelfTest = {
     } catch (e) {
       info.loginActor = String(e);
     }
-    info.loginLog = Services.console
-      .getMessageArray()
-      .map(m => m.message ?? m.errorMessage ?? "")
-      .filter(m => /login|password|signon/i.test(m))
-      .slice(-40);
+    try {
+      let { LoginManagerParent } = ChromeUtils.importESModule("resource://gre/modules/LoginManagerParent.sys.mjs");
+      info.prompterPatched = !!LoginManagerParent.prototype._getPrompter()?.promptToChangePasswordWithUsernames?.toString().includes("Which saved login");
+      info.loginLog = Cc["@mozilla.org/consoleAPI-storage;1"]
+        .getService(Ci.nsIConsoleAPIStorage)
+        .getEvents()
+        .map(e => `${e.prefix ?? ""} ${(e.arguments ?? []).map(a => String(a)).join(" ")}`)
+        .filter(m => /login|password|form/i.test(m))
+        .slice(-60);
+    } catch (e) {
+      info.loginLogError = String(e);
+    }
     await this.screenshot(outDir, "25-password-save.png");
     enter();
     let saved = await waitFor(async () => (await Services.logins.getAllLogins()).length == 1, 5000);
@@ -1295,6 +1303,7 @@ var SelfTest = {
     B.closeTab(tab);
     await Services.logins.removeAllUserFacingLoginsAsync();
     Services.prefs.clearUserPref("signon.userInputRequiredToCapture.enabled");
+    Services.prefs.clearUserPref("signon.debug");
     await ModHost.Mods.uninstall("passwords");
     check(
       "passwords: removing the mod turns saved passwords off again",

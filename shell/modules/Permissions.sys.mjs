@@ -216,7 +216,7 @@ export class BreachedPermissionsParent extends JSWindowActorParent {
         // The Protected video mod handles it, or Breached offers that mod.
         if (shell && browser) {
           Promise.resolve(
-            windowFor(browser).ModHost?.protectedVideo(browser, hostOf(this.manager.documentPrincipal), message.data)
+            shell.mods.protectedVideo(browser, hostOf(this.manager.documentPrincipal), message.data)
           ).catch(e => console.error("Breached DRM request", e));
         }
         break;

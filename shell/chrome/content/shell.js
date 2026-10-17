@@ -221,6 +221,10 @@ class Tab {
 
 var Breached = {
   version: BREACHED_VERSION,
+  // The window's mod host (mods.js), for modules that only see Breached.
+  get mods() {
+    return ModHost;
+  },
   tabs: [],
   selected: null,
   closed: [], // for :undo
