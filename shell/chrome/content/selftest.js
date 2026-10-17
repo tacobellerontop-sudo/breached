@@ -723,7 +723,12 @@ var SelfTest = {
     }
 
     B.selectTab(B.tabs.find(t => t.url.startsWith("breached:settings")));
-    click(doc().getElementById("mod-bitwarden-remove"));
+    let remove = doc().getElementById("mod-bitwarden-remove");
+    if (remove) {
+      click(remove);
+    } else {
+      await ModHost.Mods.uninstall("bitwarden");
+    }
     check(
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)

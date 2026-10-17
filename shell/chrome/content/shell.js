@@ -53,6 +53,16 @@ function displayURL(spec) {
   return spec;
 }
 
+/** "https://host/path/*" for the mods site (breached.mods.site). */
+function modsSitePattern() {
+  try {
+    let site = Services.io.newURI(Services.prefs.getStringPref("breached.mods.site", ""));
+    return `${site.scheme}://${site.host}${site.filePath.replace(/\/?$/, "/")}*`;
+  } catch (e) {
+    return "https://invalid.invalid/*";
+  }
+}
+
 /** Our own page helpers, registered once per app run. */
 function registerActors() {
   const actors = {
@@ -99,7 +109,8 @@ function registerActors() {
         esModuleURI: "resource://breached/ModsSiteChild.sys.mjs",
         events: { DOMContentLoaded: {}, click: { capture: true } },
       },
-      matches: [Services.prefs.getStringPref("breached.mods.site", "").replace(/\/?$/, "/*")],
+      // Match patterns have no port; ModsSiteParent checks the whole address.
+      matches: [modsSitePattern()],
       messageManagerGroups: ["browsers"],
       safeForUntrustedWebProcess: true,
     },
@@ -129,6 +140,9 @@ function registerActors() {
       ChromeUtils.registerWindowActor(name, options);
     } catch (e) {
       // Already registered by an earlier window.
+      if (!/already registered/i.test(e.message)) {
+        console.error(`Breached: registering ${name}`, e);
+      }
     }
   }
 }
