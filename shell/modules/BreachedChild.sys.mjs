@@ -4,6 +4,8 @@
 
 // Breached content helper, one per frame:
 // - ":" typed on a page (outside text fields) opens the command bar.
+// - Esc in a text field leaves it (like leaving insert mode in qutebrowser),
+//   so ":" works next without reaching for the mouse.
 // - Ctrl+click or middle-click on a link opens it in a new background tab.
 
 const TEXT_INPUT_TYPES = new Set([
@@ -21,6 +23,10 @@ export class BreachedChild extends JSWindowActorChild {
   }
 
   handleEvent(event) {
+    if (event.type == "keydown" && event.isTrusted && event.key == "Escape") {
+      this.#onEscape(event);
+      return;
+    }
     if (!event.isTrusted || event.defaultPrevented) {
       return;
     }
@@ -45,6 +51,26 @@ export class BreachedChild extends JSWindowActorChild {
     event.preventDefault();
     event.stopPropagation();
     this.sendAsyncMessage("Breached:OpenCommandLine");
+  }
+
+  #onEscape(event) {
+    if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.isComposing || !this.#isEditable(event)) {
+      return;
+    }
+    let field = event.composedPath()[0];
+    // The page sees Esc first (closing its own popup, say); then the field
+    // lets go, whatever the page did with the key.
+    this.contentWindow?.setTimeout(() => {
+      let doc = this.document;
+      if (!doc) {
+        return;
+      }
+      if (field?.matches?.(":focus")) {
+        field.blur();
+      } else {
+        doc.activeElement?.blur?.();
+      }
+    }, 0);
   }
 
   #onClick(event) {

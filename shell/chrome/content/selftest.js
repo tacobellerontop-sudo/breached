@@ -551,6 +551,20 @@ var SelfTest = {
         report.info.bitwardenMessage = document.getElementById("message").textContent;
         check(":bw.exe fills the page's login form", filled);
         check("the password isn't kept in the command history", !B.history.includes("hunter2"));
+        // The fill left the password field focused: ":" types there, Esc leaves it.
+        let colon = () => press(":", "Semicolon", KeyboardEvent.DOM_VK_SEMICOLON, ["Shift"]);
+        B.selectedBrowser.focus();
+        colon();
+        await new Promise(r => setTimeout(r, 300));
+        check("':' in a page's text field types there", document.getElementById("commandbar").hidden);
+        press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+        await new Promise(r => setTimeout(r, 300));
+        colon();
+        check(
+          "after Esc, ':' opens the command bar",
+          await waitFor(() => !document.getElementById("commandbar").hidden, 3000)
+        );
+        press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
         await this.screenshot(outDir, "14-bitwarden-filled.png");
       }
       B.closeTab(B.selected);
