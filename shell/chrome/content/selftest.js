@@ -861,12 +861,13 @@ var SelfTest = {
       ChromeUtils.registerWindowActor("BreachedSelfTest", {
         child: { esModuleURI: "resource://breached/SelfTestChild.sys.mjs" },
         messageManagerGroups: ["browsers"],
+        safeForUntrustedWebProcess: true,
       });
     } catch (e) {
       info.testActor = String(e);
     }
     // Mouse events made in the page's own process.
-    let mouse = (type, x, y, button = 0) =>
+    let mouse = async (type, x, y, button = 0) =>
       B.selectedBrowser.browsingContext.currentWindowGlobal
         .getActor("BreachedSelfTest")
         .sendQuery("SelfTest:Mouse", { type, x, y, button });
@@ -875,7 +876,12 @@ var SelfTest = {
     B.contextMenu.show = function (...args) {
       info.menuShown++;
       try {
-        return realShow.apply(this, args);
+        let result = realShow.apply(this, args);
+        let popup = menu();
+        info.menuStates = info.menuStates ?? [];
+        info.menuStates.push({ items: popup?.childElementCount, state: popup?.state, x: args[1]?.x, y: args[1]?.y });
+        setTimeout(() => info.menuStates.push({ later: menu()?.state }), 500);
+        return result;
       } catch (e) {
         info.menuError = `${e}\n${e.stack}`;
         throw e;
