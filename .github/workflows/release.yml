@@ -112,15 +112,31 @@ jobs:
           Compress-Archive out\breached "release\Breached-$env:VERSION-win64-portable.zip"
           Get-ChildItem release | Select-Object Name, @{n='MB';e={[math]::Round($_.Length / 1MB)}}
 
-      # Install it silently for this user, check the files and that it
-      # starts, then uninstall.
+      # Install the previous release, then this one over it: the old
+      # version's files must be gone, the profile kept. Then uninstall.
       - name: Test the installer
         shell: pwsh
         run: |
+          $dir = "$env:LOCALAPPDATA\Programs\Breached"
+          $prev = gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName'
+          if ($prev) {
+            gh release download $prev --pattern 'BreachedSetup-*.exe' --dir prev
+            $old = Get-ChildItem prev\BreachedSetup-*.exe | Select-Object -First 1
+            $p = Start-Process $old.FullName -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART'
+            if ($p.ExitCode) { throw "previous installer ($prev) exited with $($p.ExitCode)" }
+            Set-Content "$dir\left-over.txt" 'old'
+            New-Item -ItemType Directory -Force "$env:APPDATA\Breached" | Out-Null
+            Set-Content "$env:APPDATA\Breached\keep.txt" 'profile'
+            "Installed $prev first"
+          }
           $setup = Get-Item "release\BreachedSetup-$env:VERSION.exe"
           $p = Start-Process $setup.FullName -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART', "/LOG=$PWD\install.log"
           if ($p.ExitCode) { Get-Content install.log -Tail 30; throw "installer exited with $($p.ExitCode)" }
-          $dir = "$env:LOCALAPPDATA\Programs\Breached"
+          if ($prev) {
+            if (Test-Path "$dir\left-over.txt") { throw "the previous version's files weren't cleared" }
+            if (-not (Test-Path "$env:APPDATA\Breached\keep.txt")) { throw 'the profile was removed' }
+            "Upgrade cleared the old files and kept the profile"
+          }
           foreach ($f in 'breached.exe', 'firefox.exe', 'xul.dll', 'breached\application.ini', 'unins000.exe') {
             if (-not (Test-Path "$dir\$f")) { throw "installed app has no $f" }
           }

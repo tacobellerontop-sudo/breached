@@ -51,8 +51,14 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#AppDir}\*"; DestDir: "{app}"; Excludes: "Breached.bat,profile"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
-; Files left from an older version.
-Type: filesandordirs; Name: "{app}\breached"
+; Clear out everything an older Breached left in its folder (0.1.7 and older
+; ran our own engine build, with different files), so only this version's
+; files remain. Only done when the folder holds a Breached install. The
+; profile in %APPDATA%\Breached isn't touched.
+Type: filesandordirs; Name: "{app}\*"; Check: IsBreachedFolder
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
 
 [Icons]
 Name: "{autoprograms}\Breached"; Filename: "{app}\breached.exe"
@@ -65,6 +71,11 @@ Filename: "{app}\breached.exe"; Description: "Start Breached"; Flags: nowait pos
 Filename: "{app}\breached.exe"; Flags: nowait; Check: IsUpdate
 
 [Code]
+function IsBreachedFolder: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\breached\application.ini'));
+end;
+
 function IsUpdate: Boolean;
 begin
   Result := ExpandConstant('{param:update|0}') = '1';
