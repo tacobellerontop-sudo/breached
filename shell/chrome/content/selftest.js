@@ -445,6 +445,13 @@ var SelfTest = {
           if (["js-non-window", "window-objects", "gfx", "images", "atoms"].includes(first) && second) {
             add(`${first}/${second.replace(/\(.*$/, "")}`, amount);
           }
+          if (first == "workers") {
+            // explicit/workers/workers(chrome)/worker(<script url>, 0x...)/...
+            let worker = path.split("/")[3]?.match(/^worker\(([^,]*)/)?.[1];
+            if (worker) {
+              add(`workers/${worker.replace(/\\/g, "/")}`, amount);
+            }
+          }
         },
         null,
         finish,
