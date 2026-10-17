@@ -80,7 +80,17 @@ var SelfTest = {
     );
     check("the home page opens on start", homeShown);
     await waitFor(() => homeDoc().readyState == "complete", 5000);
+    // How fast and how big: startup milestones (ms after the process started)
+    // and memory with just the home page open.
+    let startup = Services.startup.getStartupInfo();
+    let since = t => (t && startup.process ? Math.round(t - startup.process) : null);
+    report.info.speed = {
+      mainMs: since(startup.main),
+      firstPaintMs: since(startup.firstPaint2 ?? startup.firstPaint),
+      homeReadyMs: since(new Date()),
+    };
     await wait(500);
+    report.info.speed.memoryAtStartMB = await this.memoryMB();
     await this.screenshot(outDir, "0-home.png");
     // Search box on the home page
     let typeOnHome = text => {
@@ -88,8 +98,10 @@ var SelfTest = {
       doc.getElementById("search").value = text;
       doc.getElementById("search-form").requestSubmit();
     };
+    let loadStart = Date.now();
     typeOnHome("example.com");
     let loaded = await waitFor(() => B.selected.title == "Example Domain");
+    report.info.speed.firstPageMs = Date.now() - loadStart;
     check("the home page's box opens an address", loaded);
     check("a web page loads", loaded);
     report.info.remoteType = B.selectedBrowser.remoteType;
@@ -388,6 +400,17 @@ var SelfTest = {
       "no Breached script errors",
       !report.errors.some(e => /breached/i.test(e))
     );
+  },
+
+  /** Memory of all Breached processes (resident, MB) and how many there are. */
+  async memoryMB() {
+    let info = await ChromeUtils.requestProcInfo();
+    let all = [info, ...info.children];
+    return {
+      total: Math.round(all.reduce((n, p) => n + (p.memory ?? 0), 0) / 1048576),
+      processes: all.length,
+      byType: all.map(p => `${p.type}:${Math.round((p.memory ?? 0) / 1048576)}`),
+    };
   },
 
   // Settings > Updates asks GitHub for the newest release.
@@ -861,6 +884,9 @@ var SelfTest = {
     this._finished = true;
     if (problem) {
       report.exception = problem;
+    }
+    if (report.info.speed) {
+      report.info.speed.memoryAtEndMB = await this.memoryMB().catch(() => null);
     }
     report.passed = !report.exception && Object.values(report.checks).every(Boolean);
     try {
