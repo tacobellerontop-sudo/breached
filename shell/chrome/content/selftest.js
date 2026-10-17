@@ -221,6 +221,7 @@ var SelfTest = {
     };
     check("settings: the side list switches pages", await showSettingsPage("browsing"));
     await this.screenshot(outDir, "6a-settings-browsing.png");
+    check("settings: the side list goes back", await showSettingsPage("appearance"));
     // A dropdown on a page opens as a real popup list.
     let dropdownEl = settingsDoc().getElementById("setting-breached-tabs-position");
     let r = dropdownEl.getBoundingClientRect();

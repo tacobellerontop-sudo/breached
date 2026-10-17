@@ -762,7 +762,7 @@ window.addEventListener("DOMContentLoaded", () => {
     pages[section.page].append(s);
   }
   // "#mods" names a section, "#updates" a page: show the page holding it.
-  let target = location.hash && document.getElementById(location.hash.slice(1));
+  let target = location.hash ? document.getElementById(location.hash.slice(1)) : null;
   let page = target?.closest(".page")?.dataset.page ?? (pages[location.hash.slice(1)] ? location.hash.slice(1) : PAGES[0][0]);
   showPage(page);
   if (target && target.localName == "section") {
