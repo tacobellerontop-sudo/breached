@@ -1305,7 +1305,7 @@ var SelfTest = {
     let dial = $("dial");
     dial.focus();
     for (let i = 0; i < 12; i++) {
-      dial.dispatchEvent(new doc().defaultView.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      dial.dispatchEvent(new (doc().defaultView.KeyboardEvent)("keydown", { key: "ArrowRight", bubbles: true }));
     }
     info.dialAccent = Theme.getColor("accent");
     check("welcome: the dial makes its own scheme", Theme.currentPreset() == null && Theme.getColor("accent") != before);
