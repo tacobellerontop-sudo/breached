@@ -399,27 +399,6 @@ Object.assign(Commands, {
       }
     },
   },
-  drm: {
-    usage: "drm [on|off]  (protected video: Netflix, Disney+...)",
-    async run(args) {
-      const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
-      if (args != "on" && args != "off") {
-        Breached.showMessage(
-          `Protected video: ${Drm.setting()}${Drm.installed() ? " (Widevine installed)" : ""}. :drm on or :drm off`
-        );
-        return;
-      }
-      if (args == "on") {
-        Breached.showMessage("Getting Widevine for protected video…");
-      }
-      try {
-        await Drm.turn(args == "on");
-        Breached.showMessage(args == "on" ? "Protected video is on" : "Protected video is off");
-      } catch (e) {
-        Breached.showMessage(`Couldn't get Widevine: ${e.message ?? e.type ?? e}`, "error");
-      }
-    },
-  },
   yank: {
     usage: "yank  (copy the page's address)",
     run() {

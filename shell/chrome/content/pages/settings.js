@@ -203,12 +203,6 @@ const SECTIONS = [
         label: "Ask sites not to sell or share my data",
         type: "bool",
       },
-      {
-        id: "drm",
-        label: "Protected video (DRM)",
-        hint: "Netflix, Disney+, Spotify and the like need Google's Widevine, downloaded the first time it's turned on (about 10 MB).",
-        type: "drm",
-      },
       { id: "clear", label: "Clear browsing data", type: "clear" },
     ],
   },
@@ -581,40 +575,7 @@ const BUILD = {
     return el("div", { class: "row" }, labelBlock(item), wrap);
   },
 
-  drm(item, id) {
-    const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
-    let select = el("select", { id: "setting-drm" });
-    for (let [value, text] of [
-      ["ask", "Ask when a site needs it"],
-      ["on", "On"],
-      ["off", "Off"],
-    ]) {
-      select.append(el("option", { value }, text));
-    }
-    select.value = Drm.setting();
-    let control = el("div", { class: "control" }, select);
-    let say = note(control);
-    let status = () => say(Drm.installed() ? "Widevine is installed" : "");
-    status();
-    select.addEventListener("change", async () => {
-      if (select.value == "ask") {
-        P.setStringPref("breached.drm", "ask");
-        Drm.init(); // off until a site asks
-        status();
-        return;
-      }
-      if (select.value == "on") {
-        say("Getting Widevine…");
-      }
-      try {
-        await Drm.turn(select.value == "on");
-        status();
-      } catch (e) {
-        say(`Couldn't get Widevine: ${e.message ?? e.type ?? e}`, true);
-      }
-    });
-    return el("div", { class: "row" }, labelBlock(item, "setting-drm"), control);
-  },
+
 
   "download-dir"(item) {
     let path = el("span", {}, "…");
@@ -653,68 +614,90 @@ const BUILD = {
   },
 
   mods(item) {
+    let host = () => window.browsingContext.topChromeWindow?.ModHost;
     let wrap = el("div", { id: "mods-list" });
     let render = async () => {
-      let mods = await Mods.list();
+      let mods = (await Mods.list()).filter(m => m.installed);
       let rows = [];
       for (let mod of mods) {
         let id = "mod-" + mod.id;
-        let button = el(
-          "button",
-          { type: "button", id: id + "-toggle" },
-          mod.installed ? "Remove" : "Install"
-        );
+        let button = el("button", { type: "button", id: id + "-remove" }, "Remove");
         button.addEventListener("click", async () => {
           button.disabled = true;
           try {
-            await (mod.installed ? Mods.uninstall(mod.id) : Mods.install(mod.id));
+            await Mods.uninstall(mod.id);
           } catch (e) {
             button.disabled = false;
             say(e.message, true);
           }
         });
-        let title = `${mod.name}${mod.version ? " " + mod.version : ""}`;
+        let title = `${mod.name}${mod.version ? " " + mod.version : ""}${mod.experimental ? " (experimental)" : ""}`;
         let row = el(
           "div",
-          { class: "row mod", id, "data-installed": mod.installed },
+          { class: "row mod", id, "data-installed": true },
           labelBlock({ label: title, hint: mod.description }),
-          el("div", { class: "control inline" }, mod.installed ? el("span", { class: "note" }, "installed") : null, button)
+          el("div", { class: "control inline" }, button)
         );
         rows.push(row);
-        if (mod.installed) {
-          for (let setting of mod.settings) {
-            if (!/^breached\.mods\./.test(setting.pref ?? "")) {
-              continue; // mods only get their own settings
-            }
-            let settingId = "setting-" + setting.pref.replace(/\W/g, "-");
-            let type = ["bool", "choice"].includes(setting.type) ? setting.type : "text";
-            let r = BUILD[type](setting, settingId);
-            r.classList.add("mod-setting");
-            rows.push(r);
+        for (let setting of mod.settings) {
+          if (!setting.pref?.startsWith(`breached.mods.${mod.id}.`)) {
+            continue; // mods only get their own settings
           }
+          let settingId = "setting-" + setting.pref.replace(/\W/g, "-");
+          let type = ["bool", "choice"].includes(setting.type) ? setting.type : "text";
+          let r = BUILD[type](setting, settingId);
+          r.classList.add("mod-setting");
+          rows.push(r);
         }
       }
       if (!mods.length) {
-        rows.push(el("p", { class: "muted" }, "No mods yet."));
+        rows.push(el("p", { class: "muted", id: "mods-none" }, "No mods installed."));
       }
       wrap.replaceChildren(...rows);
     };
-    let add = el("button", { type: "button", id: "mod-add" }, "Add a mod from a folder…");
-    add.addEventListener("click", () => {
+
+    let get = el("button", { type: "button", id: "mods-site" }, "Get mods");
+    get.addEventListener("click", () => host()?.openSite());
+    let site = el(
+      "div",
+      { class: "row" },
+      labelBlock({
+        label: "The mods site",
+        hint: "Protected video (DRM), a password manager, bookmarks, Firefox Sync and more. Open it and press Install on the ones you want.",
+      }),
+      el("div", { class: "control inline" }, get)
+    );
+
+    let pick = (title, mode, filter, install) => {
       let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
-      fp.init(window.browsingContext, "Choose a mod folder", Ci.nsIFilePicker.modeGetFolder);
+      fp.init(window.browsingContext, title, mode);
+      if (filter) {
+        fp.appendFilter("Mod (.zip)", "*.zip");
+      }
       fp.open(async result => {
         if (result == Ci.nsIFilePicker.returnOK && fp.file) {
           try {
-            let mod = await Mods.installFromFolder(fp.file.path);
-            say(`${mod.name} installed`);
+            let mod = await install(fp.file.path);
+            if (mod) {
+              say(`${mod.name} ${mod.version} installed`);
+            }
           } catch (e) {
             say(e.message, true);
           }
         }
       });
-    });
-    let addControl = el("div", { class: "control" }, add);
+    };
+    let addZip = el("button", { type: "button", id: "mod-add-zip" }, "Add a mod from a .zip…");
+    addZip.addEventListener("click", () =>
+      pick("Choose a mod's zip", Ci.nsIFilePicker.modeOpen, true, async path =>
+        host()?.installZip(await IOUtils.read(path), { confirm: true })
+      )
+    );
+    let add = el("button", { type: "button", id: "mod-add" }, "Add a mod from a folder…");
+    add.addEventListener("click", () =>
+      pick("Choose a mod folder", Ci.nsIFilePicker.modeGetFolder, false, path => Mods.installFromFolder(path))
+    );
+    let addControl = el("div", { class: "control inline" }, addZip, add);
     let say = note(addControl);
     let observer = () => render();
     P.addObserver("breached.mods.installed", observer);
@@ -726,10 +709,12 @@ const BUILD = {
       el(
         "p",
         { class: "hint muted" },
-        "Mods add optional features to Breached. They run with the browser's full access, so only add mods you trust."
+        "Mods add the bigger features Breached leaves out, for people who want them. They run with the browser's full access, so only add mods you trust."
       ),
+      site,
+      el("h3", {}, "Installed"),
       wrap,
-      el("div", { class: "row" }, el("div", {}), addControl)
+      el("div", { class: "row" }, labelBlock({ label: "Other mods", hint: "Mods you made or downloaded yourself." }), addControl)
     );
   },
 

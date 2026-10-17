@@ -213,11 +213,11 @@ export class BreachedPermissionsParent extends JSWindowActorParent {
         shell?.setCapture(browser, message.data);
         break;
       case "EME:Request":
+        // The Protected video mod handles it, or Breached offers that mod.
         if (shell && browser) {
-          let Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
-          Drm.request(shell, browser, hostOf(this.manager.documentPrincipal), message.data).catch(e =>
-            console.error("Breached DRM request", e)
-          );
+          Promise.resolve(
+            windowFor(browser).ModHost?.protectedVideo(browser, hostOf(this.manager.documentPrincipal), message.data)
+          ).catch(e => console.error("Breached DRM request", e));
         }
         break;
     }

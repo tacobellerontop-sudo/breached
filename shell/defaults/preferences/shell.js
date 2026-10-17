@@ -87,3 +87,8 @@ pref("breached.pinnedSites", "[]");
 
 // Emoji from Windows' own font (the app doesn't ship Firefox's Twemoji copy).
 pref("font.name-list.emoji", "Segoe UI Emoji");
+
+// Mods (modules/Mods.sys.mjs): the site Breached installs them from, the
+// breached-mods repository's GitHub Pages.
+pref("breached.mods.site", "https://tacobellerontop-sudo.github.io/breached-mods/");
+pref("breached.mods.offerProtectedVideo", true);   // offer the Protected video mod when a site wants DRM

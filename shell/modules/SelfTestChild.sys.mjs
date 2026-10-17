@@ -11,6 +11,29 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       let content = this.document.querySelector(".moz-reader-content");
       return { url: this.document.documentURI, chars: content?.textContent.length ?? 0, title: this.document.title };
     }
+    if (message.name == "SelfTest:Element") {
+      let el = this.document.querySelector(message.data.selector);
+      let root = { ...this.document.documentElement.dataset };
+      if (!el) {
+        return { root };
+      }
+      let r = el.getBoundingClientRect();
+      let attrs = {};
+      for (let a of el.attributes) {
+        attrs[a.name] = a.value;
+      }
+      return { text: el.textContent.trim(), attrs, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, root };
+    }
+    if (message.name == "SelfTest:Login") {
+      // Types a login into the page's form and sends it, like a person would.
+      let { username, password } = message.data;
+      let user = this.document.querySelector("input[type=text], input[type=email]");
+      let pass = this.document.querySelector("input[type=password]");
+      user?.setUserInput(username);
+      pass?.setUserInput(password);
+      pass?.form?.requestSubmit();
+      return !!(user && pass);
+    }
     if (message.name != "SelfTest:Mouse") {
       return null;
     }

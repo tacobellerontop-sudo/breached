@@ -2,24 +2,27 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-// Breached mods: optional features users install from the settings page.
+// Breached mods: optional features users install from the mods site
+// (breached.mods.site, the breached-mods repository's GitHub Pages) or from
+// a zip or folder in settings > mods.
 //
 // A mod is a folder with a mod.json and a script:
 //   { "id": "bitwarden", "name": "Bitwarden", "version": "1.0",
-//     "description": "...", "script": "mod.js",
+//     "description": "...", "script": "mod.js", "breached": "0.1.7",
 //     "settings": [{ "pref": "breached.mods.bitwarden.path", "label": "...",
-//                    "type": "text" | "bool", "hint": "..." }] }
-// Mods that ship with Breached live in <app>/mods/<id>/; mods installed from
-// a folder are copied to <profile>/breached-mods/<id>/. Each mod's folder is
-// served as resource://breached-mod-<id>/. Installing only records the id in
-// breached.mods.installed; the browser window loads and unloads the scripts
-// when that pref changes.
+//                    "type": "text" | "bool" | "choice", "hint": "..." }] }
+// Installed mods are copied to <profile>/breached-mods/<id>/ (mods shipped in
+// <app>/mods/<id>/ would also be found). Each mod's folder is served as
+// resource://breached-mod-<id>/. The ids of installed mods are kept in
+// breached.mods.installed; every browser window loads and unloads the
+// scripts when that pref changes (chrome/content/mods.js).
 //
 // Mods run with the browser's full rights, like the browser itself.
 
 const { FileUtils } = ChromeUtils.importESModule("resource://gre/modules/FileUtils.sys.mjs");
 
 const INSTALLED_PREF = "breached.mods.installed";
+const SITE_PREF = "breached.mods.site";
 const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 
 function resolve(spec) {
@@ -73,6 +76,8 @@ export const Mods = {
         version: String(info.version ?? ""),
         description: String(info.description ?? ""),
         script: info.script,
+        breached: String(info.breached ?? ""),
+        experimental: !!info.experimental,
         settings: Array.isArray(info.settings) ? info.settings : [],
         commands: Array.isArray(info.commands) ? info.commands.map(String) : [],
         dir,
@@ -148,6 +153,126 @@ export const Mods = {
     }
     this._setInstalled([...this.installedIds(), mod.id]);
     return mod;
+  },
+
+  /** The mods site (ends with "/"): the only place Breached installs from by itself. */
+  get site() {
+    let site = Services.prefs.getStringPref(SITE_PREF, "");
+    return site.endsWith("/") ? site : site + "/";
+  },
+
+  /** Whether url is on the mods site. */
+  onSite(url) {
+    try {
+      let site = Services.io.newURI(this.site);
+      let uri = Services.io.newURI(url);
+      return (
+        /^https?$/.test(site.scheme) &&
+        uri.prePath == site.prePath &&
+        uri.filePath.startsWith(site.filePath) &&
+        !uri.filePath.includes("..")
+      );
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /** The site's zip for a mod. */
+  zipURL(id) {
+    return `${this.site}mods/${id}.zip`;
+  },
+
+  /**
+   * Unpacks a mod's zip (bytes) into a temporary folder. Resolves to
+   * { mod, dir, cleanup() }; call cleanup() when done with dir.
+   */
+  async unpack(bytes) {
+    let base = PathUtils.join(PathUtils.tempDir, `breached-mod-${Date.now()}-${Math.floor(Math.random() * 1e9)}`);
+    let zipPath = base + ".zip";
+    let dir = base;
+    let cleanup = async () => {
+      await IOUtils.remove(zipPath, { ignoreAbsent: true });
+      await IOUtils.remove(dir, { recursive: true, ignoreAbsent: true });
+    };
+    try {
+      await IOUtils.write(zipPath, bytes);
+      await IOUtils.makeDirectory(dir);
+      let reader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(Ci.nsIZipReader);
+      reader.open(new FileUtils.File(zipPath));
+      try {
+        let names = [...reader.findEntries("*")];
+        if (names.length > 2000) {
+          throw new Error("That zip has too many files to be a mod");
+        }
+        for (let name of names) {
+          let parts = name.split("/").filter(Boolean);
+          if (!parts.length || name.startsWith("/") || name.includes("\\") ||
+              parts.some(p => p == "." || p == ".." || p.includes(":"))) {
+            throw new Error(`That zip has a file outside its folder: ${name}`);
+          }
+          let target = PathUtils.join(dir, ...parts);
+          if (reader.getEntry(name).isDirectory) {
+            await IOUtils.makeDirectory(target, { ignoreExisting: true });
+            continue;
+          }
+          await IOUtils.makeDirectory(PathUtils.parent(target), { ignoreExisting: true });
+          reader.extract(name, new FileUtils.File(target));
+        }
+      } finally {
+        reader.close();
+      }
+      // mod.json at the top, or in the zip's one folder.
+      let modDir = dir;
+      if (!(await IOUtils.exists(PathUtils.join(dir, "mod.json")))) {
+        let children = await IOUtils.getChildren(dir);
+        if (children.length == 1) {
+          modDir = children[0];
+        }
+      }
+      let mod = await this.read(modDir, "user");
+      if (!mod) {
+        throw new Error("That zip has no valid mod.json");
+      }
+      return { mod, dir: modDir, cleanup };
+    } catch (e) {
+      await cleanup();
+      throw e;
+    }
+  },
+
+  // Work every window asks for but that should run once (downloads).
+  _once: new Map(),
+
+  once(key, fn) {
+    if (!this._once.has(key)) {
+      this._once.set(key, Promise.resolve().then(fn).finally(() => this._once.delete(key)));
+    }
+    return this._once.get(key);
+  },
+
+  // Page helpers of mods: registered once however many windows load the mod.
+  _actors: new Map(), // name -> windows using it
+
+  registerActor(name, options) {
+    let count = this._actors.get(name) ?? 0;
+    if (!count) {
+      ChromeUtils.registerWindowActor(name, options);
+    }
+    this._actors.set(name, count + 1);
+  },
+
+  unregisterActor(name) {
+    let count = (this._actors.get(name) ?? 0) - 1;
+    if (count > 0) {
+      this._actors.set(name, count);
+      return;
+    }
+    this._actors.delete(name);
+    try {
+      ChromeUtils.unregisterWindowActor(name);
+    } catch (e) {
+      // already gone
+    }
   },
 
   /** Turns a mod off. Mods added from a folder are also deleted. */

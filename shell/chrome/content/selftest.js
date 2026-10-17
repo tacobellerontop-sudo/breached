@@ -12,7 +12,7 @@ var SelfTest = {
       report.checks[name] = !!ok;
       dump(`SELFTEST ${ok ? "PASS" : "FAIL"} ${name}\n`);
     };
-    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 480 * 1000);
+    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 600 * 1000);
     try {
       await IOUtils.makeDirectory(outDir, { ignoreExisting: true });
       await this.steps(outDir, report, check);
@@ -33,8 +33,9 @@ var SelfTest = {
       let start = Date.now();
       while (Date.now() - start < ms) {
         try {
-          if (fn()) {
-            return true;
+          let result = await fn();
+          if (result) {
+            return result;
           }
         } catch (e) {}
         await wait(100);
@@ -388,7 +389,7 @@ var SelfTest = {
     // 8. History and downloads
     await this.historyAndDownloads(B, check, waitFor, wait, outDir, report);
 
-    // 9. Mods: Bitwarden installs from settings, fills a login, and removes
+    // 9. Mods: Bitwarden installs from the mods site, fills a login, and removes
     await this.mods(B, check, waitFor, wait, press, outDir, report);
 
     // 10. Extensions: a test extension uses the tabs API, a button and a popup
@@ -405,6 +406,9 @@ var SelfTest = {
     await this.tabBarHover(B, check, waitFor, wait, outDir, report);
     await this.readerView(B, check, waitFor, wait, outDir, report);
     await this.drm(B, check, waitFor, wait, press, outDir, report);
+
+    // 14. The other mods: passwords, bookmarks, Firefox Sync
+    await this.moreMods(B, check, waitFor, wait, press, outDir, report);
 
     report.errors = Services.console
       .getMessageArray()
@@ -557,7 +561,48 @@ var SelfTest = {
     B.closeTab(B.tabs.find(t => t.url == "breached:history"));
   },
 
+  /** The self-test's page helper (SelfTestChild.sys.mjs), registered once. */
+  testActor(browser = Breached.selectedBrowser) {
+    if (!this._testActor) {
+      try {
+        ChromeUtils.registerWindowActor("BreachedSelfTest", {
+          child: { esModuleURI: "resource://breached/SelfTestChild.sys.mjs" },
+          messageManagerGroups: ["browsers"],
+          safeForUntrustedWebProcess: true,
+        });
+      } catch (e) {
+        // registered by an earlier step
+      }
+      this._testActor = true;
+    }
+    return browser.browsingContext.currentWindowGlobal?.getActor("BreachedSelfTest");
+  },
+
+  /** A page element's text, attributes and place: { text, attrs, rect, root }. */
+  async element(selector, browser = Breached.selectedBrowser) {
+    try {
+      return await this.testActor(browser).sendQuery("SelfTest:Element", { selector });
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /** Clicks a page element like a mouse would (in the page's own process). */
+  async clickElement(selector, browser = Breached.selectedBrowser) {
+    let found = await this.element(selector, browser);
+    if (!found?.rect) {
+      return false;
+    }
+    let x = found.rect.x + found.rect.width / 2;
+    let y = found.rect.y + found.rect.height / 2;
+    let actor = this.testActor(browser);
+    await actor.sendQuery("SelfTest:Mouse", { type: "mousedown", x, y, button: 0 });
+    await actor.sendQuery("SelfTest:Mouse", { type: "mouseup", x, y, button: 0 });
+    return true;
+  },
+
   async mods(B, check, waitFor, wait, press, outDir, report) {
+    let info = (report.info.mods = {});
     let doc = () => B.selectedBrowser?.contentDocument;
     B.run("bw.exe");
     check(
@@ -566,9 +611,10 @@ var SelfTest = {
     );
     B.run("mods");
     check(
-      ":mods opens settings at the mods section",
-      await waitFor(() => B.selected.url == "breached:settings#mods" && doc()?.getElementById("mod-bitwarden-toggle")?.checkVisibility())
+      ":mods opens settings at the mods section, with a link to the mods site",
+      await waitFor(() => B.selected.url == "breached:settings#mods" && doc()?.getElementById("mods-site")?.checkVisibility())
     );
+    check("settings: no mods come installed", !!doc().getElementById("mods-none"));
     await wait(500);
     await this.screenshot(outDir, "11-mods.png");
     let click = el => {
@@ -577,16 +623,41 @@ var SelfTest = {
       win.synthesizeMouseEvent("mousedown", r.left + 5, r.top + 5, { button: 0, buttons: 1, clickCount: 1 });
       win.synthesizeMouseEvent("mouseup", r.left + 5, r.top + 5, { button: 0, buttons: 0, clickCount: 1 });
     };
-    let toggle = doc().getElementById("mod-bitwarden-toggle");
-    toggle.scrollIntoView();
-    await wait(200);
-    click(toggle);
-    let installed = await waitFor(() => ModHost.loaded.has("bitwarden") && Commands["bw.exe"], 5000);
-    check("settings: installing the Bitwarden mod adds :bw.exe", installed);
-    check(
-      "settings: the installed mod shows its settings",
-      await waitFor(() => doc().getElementById("setting-breached-mods-bitwarden-path"), 3000)
+    let settingsTab = B.selected;
+
+    // The mods site (built from the breached-mods repository by CI).
+    click(doc().getElementById("mods-site"));
+    let site = ModHost.Mods.site;
+    info.site = site;
+    let siteTab = await waitFor(() => B.selected.url == site && B.selected.title == "Breached mods" && B.selected, 15000);
+    check("settings: Get mods opens the mods site", !!siteTab);
+    let marked = await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.root?.breached == B.version, 10000);
+    let link = await this.element("a[data-breached-mod=bitwarden]");
+    info.siteLink = link;
+    check("the mods site knows it's open in Breached", marked && link?.text == "Install");
+    await this.screenshot(outDir, "11b-mods-site.png");
+    await this.clickElement("a[data-breached-mod=bitwarden]");
+    let asked = await waitFor(
+      () => !document.getElementById("picker").hidden && /Install the Bitwarden mod/.test(document.getElementById("prompt").textContent),
+      15000
     );
+    info.confirm = document.getElementById("prompt").textContent;
+    check("Install on the mods site asks first", asked);
+    await this.screenshot(outDir, "11c-mod-confirm.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let installed = await waitFor(() => ModHost.loaded.has("bitwarden") && Commands["bw.exe"], 15000);
+    check("the mods site installs the Bitwarden mod, which adds :bw.exe", installed);
+    check(
+      "the mods site then shows it as installed",
+      await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.text == "Installed", 5000)
+    );
+    B.closeTab(siteTab);
+    B.selectTab(settingsTab);
+    check(
+      "settings: the installed mod shows with its settings",
+      await waitFor(() => doc().getElementById("setting-breached-mods-bitwarden-path") && doc().getElementById("mod-bitwarden-remove"), 3000)
+    );
+    await this.screenshot(outDir, "11d-mods-installed.png");
 
     let fakeBw = Services.env.get("BREACHED_TEST_BW");
     let loginPage = Services.env.get("BREACHED_TEST_LOGIN_PAGE");
@@ -652,7 +723,7 @@ var SelfTest = {
     }
 
     B.selectTab(B.tabs.find(t => t.url.startsWith("breached:settings")));
-    click(doc().getElementById("mod-bitwarden-toggle"));
+    click(doc().getElementById("mod-bitwarden-remove"));
     check(
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
@@ -1117,32 +1188,131 @@ var SelfTest = {
 
   async drm(B, check, waitFor, wait, press, outDir, report) {
     let info = (report.info.drm = {});
-    const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
-    info.before = { setting: Drm.setting(), eme: Services.prefs.getBoolPref("media.eme.enabled", false), installed: Drm.installed() };
-    check("protected video starts off (asked for first)", Drm.setting() == "ask" && !info.before.eme);
+    let eme = () => Services.prefs.getBoolPref("media.eme.enabled", false);
+    let widevine = () => Services.prefs.getStringPref("media.gmp-widevinecdm.version", "");
+    info.before = { eme: eme(), modInstalled: ModHost.Mods.isInstalled("drm") };
+    check("protected video starts off, without its mod", !eme() && !info.before.modInstalled);
     let tab = B.openTab("http://127.0.0.1:8123/drm.html");
     let asked = await waitFor(
-      () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("protected video"),
+      () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("Protected video mod"),
       15000
     );
     info.prompt = document.getElementById("prompt").textContent;
-    check("a site wanting protected video asks first", asked);
+    check("a site wanting protected video offers the Protected video mod", asked);
     await this.screenshot(outDir, "24-drm-prompt.png");
     press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let modLoaded = await waitFor(() => ModHost.loaded.has("drm") && Commands.drm, 20000);
+    check("get the mod installs it from the mods site", modLoaded);
     // The first try fails (it was off); the reload after the download works.
     let played = await waitFor(() => tab.title == "drm:ok" || /Couldn't/.test(document.getElementById("message").textContent), 150000);
     info.title = tab.title;
     info.after = {
-      setting: Drm.setting(),
-      eme: Services.prefs.getBoolPref("media.eme.enabled", false),
-      installed: Drm.installed(),
-      version: Services.prefs.getStringPref("media.gmp-widevinecdm.version", ""),
+      eme: eme(),
+      version: widevine(),
       lastFail: Services.prefs.getStringPref("media.gmp-widevinecdm.lastInstallFailReason", ""),
       message: document.getElementById("message").textContent,
     };
-    check("turning it on downloads Widevine", Drm.installed());
+    check("the mod downloads Widevine", !!widevine());
     check("the page gets Widevine after the reload", played && tab.title == "drm:ok");
     B.closeTab(tab);
+    await ModHost.Mods.uninstall("drm");
+    check("removing the mod turns protected video off", await waitFor(() => !ModHost.loaded.has("drm") && !eme(), 5000));
+  },
+
+  // The other mods on the mods site: passwords, bookmarks, Firefox Sync.
+  async moreMods(B, check, waitFor, wait, press, outDir, report) {
+    let info = (report.info.moreMods = {});
+    let enter = () => press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let picking = what =>
+      waitFor(() => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes(what), 15000);
+    let install = async id => {
+      try {
+        await ModHost.installFromSite(id, { confirm: false });
+      } catch (e) {
+        info[id + "Error"] = String(e);
+      }
+      return waitFor(() => ModHost.loaded.has(id), 10000);
+    };
+
+    // Password manager: asks to save a login, then fills it in next time.
+    check("saved passwords are off without the Password manager mod", !Services.prefs.getBoolPref("signon.rememberSignons"));
+    check("the Password manager mod installs", await install("passwords"));
+    let loginPage = "http://127.0.0.1:8123/login.html";
+    let tab = B.openTab(loginPage);
+    await waitFor(() => tab.title == "login" && !tab.el.hasAttribute("busy"), 10000);
+    await wait(500);
+    info.loginSent = await this.testActor(tab.browser).sendQuery("SelfTest:Login", { username: "tester", password: "secret-1" });
+    let save = await picking("Save the password for tester");
+    info.savePrompt = document.getElementById("prompt").textContent;
+    check("passwords: sending a login form asks to save it", save);
+    await this.screenshot(outDir, "25-password-save.png");
+    enter();
+    let saved = await waitFor(async () => (await Services.logins.getAllLogins()).length == 1, 5000);
+    check("passwords: save keeps it in the password store", saved);
+    B.closeTab(tab);
+    tab = B.openTab(loginPage);
+    let filled = await waitFor(() => tab.title == "filled tester / secret-1", 10000);
+    info.fillTitle = tab.title;
+    check("passwords: the saved login fills in next time", filled);
+    B.closeTab(tab);
+    Services.logins.removeAllUserFacingLogins();
+    await ModHost.Mods.uninstall("passwords");
+    check(
+      "passwords: removing the mod turns saved passwords off again",
+      await waitFor(() => !ModHost.loaded.has("passwords") && !Services.prefs.getBoolPref("signon.rememberSignons"), 5000)
+    );
+
+    // Bookmarks: Ctrl+D saves the page, :bookmarks opens it again.
+    const { PlacesUtils } = ChromeUtils.importESModule("resource://gre/modules/PlacesUtils.sys.mjs");
+    check("the Bookmarks mod installs", await install("bookmarks"));
+    let article = "http://127.0.0.1:8123/article.html";
+    tab = B.openTab(article);
+    await waitFor(() => tab.title == "A long walk" && !tab.el.hasAttribute("busy"), 10000);
+    press("d", "KeyD", KeyboardEvent.DOM_VK_D, ["Control"]);
+    let bookmarked = await waitFor(async () => !!(await PlacesUtils.bookmarks.fetch({ url: article })), 5000);
+    check("bookmarks: Ctrl+D bookmarks the page", bookmarked);
+    B.closeTab(tab);
+    B.run("bookmarks");
+    let listed = await picking("open bookmark:");
+    check("bookmarks: :bookmarks lists them as rows", listed && document.querySelector("#picker .picker-row")?.textContent.includes("A long walk"));
+    await this.screenshot(outDir, "26-bookmarks.png");
+    enter();
+    check("bookmarks: picking one opens it", await waitFor(() => B.selected.url == article, 10000));
+    B.closeTab(B.selected);
+    await PlacesUtils.bookmarks.eraseEverything();
+    await ModHost.Mods.uninstall("bookmarks");
+    check("bookmarks: removing the mod takes Ctrl+D away", await waitFor(() => !Commands.bookmark, 5000));
+
+    // Firefox Sync (experimental): the account code turns on and the
+    // sign-in page opens; signing in needs a real account.
+    check("Mozilla accounts are off without the Firefox Sync mod", !Services.prefs.getBoolPref("identity.fxaccounts.enabled"));
+    check("the Firefox Sync mod installs", await install("sync"));
+    try {
+      let Sync = ChromeUtils.importESModule(ModHost.loaded.get("sync").url + "Sync.sys.mjs");
+      info.sync = await Sync.selfCheck();
+    } catch (e) {
+      info.syncError = `${e}\n${e.stack}`;
+    }
+    check(
+      "sync: the mod turns Mozilla accounts on, with history, bookmarks and passwords",
+      info.sync?.accountsEnabled && info.sync.engines == "Bookmarks,History,Passwords"
+    );
+    B.run("sync in");
+    let signIn = await waitFor(() => B.selected.url.startsWith("https://accounts.firefox.com/") && B.selected, 10000);
+    info.signInURL = B.selected.url;
+    check("sync: :sync in opens the Mozilla account sign-in page", signIn);
+    if (signIn) {
+      await waitFor(() => !signIn.el.hasAttribute("busy"), 20000);
+      await wait(3000);
+      info.signInTitle = signIn.title;
+      await this.screenshot(outDir, "27-sync-sign-in.png");
+      B.closeTab(signIn);
+    }
+    await ModHost.Mods.uninstall("sync");
+    check(
+      "sync: removing the mod turns Mozilla accounts off again",
+      await waitFor(() => !ModHost.loaded.has("sync") && !Services.prefs.getBoolPref("identity.fxaccounts.enabled"), 5000)
+    );
   },
 
   async extensions(B, check, waitFor, wait, outDir, report) {

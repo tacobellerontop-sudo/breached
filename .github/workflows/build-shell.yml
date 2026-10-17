@@ -29,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The mods the self-test installs, from their own repository.
+      - uses: actions/checkout@v4
+        with:
+          repository: tacobellerontop-sudo/breached-mods
+          path: mods-repo
+
       - name: Download Mozilla's Gecko (Firefox release build)
         shell: pwsh
         run: |

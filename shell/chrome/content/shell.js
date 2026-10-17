@@ -25,7 +25,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.6";
+const BREACHED_VERSION = "0.1.7";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -89,6 +89,17 @@ function registerActors() {
         events: { DOMContentLoaded: {} },
       },
       matches: ["about:reader*"],
+      messageManagerGroups: ["browsers"],
+      safeForUntrustedWebProcess: true,
+    },
+    // The mods site's Install buttons (only on that site).
+    BreachedModsSite: {
+      parent: { esModuleURI: "resource://breached/ModsSiteParent.sys.mjs" },
+      child: {
+        esModuleURI: "resource://breached/ModsSiteChild.sys.mjs",
+        events: { DOMContentLoaded: {}, click: { capture: true } },
+      },
+      matches: [Services.prefs.getStringPref("breached.mods.site", "").replace(/\/?$/, "/*")],
       messageManagerGroups: ["browsers"],
       safeForUntrustedWebProcess: true,
     },
@@ -263,7 +274,6 @@ var Breached = {
     }
     registerActors();
     Permissions.init();
-    ChromeUtils.importESModule("resource://breached/Drm.sys.mjs").init();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
     Services.prefs.addObserver(PREF, this);
@@ -1387,7 +1397,7 @@ var Breached = {
     let command = Commands[name];
     if (!command && ModHost.modCommands.has(name)) {
       this.showMessage(
-        `${name} comes with the ${ModHost.modCommands.get(name)} mod: install it in settings > mods`,
+        `${name} comes with the ${ModHost.modCommands.get(name)} mod: :mods get opens the mods site to install it`,
         "error"
       );
       return undefined;
@@ -2228,9 +2238,13 @@ var Commands = {
     },
   },
   mods: {
-    usage: "mods  (install or remove mods, in settings)",
-    run() {
-      Breached.openSettings("mods");
+    usage: "mods [get]  (your mods, in settings; get: open the mods site)",
+    run(args) {
+      if (args.trim() == "get") {
+        ModHost.openSite();
+      } else {
+        Breached.openSettings("mods");
+      }
     },
   },
   update: {

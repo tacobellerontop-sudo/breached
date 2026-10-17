@@ -30,6 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The mods the self-test installs, from their own repository.
+      - uses: actions/checkout@v4
+        with:
+          repository: tacobellerontop-sudo/breached-mods
+          path: mods-repo
+
       - name: Check the version
         shell: pwsh
         run: |

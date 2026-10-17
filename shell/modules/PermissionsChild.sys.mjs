@@ -138,7 +138,7 @@ export class BreachedMediaChild extends JSProcessActorChild {
         }
         break;
       case "mediakeys-request": {
-        // A page wants protected video (DRM); Drm.sys.mjs decides.
+        // A page wants protected video (DRM); the Protected video mod decides.
         let window = subject;
         let actor = actorFor(window);
         try {

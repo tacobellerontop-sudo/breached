@@ -11,7 +11,9 @@ param(
     [Parameter(Mandatory)] [string] $App,
     [Parameter(Mandatory)] [string] $Shots,
     [switch] $NoAppArg,
-    [string] $Exe = 'breached.exe'
+    [string] $Exe = 'breached.exe',
+    # The breached-mods repository; its site is built and served locally.
+    [string] $ModsRepo = (Join-Path $PSScriptRoot '..\..\mods-repo')
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path "$PSScriptRoot\..\.."
@@ -25,13 +27,19 @@ $tools = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\breached-test"
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /out:"$tools\bw.exe" (Join-Path $repo 'scripts\test\FakeBw.cs')
 $env:BREACHED_TEST_BW = "$tools\bw.exe"
 Remove-Item "$tools\items.txt" -ErrorAction SilentlyContinue
+# The mods site, built from the breached-mods repository, served with the test pages.
+& python (Join-Path $ModsRepo 'scripts\build.py') (Join-Path $repo 'scripts\test\mods-site')
+if ($LASTEXITCODE) { throw 'building the mods site failed' }
 $server = Start-Process python -PassThru -NoNewWindow -ArgumentList '-m', 'http.server', '8123', '--bind', '127.0.0.1', '--directory', (Join-Path $repo 'scripts\test')
 $env:BREACHED_TEST_LOGIN_PAGE = 'http://127.0.0.1:8123/login.html'
 
 # A throwaway profile; let the test's progress lines through to the log.
 $testProfile = Join-Path $env:RUNNER_TEMP "breached-selftest-profile-$(Get-Random)"
 New-Item -ItemType Directory $testProfile | Out-Null
-Set-Content "$testProfile\user.js" 'user_pref("browser.dom.window.dump.enabled", true);'
+Set-Content "$testProfile\user.js" @(
+    'user_pref("browser.dom.window.dump.enabled", true);',
+    'user_pref("breached.mods.site", "http://127.0.0.1:8123/mods-site/");'
+)
 
 $argList = @()
 if (-not $NoAppArg) { $argList += '-app', "$appDir\breached\application.ini" }
@@ -40,7 +48,7 @@ $out = Join-Path $shotDir 'selftest-out.txt'
 $err = Join-Path $shotDir 'selftest-err.txt'
 "Starting $Exe $($argList -join ' ')"
 $p = Start-Process "$appDir\$Exe" -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $argList
-if (-not $p.WaitForExit(360000)) {
+if (-not $p.WaitForExit(660000)) {
     "Self-test did not finish. Running processes:"
     Get-Process | Where-Object { $_.Path -like "$appDir*" } | Format-Table Id, Name, StartTime -AutoSize | Out-String
     $p.Kill($true)
