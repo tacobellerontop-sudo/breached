@@ -1040,7 +1040,10 @@ var SelfTest = {
       for (let type of ["mousedown", "mouseup"]) {
         await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));
       }
-      let started = await waitFor(() => pdfs.length == 2, 8000);
+      let dialogsBefore = pdfs.length;
+      info.dialogsForCtrlP = dialogsBefore;
+      check("print: Ctrl+P asks once", dialogsBefore == 1);
+      let started = await waitFor(() => pdfs.length == dialogsBefore + 1, 8000);
       info.titleAfterPrintClick = B.selected.title;
       B.printClone = realClone;
       await wait(3000);
@@ -1048,7 +1051,7 @@ var SelfTest = {
       B.showMessage = realMessage;
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
       await wait(1000);
-      let stat2 = pdfs[1] ? await IOUtils.stat(pdfs[1]).catch(() => null) : null;
+      let stat2 = pdfs[dialogsBefore] ? await IOUtils.stat(pdfs[dialogsBefore]).catch(() => null) : null;
       info.pdfs = pdfs.slice();
       info.windowPrint = { started, done, size: stat2?.size ?? null, tabs: B.tabs.length - tabsBefore };
       check("print: a page's print button prints", done && stat2?.size > 500 && B.tabs.length == tabsBefore);

@@ -319,7 +319,17 @@ Object.assign(Breached, {
       }
       // The dialog has asked already.
       settings.printSilent = true;
-      await browser.browsingContext.print(settings);
+      // Gecko may make its still copy of the page through printClone while
+      // this runs; that copy is printed with these settings, no second dialog.
+      this._printCopies = clone ? this._printCopies : [];
+      try {
+        await browser.browsingContext.print(settings);
+      } finally {
+        if (!clone) {
+          this._printCopies.forEach(b => b.remove());
+          this._printCopies = null;
+        }
+      }
     } catch (e) {
       this._lastPrintError = String(e);
       if (e.result != Cr.NS_ERROR_ABORT) {
@@ -342,7 +352,12 @@ Object.assign(Breached, {
     let b = this.createBrowser({ remoteType, openWindowInfo });
     b.classList.add("print-clone");
     this.$content.append(b);
-    setTimeout(() => this.print(b, { clone: b }), 0);
+    if (this._printCopies) {
+      // For a print already under way (Ctrl+P).
+      this._printCopies.push(b);
+    } else {
+      setTimeout(() => this.print(b, { clone: b }), 0);
+    }
     return b;
   },
 });
