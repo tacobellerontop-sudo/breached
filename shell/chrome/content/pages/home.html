@@ -16,6 +16,20 @@
       <input id="search" type="text" spellcheck="false"
              placeholder="search or type an address" autofocus="autofocus" />
     </form>
+    <section id="pinned">
+      <h2 class="muted">pinned
+        <button type="button" id="pin-add" class="link-button">+ pin a site</button>
+      </h2>
+      <form id="pin-form" hidden="hidden" autocomplete="off">
+        <input id="pin-url" type="text" spellcheck="false" placeholder="address" />
+        <input id="pin-title" type="text" placeholder="name (optional)" />
+        <button type="submit">pin</button>
+        <button type="button" id="pin-cancel">cancel</button>
+        <span id="pin-error" class="error"></span>
+      </form>
+      <ol id="pin-list"></ol>
+      <p id="pin-empty" class="muted" hidden="hidden">No pinned sites yet. Pin one with the button above, or type <kbd>:pin</kbd> on any page.</p>
+    </section>
     <section id="sites" hidden="hidden">
       <h2 class="muted">most visited</h2>
       <ol id="site-list"></ol>

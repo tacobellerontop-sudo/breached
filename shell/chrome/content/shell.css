@@ -241,6 +241,11 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* A page using the camera, microphone or screen. */
+.tab[recording] .tab-label::before {
+  content: "\25CF  ";
+  color: var(--error);
+}
 .tab[pinned] {
   flex: none;
   max-width: none;

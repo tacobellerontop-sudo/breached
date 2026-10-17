@@ -376,6 +376,10 @@ var SelfTest = {
     // 10. Extensions: a test extension uses the tabs API, a button and a popup
     await this.extensions(B, check, waitFor, wait, outDir, report);
 
+    // 11. Site permissions (camera, location) and pinned sites
+    await this.permissions(B, check, waitFor, wait, press, outDir, report);
+    await this.pins(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -559,6 +563,113 @@ var SelfTest = {
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
     );
+    B.closeTab(B.selected);
+  },
+
+  // Sites ask in the command bar; "always" is remembered.
+  async permissions(B, check, waitFor, wait, press, outDir, report) {
+    let loginPage = Services.env.get("BREACHED_TEST_LOGIN_PAGE");
+    if (!loginPage) {
+      return;
+    }
+    let page = loginPage.replace(/[^/]*$/, "permissions.html");
+    let origin = new URL(page).origin;
+    let principal = Services.scriptSecurityManager.createContentPrincipalFromOrigin(origin);
+    // Fake camera and microphone, still asking like real ones.
+    Services.prefs.setBoolPref("media.navigator.streams.fake", true);
+    Services.prefs.setBoolPref("media.navigator.permission.fake", true);
+    let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")].map(r => r.textContent);
+    let type = text => {
+      for (let c of text) {
+        press(c, "Key" + c.toUpperCase(), KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+      }
+    };
+    let asking = what =>
+      waitFor(() => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes(what), 10000);
+
+    B.openTab(page + "#camera");
+    let asked = await asking("wants to use your camera and microphone");
+    report.info.permissionPrompt = document.getElementById("prompt").textContent;
+    report.info.permissionRows = rows();
+    check("a site asking for the camera and microphone asks in the command bar", asked);
+    check("the question offers allow, always, block and never", rows().length == 4);
+    await this.screenshot(outDir, "17-permission-prompt.png");
+    type("always");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let allowed = await waitFor(() => B.selected.title.startsWith("camera:"), 15000);
+    report.info.cameraResult = B.selected.title;
+    check("allowing gives the page the camera and microphone", allowed && B.selected.title == "camera:ok");
+    check(
+      '"always" is remembered for the site',
+      Services.perms.testExactPermissionFromPrincipal(principal, "camera") == Services.perms.ALLOW_ACTION &&
+        Services.perms.testExactPermissionFromPrincipal(principal, "microphone") == Services.perms.ALLOW_ACTION
+    );
+    check(
+      "the tab is marked while the camera is on",
+      await waitFor(() => B.selected.el.hasAttribute("recording") && B.selected.recording.includes("camera"), 5000)
+    );
+    check("a tab using the camera isn't unloaded", !!B.keepAwakeReason(B.selected));
+    await this.screenshot(outDir, "18-camera-on.png");
+    B.closeTab(B.selected);
+
+    B.openTab(page + "#camera");
+    let again = await waitFor(() => B.selected.title.startsWith("camera:"), 15000);
+    check("a remembered site isn't asked again", again && B.selected.title == "camera:ok" && document.getElementById("picker").hidden);
+    B.closeTab(B.selected);
+
+    B.openTab(page + "#geo");
+    let geoAsked = await asking("wants to know your location");
+    check("a site asking for your location asks in the command bar", geoAsked);
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    let geoDone = await waitFor(() => B.selected.title.startsWith("geo:"), 10000);
+    report.info.geoResult = B.selected.title;
+    check("Escape blocks it this time", geoDone && B.selected.title == "geo:denied");
+    check(
+      "blocking once isn't remembered",
+      Services.perms.testExactPermissionFromPrincipal(principal, "geo") == Services.perms.UNKNOWN_ACTION
+    );
+    B.closeTab(B.selected);
+
+    B.run("permissions");
+    let doc = () => B.selectedBrowser.contentDocument;
+    let listed = await waitFor(
+      () => B.selected.url == "breached:settings#site-permissions" &&
+        doc()?.querySelectorAll("#site-permission-list .site-permission").length == 2,
+      5000
+    );
+    check(":permissions lists the saved answers in settings", listed);
+    await this.screenshot(outDir, "19-site-permissions.png");
+    for (let button of doc()?.querySelectorAll("#site-permission-list button") ?? []) {
+      button.click();
+      await wait(100);
+    }
+    check(
+      "settings: a saved answer can be forgotten",
+      Services.perms.testExactPermissionFromPrincipal(principal, "camera") == Services.perms.UNKNOWN_ACTION
+    );
+    B.closeTab(B.selected);
+    Services.prefs.clearUserPref("media.navigator.streams.fake");
+    Services.prefs.clearUserPref("media.navigator.permission.fake");
+  },
+
+  // Pinned websites on the new tab page.
+  async pins(B, check, waitFor, wait, outDir, report) {
+    const Pins = ChromeUtils.importESModule("resource://breached/Pins.sys.mjs");
+    B.openTab("breached:home");
+    let doc = () => B.selectedBrowser.contentDocument;
+    let tiles = () => doc()?.querySelectorAll("#pin-list .pin") ?? [];
+    check("the new tab page has a pinned section", await waitFor(() => doc()?.getElementById("pin-empty") && !doc().getElementById("pin-empty").hidden, 5000));
+    B.run("pin https://example.com/");
+    B.run("pin example.org");
+    check(":pin adds sites to the new tab page", await waitFor(() => tiles().length == 2, 3000));
+    check("pinned sites keep their order", Pins.list().map(s => new URL(s.url).host).join() == "example.com,example.org");
+    Pins.move(1, 0);
+    check("pinned sites can be reordered", await waitFor(() => tiles()[0]?.title.includes("example.org"), 3000));
+    await this.screenshot(outDir, "20-pinned-sites.png");
+    doc().querySelector("#pin-list .unpin").click();
+    check("a pinned site can be unpinned from the page", await waitFor(() => tiles().length == 1, 3000));
+    B.run("unpin 1");
+    check(":unpin takes one off", Pins.list().length == 0);
     B.closeTab(B.selected);
   },
 

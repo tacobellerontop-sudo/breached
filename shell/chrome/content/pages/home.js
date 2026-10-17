@@ -1,8 +1,10 @@
-/* Breached home page: a search/address box and the most visited sites. */
+/* Breached home page: a search/address box, pinned sites and the most
+ * visited sites. */
 
 "use strict";
 
 const shellWindow = () => window.browsingContext.topChromeWindow;
+const Pins = ChromeUtils.importESModule("resource://breached/Pins.sys.mjs");
 
 /** Opens an address or search in this tab, through the browser window. */
 function go(text) {
@@ -18,6 +20,123 @@ function go(text) {
     return;
   }
   shell.load(window.browsingContext.top.embedderElement, url);
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch (e) {
+    return url;
+  }
+}
+
+/** Opens url here, or in a new tab with Ctrl or the middle button. */
+function linkTo(a, url) {
+  a.href = url;
+  a.addEventListener("click", event => {
+    if (event.button == 0 && !event.ctrlKey) {
+      event.preventDefault();
+      go(url);
+    }
+  });
+}
+
+let dragFrom = -1;
+
+function showPinned() {
+  let list = document.getElementById("pin-list");
+  list.textContent = "";
+  let sites = Pins.list();
+  sites.forEach((site, i) => {
+    let host = hostOf(site.url);
+    let a = document.createElement("a");
+    a.className = "pin";
+    a.title = site.url;
+    linkTo(a, site.url);
+    let badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = (site.title || host).charAt(0).toUpperCase();
+    let name = document.createElement("span");
+    name.className = "name";
+    name.textContent = site.title || host;
+    let sub = document.createElement("span");
+    sub.className = "host";
+    sub.textContent = host;
+    a.append(badge, name, sub);
+    let unpin = document.createElement("button");
+    unpin.type = "button";
+    unpin.className = "unpin";
+    unpin.title = "Unpin " + (site.title || host);
+    unpin.textContent = "\u00d7";
+    unpin.addEventListener("click", () => Pins.remove(i + 1));
+    let li = document.createElement("li");
+    li.draggable = true;
+    li.append(a, unpin);
+    li.addEventListener("dragstart", event => {
+      dragFrom = i;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/uri-list", site.url);
+    });
+    li.addEventListener("dragover", event => {
+      if (dragFrom >= 0) {
+        event.preventDefault();
+        li.classList.add("drop");
+      }
+    });
+    li.addEventListener("dragleave", () => li.classList.remove("drop"));
+    li.addEventListener("drop", event => {
+      event.preventDefault();
+      if (dragFrom >= 0 && dragFrom != i) {
+        Pins.move(dragFrom, i);
+      }
+      dragFrom = -1;
+    });
+    li.addEventListener("dragend", () => (dragFrom = -1));
+    list.append(li);
+  });
+  document.getElementById("pin-empty").hidden = sites.length > 0;
+  for (let button of document.querySelectorAll("#site-list .pin-this")) {
+    button.hidden = Pins.has(button.dataset.url);
+  }
+}
+
+function setUpPinForm() {
+  let form = document.getElementById("pin-form");
+  let url = document.getElementById("pin-url");
+  let title = document.getElementById("pin-title");
+  let error = document.getElementById("pin-error");
+  let close = () => {
+    form.hidden = true;
+    url.value = title.value = error.textContent = "";
+    document.getElementById("search").focus();
+  };
+  document.getElementById("pin-add").addEventListener("click", () => {
+    form.hidden = false;
+    url.focus();
+  });
+  document.getElementById("pin-cancel").addEventListener("click", close);
+  form.addEventListener("keydown", event => {
+    if (event.key == "Escape") {
+      close();
+    }
+  });
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    let address = url.value.trim();
+    if (!address) {
+      return;
+    }
+    try {
+      let full = shellWindow()?.Breached?.urlFor(address) ?? address;
+      if (!Pins.add(full, title.value)) {
+        error.textContent = "Already pinned";
+        return;
+      }
+      close();
+    } catch (e) {
+      error.textContent = e.message;
+    }
+  });
 }
 
 async function showMostVisited() {
@@ -47,7 +166,6 @@ async function showMostVisited() {
       continue;
     }
     let a = document.createElement("a");
-    a.href = url;
     a.title = url;
     a.textContent = title || host;
     if (title) {
@@ -56,14 +174,23 @@ async function showMostVisited() {
       span.textContent = "  " + host;
       a.append(span);
     }
-    a.addEventListener("click", event => {
-      if (event.button == 0 && !event.ctrlKey) {
-        event.preventDefault();
-        go(url);
+    linkTo(a, url);
+    let pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "pin-this link-button";
+    pin.dataset.url = url;
+    pin.title = "Pin to this page";
+    pin.textContent = "pin";
+    pin.hidden = Pins.has(url);
+    pin.addEventListener("click", () => {
+      try {
+        Pins.add(url, title || "");
+      } catch (e) {
+        shellWindow()?.Breached?.showMessage(e.message, "error");
       }
     });
     let li = document.createElement("li");
-    li.append(a);
+    li.append(a, pin);
     list.append(li);
   }
   document.getElementById("sites").hidden = !list.children.length;
@@ -82,5 +209,9 @@ window.addEventListener("DOMContentLoaded", () => {
     shellWindow()?.Breached?.openSettings();
   });
   input.focus();
+  setUpPinForm();
+  showPinned();
   showMostVisited();
+  Services.prefs.addObserver(Pins.PREF, showPinned);
+  window.addEventListener("unload", () => Services.prefs.removeObserver(Pins.PREF, showPinned));
 });

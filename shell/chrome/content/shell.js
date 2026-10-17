@@ -12,6 +12,7 @@ const { E10SUtils } = ChromeUtils.importESModule(
   "resource://gre/modules/E10SUtils.sys.mjs"
 );
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
+const Permissions = ChromeUtils.importESModule("resource://breached/Permissions.sys.mjs");
 const { SessionHistory } = ChromeUtils.importESModule(
   "resource://gre/modules/sessionstore/SessionHistory.sys.mjs"
 );
@@ -116,6 +117,20 @@ class Tab {
     this.lastActive = Date.now();
     this.pinned = false;
     this.opener = null; // the Tab that opened this one, if any
+    this.capture = new Map(); // page window id -> { camera, microphone, screen }
+  }
+
+  /** "camera and microphone" while the page uses them, else "". */
+  get recording() {
+    let using = new Set();
+    for (let state of this.capture.values()) {
+      for (let kind of ["camera", "microphone", "screen"]) {
+        if (state[kind]) {
+          using.add(kind == "screen" ? "screen sharing" : kind);
+        }
+      }
+    }
+    return [...using].join(" and ");
   }
 
   get asleep() {
@@ -149,7 +164,9 @@ class Tab {
 
   update() {
     this.labelEl.textContent = this.title || this.url;
-    this.el.title = this.url;
+    let recording = this.recording;
+    this.el.toggleAttribute("recording", !!recording);
+    this.el.title = recording ? `${this.url}\nUsing your ${recording}` : this.url;
     this.el.toggleAttribute("asleep", this.asleep);
     this.el.toggleAttribute("pinned", this.pinned);
   }
@@ -217,6 +234,7 @@ var Breached = {
 
   init() {
     registerActors();
+    Permissions.init();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
     Services.prefs.addObserver(PREF, this);
@@ -661,6 +679,7 @@ var Breached = {
     if (previous !== tab) {
       this.emit("TabSelect", { tab, previous });
     }
+    this._nextPermission();
   },
 
   closeTab(tab = this.selected) {
@@ -675,9 +694,13 @@ var Breached = {
     this.emit("TabClose", { tab, index });
     this.tabs.splice(index, 1);
     tab.el.remove();
+    let browser = tab.browser;
     tab.browser?.remove();
     tab.browser = null;
     tab.closed = true;
+    if (browser) {
+      this.cancelPermission(browser);
+    }
     if (!this.tabs.length) {
       this.selected = null;
       this.openTab(this.homepage());
@@ -789,6 +812,9 @@ var Breached = {
     if (tab.pinned) {
       return "pinned";
     }
+    if (tab.recording) {
+      return "is using your " + tab.recording;
+    }
     let mc = tab.browser?.browsingContext?.mediaController;
     if (mc?.isAudible || mc?.isPlaying) {
       return "playing media";
@@ -887,6 +913,92 @@ var Breached = {
     });
     this.selectTab(this.tabs[selected]);
     return true;
+  },
+
+  // ------------------------------------------------------ site permissions
+
+  _permissionQueue: [],
+  _permissionActive: null,
+
+  /**
+   * A site asks for access (camera, location...). Asks in the command bar
+   * when its tab is showing. Resolves to "allow", "always", "block" or
+   * "never" ("always" and "never" are remembered for the site).
+   */
+  async askPermission(browser, { host, what, canRemember }) {
+    let items = [
+      { label: "allow", detail: "this time", answer: "allow" },
+      canRemember && { label: "always", detail: `allow ${host} from now on`, answer: "always" },
+      { label: "block", detail: "this time", answer: "block" },
+      canRemember && { label: "never", detail: `block ${host} from now on`, answer: "never" },
+    ].filter(Boolean);
+    let item = await this.pickForTab(browser, `${host} wants to ${what}:`, items);
+    return item?.answer ?? "block";
+  },
+
+  /** Breached.pick, but only while browser's tab is the one showing. */
+  pickForTab(browser, label, items) {
+    return new Promise(resolve => {
+      this._permissionQueue.push({ browser, label, items, resolve });
+      this._nextPermission();
+    });
+  },
+
+  _nextPermission() {
+    if (this._permissionActive) {
+      return;
+    }
+    let tabFor = browser => this.tabs.find(t => t.browser === browser);
+    for (let entry of [...this._permissionQueue]) {
+      let tab = tabFor(entry.browser);
+      if (!tab) {
+        this._permissionQueue.splice(this._permissionQueue.indexOf(entry), 1);
+        entry.resolve(null);
+      }
+    }
+    let entry = this._permissionQueue.find(e => tabFor(e.browser) === this.selected);
+    if (!entry) {
+      let waiting = this._permissionQueue[0];
+      if (waiting) {
+        let tab = tabFor(waiting.browser);
+        this.showMessage(`Tab ${tab.index + 1} (${tab.label}) is asking for access. Switch to it to answer.`);
+      }
+      return;
+    }
+    this._permissionQueue.splice(this._permissionQueue.indexOf(entry), 1);
+    this._permissionActive = entry;
+    this.pick(entry.label, entry.items).then(item => {
+      this._permissionActive = null;
+      entry.resolve(item);
+      this._nextPermission();
+    });
+  },
+
+  /** Drops a page's open questions (it went away). */
+  cancelPermission(browser) {
+    for (let entry of this._permissionQueue.filter(e => e.browser === browser)) {
+      this._permissionQueue.splice(this._permissionQueue.indexOf(entry), 1);
+      entry.resolve(null);
+    }
+    if (this._permissionActive?.browser === browser && this._pick) {
+      this._endPick(false);
+      this.closeCommandLine();
+    }
+  },
+
+  /** A page started or stopped using the camera, microphone or screen. */
+  setCapture(browser, { windowID, camera, microphone, screen }) {
+    let tab = this.tabs.find(t => t.browser === browser);
+    if (!tab) {
+      return;
+    }
+    if (camera || microphone || screen) {
+      tab.capture.set(windowID, { camera, microphone, screen });
+    } else {
+      tab.capture.delete(windowID);
+    }
+    tab.update();
+    this.emit("TabCapture", { tab, recording: tab.recording });
   },
 
   // -------------------------------------------------------------- command bar
@@ -1653,6 +1765,35 @@ var Commands = {
           Breached.closeTab(tab);
         }
       }
+    },
+  },
+  pin: {
+    usage: "pin [address]  (pin this page, or an address, to the new tab page)",
+    run(args) {
+      const Pins = ChromeUtils.importESModule("resource://breached/Pins.sys.mjs");
+      let tab = Breached.selected;
+      let url = args ? Breached.urlFor(args) : tab?.url;
+      let title = args ? "" : tab?.title ?? "";
+      if (Pins.add(url, title)) {
+        Breached.showMessage(`Pinned ${title || url} to the new tab page`);
+      } else {
+        Breached.showMessage("Already pinned");
+      }
+    },
+  },
+  unpin: {
+    usage: "unpin [address or number]  (take this page, or another, off the new tab page)",
+    run(args) {
+      const Pins = ChromeUtils.importESModule("resource://breached/Pins.sys.mjs");
+      let which = /^\d+$/.test(args) ? Number(args) : args ? Breached.urlFor(args) : Breached.selected?.url;
+      let site = Pins.remove(which);
+      Breached.showMessage(site ? `Unpinned ${site.title || site.url}` : "That isn't pinned", site ? "info" : "error");
+    },
+  },
+  permissions: {
+    usage: "permissions  (what sites may use: camera, location...; in settings)",
+    run() {
+      Breached.openSettings("site-permissions");
     },
   },
   "tab-pin": {

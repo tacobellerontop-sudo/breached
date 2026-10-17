@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>permissions</title>
+</head>
+<body>
+  <p>Breached self-test: asks for what the address's #hash names and puts the result in the title.</p>
+  <video id="video" autoplay muted width="320" height="240"></video>
+  <script>
+    let what = location.hash.slice(1);
+    let done = result => (document.title = what + ":" + result);
+    if (what == "camera") {
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          document.getElementById("video").srcObject = stream;
+          done("ok");
+        })
+        .catch(e => done(e.name));
+    } else if (what == "geo") {
+      navigator.geolocation.getCurrentPosition(
+        () => done("ok"),
+        e => done(e.code == e.PERMISSION_DENIED ? "denied" : "error " + e.code),
+        { timeout: 15000 }
+      );
+    }
+  </script>
+</body>
+</html>

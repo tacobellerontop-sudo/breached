@@ -139,3 +139,16 @@ input[type="range"] {
 .row.mod-setting {
   padding-left: 16px;
 }
+
+.site-permission {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 2px 0;
+}
+.site-permission .site {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

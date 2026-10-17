@@ -72,3 +72,14 @@ pref("permissions.manager.defaultsUrl", "resource://app/defaults/permissions");
 // Updates from GitHub releases (settings > updates, modules/Updates.sys.mjs)
 pref("breached.update.autoCheck", true);
 pref("breached.update.lastCheck", 0);
+
+// Site permissions (modules/Permissions.sys.mjs): 0 asks, 2 blocks without asking.
+pref("permissions.default.camera", 0);
+pref("permissions.default.microphone", 0);
+pref("permissions.default.geo", 0);
+pref("permissions.default.desktop-notification", 0);
+// Location comes from Windows' own location service, not a web service.
+pref("geo.provider.ms-windows-location", true);
+
+// Pinned websites on the new tab page (modules/Pins.sys.mjs)
+pref("breached.pinnedSites", "[]");

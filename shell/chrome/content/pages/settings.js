@@ -6,6 +6,7 @@
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
 const { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
 const Updates = ChromeUtils.importESModule("resource://breached/Updates.sys.mjs");
+const Permissions = ChromeUtils.importESModule("resource://breached/Permissions.sys.mjs");
 
 const SEARCH_ENGINES = [
   ["https://duckduckgo.com/?q=%s", "DuckDuckGo"],
@@ -30,6 +31,12 @@ const TRACKING_LEVELS = {
   standard: [false, true, false, true, true, 5],
   off: [false, false, false, false, false, 0],
 };
+
+// When a site asks for a permission: the values Gecko uses.
+const ASK_OR_BLOCK = [
+  ["0", "Ask"],
+  ["2", "Block without asking"],
+];
 
 const SECTIONS = [
   {
@@ -192,6 +199,37 @@ const SECTIONS = [
     ],
   },
   {
+    title: "site permissions",
+    page: "privacy",
+    items: [
+      {
+        pref: "permissions.default.camera",
+        label: "Camera",
+        type: "choice",
+        options: ASK_OR_BLOCK,
+      },
+      {
+        pref: "permissions.default.microphone",
+        label: "Microphone",
+        type: "choice",
+        options: ASK_OR_BLOCK,
+      },
+      {
+        pref: "permissions.default.geo",
+        label: "Location",
+        type: "choice",
+        options: ASK_OR_BLOCK,
+      },
+      {
+        pref: "permissions.default.desktop-notification",
+        label: "Notifications",
+        type: "choice",
+        options: ASK_OR_BLOCK,
+      },
+      { id: "site-permissions", label: "Saved answers", type: "site-permissions" },
+    ],
+  },
+  {
     title: "downloads",
     page: "downloads",
     items: [
@@ -315,7 +353,9 @@ const BUILD = {
       select.append(el("option", { value }, text));
     }
     select.value = read(item.pref);
-    select.addEventListener("change", () => write(item.pref, select.value));
+    select.addEventListener("change", () =>
+      write(item.pref, P.getPrefType(item.pref) == P.PREF_INT ? Number(select.value) : select.value)
+    );
     return el("div", { class: "row" }, labelBlock(item, id), el("div", { class: "control" }, select));
   },
 
@@ -468,6 +508,36 @@ const BUILD = {
     });
     let item2 = { ...item, hint: "Built-in blocking. Reload open pages to apply." };
     return el("div", { class: "row" }, labelBlock(item2, id), el("div", { class: "control" }, select));
+  },
+
+  "site-permissions"(item) {
+    let list = el("div", { class: "control", id: "site-permission-list" });
+    let render = () => {
+      list.textContent = "";
+      let saved = Permissions.list();
+      if (!saved.length) {
+        list.append(el("span", { class: "muted" }, "None yet. Answer \"always\" or \"never\" when a site asks."));
+      }
+      for (let p of saved) {
+        let forget = el("button", { type: "button", title: "Forget this answer" }, "Forget");
+        forget.addEventListener("click", () => {
+          Permissions.forget(p.principal, p.kind);
+          render();
+        });
+        list.append(
+          el(
+            "div",
+            { class: "site-permission" },
+            el("span", { class: "site" }, p.host),
+            el("span", { class: "muted" }, `${p.name}: ${p.allow ? "allowed" : "blocked"}`),
+            forget
+          )
+        );
+      }
+    };
+    render();
+    let item2 = { ...item, hint: "What you told sites with \"always\" or \"never\"." };
+    return el("div", { class: "row" }, labelBlock(item2), list);
   },
 
   clear(item) {
