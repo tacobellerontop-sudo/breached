@@ -24,7 +24,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.3";
+const BREACHED_VERSION = "0.1.4";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -845,6 +845,13 @@ var Breached = {
       if ((idle || over) && this.sleep(tab)) {
         unloaded++;
       }
+    }
+    if (unloaded) {
+      // Hand the unloaded tabs' memory back to Windows (garbage collection
+      // and caches in every process), as Firefox does under memory pressure.
+      Cc["@mozilla.org/memory-reporter-manager;1"]
+        .getService(Ci.nsIMemoryReporterManager)
+        .minimizeMemoryUsage(() => {});
     }
     return unloaded;
   },
