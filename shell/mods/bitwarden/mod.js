@@ -311,7 +311,13 @@ const Passkeys = {
   /** Checks the request's site; fills in the rpId. False: leave it to Gecko. */
   prepare(request, rpId) {
     request.rpId = rpId ?? request.host;
-    return this.mode() != "off" && PasskeyCrypto.rpIdAllowed(request.origin, request.rpId);
+    let ok = this.mode() != "off" && PasskeyCrypto.rpIdAllowed(request.origin, request.rpId);
+    if (!ok) {
+      Services.console.logStringMessage(
+        `Breached passkeys: leaving ${request.rpId} to Windows (setting ${this.mode()}, page ${request.origin})`
+      );
+    }
+    return ok;
   },
 
   /** Asks "Bitwarden or something else?" for a locked vault. */

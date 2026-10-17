@@ -5,13 +5,18 @@
 // Hands a page's passkey requests to the Bitwarden mod in its window
 // (Passkeys in mod.js). No answer means "let Gecko handle it".
 
+// Shows in the browser console (and the self-test's report).
+export function log(text) {
+  Services.console.logStringMessage("Breached passkeys: " + text);
+}
+
 export class BitwardenPasskeysParent extends JSWindowActorParent {
   receiveMessage(message) {
     let browser = this.browsingContext.top.embedderElement;
     let win = browser?.ownerGlobal;
     let passkeys = win?.ModHost?.loaded?.get("bitwarden")?.passkeys;
     if (!passkeys) {
-      console.error(`Breached passkeys: ${message.name} with no Bitwarden mod in the window`);
+      log(`${message.name} with no Bitwarden mod in the window`);
       return null;
     }
     this._passkeys = passkeys;
@@ -21,8 +26,9 @@ export class BitwardenPasskeysParent extends JSWindowActorParent {
       topOrigin: topPrincipal?.originNoSuffix ?? message.data.origin,
     };
     request.crossOrigin = request.framed && request.topOrigin != request.origin;
+    log(`${message.name} from ${request.origin}`);
     let failed = e => {
-      console.error(`Breached passkeys: ${message.name}`, e);
+      log(`${message.name} failed: ${e}\n${e?.stack ?? ""}`);
       return null;
     };
     switch (message.name) {
@@ -31,7 +37,7 @@ export class BitwardenPasskeysParent extends JSWindowActorParent {
       case "Passkey:create":
         return passkeys.create(this, browser, request).catch(failed);
       case "Passkey:Error":
-        console.error("Breached passkeys (page side): " + message.data.message);
+        log("page side: " + message.data.message);
         return null;
       case "Passkey:Abort":
         passkeys.abort(this, request.id);

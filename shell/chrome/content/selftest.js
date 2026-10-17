@@ -589,6 +589,10 @@ var SelfTest = {
     let verified = await waitFor(() => /^passkey:(verified|not|bad|[A-Z])/.test(B.selected.title), 15000);
     report.info.passkeyResult = B.selected.title;
     report.info.passkeyMessage = document.getElementById("message").textContent;
+    report.info.passkeyLog = Services.console
+      .getMessageArray()
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => /passkey/i.test(m));
     check("the site accepts the Bitwarden passkey's signature", verified && B.selected.title == "passkey:verified");
     B.closeTab(B.selected);
   },

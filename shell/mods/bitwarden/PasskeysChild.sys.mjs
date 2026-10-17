@@ -102,6 +102,7 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
             } else if (answer?.error) {
               fail(answer.error, answer.message ?? "The request was not allowed.");
             } else {
+              this.sendAsyncMessage("Passkey:Error", { message: `no answer for ${kind}, handing it to Gecko` });
               resolve(native());
             }
           },
