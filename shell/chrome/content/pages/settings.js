@@ -55,6 +55,12 @@ const SECTIONS = [
         ],
       },
       {
+        pref: "breached.tabs.navButtons",
+        label: "Back and forward buttons in the tab bar",
+        hint: "Alt+Left and Alt+Right, :back and :forward work either way.",
+        type: "bool",
+      },
+      {
         pref: "breached.tabs.autohide",
         label: "Hide the tab bar",
         hint: "It shows for a moment when you switch tabs, and while the command bar is open.",

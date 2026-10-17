@@ -404,6 +404,7 @@ var SelfTest = {
 
     // 13. Tabs in a column and the tab bar on hover, reader view, protected video
     await this.tabBarHover(B, check, waitFor, wait, outDir, report);
+    await this.navButtons(B, check, waitFor, wait, outDir, report);
     await this.readerView(B, check, waitFor, wait, outDir, report);
     await this.drm(B, check, waitFor, wait, press, outDir, report);
 
@@ -1175,6 +1176,37 @@ var SelfTest = {
     }
     await wait(300);
     B.closeTab(B.tabs[B.tabs.length - 1]);
+  },
+
+  async navButtons(B, check, waitFor, wait, outDir, report) {
+    let $ = id => document.getElementById(id);
+    let base = "http://127.0.0.1:8123/";
+    let click = el => {
+      let r = el.getBoundingClientRect();
+      window.synthesizeMouseEvent("mousedown", r.left + r.width / 2, r.top + r.height / 2, { button: 0 });
+      window.synthesizeMouseEvent("mouseup", r.left + r.width / 2, r.top + r.height / 2, { button: 0 });
+    };
+    let tab = B.openTab(base + "?nav=1");
+    B.selectTab(tab);
+    let at = n => waitFor(() => tab.browser?.currentURI?.spec == base + "?nav=" + n, 10000);
+    await at(1);
+    check("back and forward show in the tab bar", $("nav-back").getBoundingClientRect().width > 0 && $("nav-back").parentNode.parentNode == $("tabbar"));
+    check("back is greyed out with nowhere to go", await waitFor(() => $("nav-back").disabled, 3000));
+    B.load(tab.browser, base + "?nav=2");
+    await at(2);
+    check("back turns on after a second page", await waitFor(() => !$("nav-back").disabled, 5000));
+    await this.screenshot(outDir, "22a-nav-buttons.png");
+    click($("nav-back"));
+    check("the back button goes back", await at(1));
+    check("forward turns on after going back", await waitFor(() => !$("nav-forward").disabled, 5000));
+    click($("nav-forward"));
+    check("the forward button goes forward", await at(2));
+    check("tabs stay in order beside the buttons", B.tabs.every((t, i) => $("tabbar").querySelectorAll(":scope > .tab")[i] == t.el));
+    Services.prefs.setBoolPref("breached.tabs.navButtons", false);
+    await wait(300);
+    check("the buttons can be switched off", $("nav-back").getBoundingClientRect().width == 0);
+    Services.prefs.clearUserPref("breached.tabs.navButtons");
+    B.closeTab(tab);
   },
 
   async readerView(B, check, waitFor, wait, outDir, report) {

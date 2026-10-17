@@ -25,7 +25,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.8";
+const BREACHED_VERSION = "0.1.9";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -300,6 +300,8 @@ var Breached = {
 
     this.$tabbar.addEventListener("mousedown", this);
     this.$tabbar.addEventListener("auxclick", this);
+    document.getElementById("nav-back").addEventListener("click", () => this.run("back"));
+    document.getElementById("nav-forward").addEventListener("click", () => this.run("forward"));
     this.$commandline.addEventListener("input", this);
     this.$commandline.addEventListener("blur", this);
     window.addEventListener("keydown", this, true);
@@ -448,6 +450,7 @@ var Breached = {
     // A hidden tab bar shows while the mouse is at its edge of the window.
     root.toggleAttribute("tabs-hover-edge", autohide && this.pref("tabs.showOnHover", true));
     root.toggleAttribute("customtitlebar", custom);
+    root.toggleAttribute("nav-buttons", this.pref("tabs.navButtons", true));
     // Tabs on top share the row with our title bar.
     let titlebarRow = document.getElementById("titlebar-content");
     let inTitlebar = custom && position == "top" && !autohide;
@@ -518,6 +521,13 @@ var Breached = {
         this.applyLayout();
       }
     }
+  },
+
+  /** Greys out back and forward in the tab bar when there's nowhere to go. */
+  updateNavButtons() {
+    let b = this.selectedBrowser;
+    document.getElementById("nav-back").disabled = !b?.canGoBack;
+    document.getElementById("nav-forward").disabled = !b?.canGoForward;
   },
 
   /** With an auto-hiding tab bar, show it briefly (tab switches). */
@@ -611,6 +621,9 @@ var Breached = {
         } else if (flags & Ci.nsIWebProgressListener.STATE_STOP) {
           tab.el.removeAttribute("busy");
           Breached.emit("TabAttrModified", { tab, changed: ["status"] });
+          if (tab === Breached.selected) {
+            Breached.updateNavButtons();
+          }
           Breached.saveSession();
         }
       },
@@ -629,6 +642,7 @@ var Breached = {
         tab.update();
         if (tab === Breached.selected) {
           Breached.updateTitle();
+          Breached.updateNavButtons();
         }
         Breached.saveSession();
       },
@@ -690,7 +704,7 @@ var Breached = {
       ? this.tabs.indexOf(this.selected) + 1
       : this.tabs.length);
     this.tabs.splice(index, 0, tab);
-    this.$tabbar.insertBefore(tab.el, this.$tabbar.children[index] ?? null);
+    this.placeTabEl(tab);
 
     if (options.asleep) {
       tab.title = options.title || "";
@@ -766,6 +780,7 @@ var Breached = {
       tab.browser?.focus();
     }
     this.updateTitle();
+    this.updateNavButtons();
     this.peekTabs();
     if (previous !== tab) {
       this.emit("TabSelect", { tab, previous });
@@ -836,12 +851,18 @@ var Breached = {
     this.selectTab(this.tabs[(i + step + n) % n]);
   },
 
+  /** Puts a tab's element in the tab bar at its place in this.tabs. */
+  placeTabEl(tab) {
+    let next = this.tabs[this.tabs.indexOf(tab) + 1]?.el ?? document.getElementById("ext-buttons");
+    this.$tabbar.insertBefore(tab.el, next?.parentNode == this.$tabbar ? next : null);
+  },
+
   moveTab(tab, to) {
     let from = this.tabs.indexOf(tab);
     to = Math.max(0, Math.min(this.tabs.length - 1, to));
     this.tabs.splice(from, 1);
     this.tabs.splice(to, 0, tab);
-    this.$tabbar.insertBefore(tab.el, this.$tabbar.children[to + (to > from ? 1 : 0)] ?? null);
+    this.placeTabEl(tab);
     this.peekTabs();
     this.saveSession();
     if (from != to) {

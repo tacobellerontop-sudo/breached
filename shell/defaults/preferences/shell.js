@@ -6,6 +6,7 @@ pref("toolkit.singletonWindowType", "breached:main");
 
 // Interface (change these on the settings page, or with :set)
 pref("breached.tabs.position", "bottom");        // "top", "bottom", "left" or "right" (vertical)
+pref("breached.tabs.navButtons", true);          // back and forward buttons in the tab bar
 pref("breached.tabs.autohide", false);           // true: show only while switching tabs
 pref("breached.tabs.showOnHover", true);         // with autohide: show while the mouse is at its edge
 pref("breached.tabs.unloadAfterMinutes", 15);    // 0 turns tab unloading off
