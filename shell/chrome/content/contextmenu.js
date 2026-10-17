@@ -321,6 +321,7 @@ Object.assign(Breached, {
       settings.printSilent = true;
       await browser.browsingContext.print(settings);
     } catch (e) {
+      this._lastPrintError = String(e);
       if (e.result != Cr.NS_ERROR_ABORT) {
         console.error("Breached print:", e);
         this.showMessage(`Printing failed: ${e.message}`, "error");

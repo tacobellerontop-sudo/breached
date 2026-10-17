@@ -982,6 +982,7 @@ var SelfTest = {
     let realDialog = B.printDialog;
     let pdfs = [];
     B.printDialog = async settings => {
+      info.dialogCalls = (info.dialogCalls ?? 0) + 1;
       let path = PathUtils.join(outDir, `print-${pdfs.length + 1}.pdf`);
       pdfs.push(path);
       settings.outputDestination = Ci.nsIPrintSettings.kOutputDestinationFile;
@@ -1022,7 +1023,10 @@ var SelfTest = {
         let call = { clone: !!options?.clone, hasBC: !!browser?.browsingContext, remoteType: browser?.remoteType };
         info.printCalls.push(call);
         try {
-          return await realPrint.call(this, browser, options);
+          let result = await realPrint.call(this, browser, options);
+          call.finished = true;
+          call.lastError = B._lastPrintError ?? null;
+          return result;
         } catch (e) {
           call.error = String(e);
           throw e;
@@ -1044,6 +1048,7 @@ var SelfTest = {
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
       await wait(1000);
       let stat2 = pdfs[1] ? await IOUtils.stat(pdfs[1]).catch(() => null) : null;
+      info.pdfs = pdfs.slice();
       info.windowPrint = { started, done, size: stat2?.size ?? null, tabs: B.tabs.length - tabsBefore };
       check("print: a page's print button prints", done && stat2?.size > 500 && B.tabs.length == tabsBefore);
     } finally {
