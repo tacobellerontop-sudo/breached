@@ -276,7 +276,7 @@ var Breached = {
     this._unloadTimer = setInterval(() => this.unloadIdleTabs(), 60 * 1000);
 
     let selftest = Services.env.get("BREACHED_SELFTEST");
-    if (selftest) {
+    if (selftest && !this.isPrivate) {
       Services.scriptloader.loadSubScript("chrome://breached/content/selftest.js", window);
       window.SelfTest.run(selftest);
     } else if (!this.isPrivate) {
