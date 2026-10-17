@@ -24,6 +24,8 @@
       return out;
     }
     async function run() {
+      // Shows whether Breached wrapped navigator.credentials, if nothing answers.
+      step("asking (" + (Object.getOwnPropertyNames(navigator.credentials).join(" ") || "not wrapped") + ")");
       let made = await navigator.credentials.create({
         publicKey: {
           rp: { name: "Breached test" },

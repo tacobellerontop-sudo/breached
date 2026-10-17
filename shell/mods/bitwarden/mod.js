@@ -511,7 +511,8 @@ Mod.passkeys = Passkeys;
 Mod.actor("BitwardenPasskeys", {
   parent: "PasskeysParent.sys.mjs",
   child: "PasskeysChild.sys.mjs",
-  events: { DOMWindowCreated: {} },
+  // When the page's root element arrives, before its scripts run (like Firefox's about: pages).
+  events: { DOMDocElementInserted: { capture: true } },
 });
 
 function siteOf(principal) {

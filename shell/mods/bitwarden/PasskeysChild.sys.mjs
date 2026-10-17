@@ -27,7 +27,7 @@ function originOf(principal) {
 
 export class BitwardenPasskeysChild extends JSWindowActorChild {
   handleEvent(event) {
-    if (event.type != "DOMWindowCreated") {
+    if (event.type != "DOMDocElementInserted") {
       return;
     }
     if (Services.prefs.getStringPref("breached.mods.bitwarden.passkeys", "ask") == "off") {
