@@ -56,6 +56,10 @@ var Addons = {
   },
 
   observe(subject, topic) {
+    // Every window hears these; the one in front asks.
+    if (Services.wm.getMostRecentWindow("breached:main") != window) {
+      return;
+    }
     let data = subject?.wrappedJSObject;
     switch (topic) {
       case "webextension-permission-prompt": {

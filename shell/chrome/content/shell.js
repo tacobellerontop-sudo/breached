@@ -239,7 +239,7 @@ var Breached = {
   init() {
     // A private window keeps no history, cookies or cache once it closes,
     // and saves no session.
-    this.isPrivate = PrivateBrowsingUtils.isWindowPrivate(window);
+    this.isPrivate = PrivateBrowsingUtils.isWindowPrivate(window) || !!this.windowArgs().private;
     if (this.isPrivate) {
       document.documentElement.setAttribute("private", "true");
     }
@@ -336,18 +336,28 @@ var Breached = {
   /** Opens a private window, showing url (or the home page). */
   openPrivateWindow(url) {
     let arg = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
-    arg.data = url || this.homepage();
+    arg.data = JSON.stringify({ url: url || this.homepage(), private: true });
     return Services.ww.openWindow(null, window.location.href, "_blank", "chrome,all,dialog=no,private", arg);
+  },
+
+  /** What openPrivateWindow passed: { url, private }. */
+  windowArgs() {
+    let arg = window.arguments?.[0];
+    try {
+      return JSON.parse(arg.QueryInterface(Ci.nsISupportsString).data);
+    } catch (e) {
+      return {};
+    }
   },
 
   /** URLs passed on the command line ("breached.bat https://...") */
   commandLineURLs() {
     let urls = [];
-    let cmdLine = window.arguments?.[0];
-    if (cmdLine instanceof Ci.nsISupportsString) {
-      // From openPrivateWindow
-      return [cmdLine.data];
+    let opened = this.windowArgs().url;
+    if (opened) {
+      return [opened];
     }
+    let cmdLine = window.arguments?.[0];
     try {
       cmdLine = cmdLine?.QueryInterface(Ci.nsICommandLine);
     } catch (e) {
@@ -1900,7 +1910,9 @@ var Commands = {
   quit: {
     usage: "quit",
     run() {
-      Breached.saveSessionNow();
+      for (let win of Services.wm.getEnumerator("breached:main")) {
+        win.Breached?.saveSessionNow();
+      }
       Services.startup.quit(Ci.nsIAppStartup.eAttemptQuit);
     },
   },

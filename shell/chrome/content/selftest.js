@@ -811,6 +811,7 @@ var SelfTest = {
       usePrivateBrowsing: pb?.browsingContext.usePrivateBrowsing,
       privateBrowsingId: pb?.contentPrincipal?.privateBrowsingId,
       title: pwin.document.title,
+      tabs: pB()?.tabs.map(t => t.url),
       remote: pb?.isRemoteBrowser,
     };
     check("private: its pages load privately", pb?.browsingContext.usePrivateBrowsing && pb.contentPrincipal.privateBrowsingId > 0);
@@ -858,7 +859,7 @@ var SelfTest = {
     let menu = () => document.getElementById("contextmenu");
     let rightClick = async (x, y) => {
       let r = B.selectedBrowser.getBoundingClientRect();
-      window.windowUtils.sendMouseEvent("contextmenu", r.left + x, r.top + y, 2, 1, 0);
+      window.synthesizeMouseEvent("contextmenu", r.left + x, r.top + y, { button: 2, buttons: 0, clickCount: 1 });
       if (!(await waitFor(() => menu()?.state == "open", 5000))) {
         return [];
       }
@@ -885,7 +886,7 @@ var SelfTest = {
     // A real right-click presses the mouse first, which focuses the field.
     let r0 = B.selectedBrowser.getBoundingClientRect();
     for (let type of ["mousedown", "mouseup"]) {
-      window.windowUtils.sendMouseEvent(type, r0.left + 40, r0.top + 160, 0, 1, 0);
+      window.synthesizeMouseEvent(type, r0.left + 40, r0.top + 160, { button: 0, buttons: type == "mousedown" ? 1 : 0, clickCount: 1 });
     }
     await wait(300);
     let onField = await rightClick(40, 160);
@@ -971,7 +972,7 @@ var SelfTest = {
       let tabsBefore = B.tabs.length;
       let r = B.selectedBrowser.getBoundingClientRect();
       for (let type of ["mousedown", "mouseup"]) {
-        window.windowUtils.sendMouseEvent(type, r.left + 40, r.top + 220, 0, 1, 0);
+        window.synthesizeMouseEvent(type, r.left + 40, r.top + 220, { button: 0, buttons: type == "mousedown" ? 1 : 0, clickCount: 1 });
       }
       let started = await waitFor(() => pdfs.length == 2, 8000);
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
