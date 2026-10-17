@@ -1014,12 +1014,33 @@ var SelfTest = {
           throw e;
         }
       };
+      let realPrint = B.print;
+      let realMessage = B.showMessage;
+      info.printCalls = [];
+      info.messages = [];
+      B.print = async function (browser, options) {
+        let call = { clone: !!options?.clone, hasBC: !!browser?.browsingContext, remoteType: browser?.remoteType };
+        info.printCalls.push(call);
+        try {
+          return await realPrint.call(this, browser, options);
+        } catch (e) {
+          call.error = String(e);
+          throw e;
+        }
+      };
+      B.showMessage = function (text, level) {
+        info.messages.push(text);
+        return realMessage.call(this, text, level);
+      };
       for (let type of ["mousedown", "mouseup"]) {
         await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));
       }
       let started = await waitFor(() => pdfs.length == 2, 8000);
       info.titleAfterPrintClick = B.selected.title;
       B.printClone = realClone;
+      await wait(3000);
+      B.print = realPrint;
+      B.showMessage = realMessage;
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
       await wait(1000);
       let stat2 = pdfs[1] ? await IOUtils.stat(pdfs[1]).catch(() => null) : null;
