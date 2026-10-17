@@ -18,7 +18,7 @@
   <a id="link" href="http://127.0.0.1:8123/login.html">a link</a>
   <img id="image" src="dot.svg" alt="a picture" />
   <input id="field" type="text" />
-  <button id="print" onclick="window.print()">print</button>
+  <button id="print" onclick="document.title = 'printing'; window.print(); document.title = 'printed';">print</button>
   <script>
     // What's pasted into the field shows in the title, for the test to see.
     document.getElementById("field").addEventListener("input", e => (document.title = "field:" + e.target.value));

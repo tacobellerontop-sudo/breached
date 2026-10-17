@@ -30,7 +30,7 @@ var ContextMenu = {
   /** Called by BreachedParent with what was right-clicked. */
   show(actor, data) {
     let browser = actor.browsingContext.top.embedderElement;
-    if (!browser?.tab || browser.ownerGlobal != window) {
+    if (!browser?.tab) {
       return;
     }
     if (data.frameURL) {

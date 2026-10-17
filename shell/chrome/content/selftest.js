@@ -1003,10 +1003,18 @@ var SelfTest = {
       check("print: Ctrl+P prints the page", stat?.size > 500);
       // The page's own print button (window.print())
       let tabsBefore = B.tabs.length;
+      let realClone = B.printClone;
+      info.printClones = 0;
+      B.printClone = function (...args) {
+        info.printClones++;
+        return realClone.apply(this, args);
+      };
       for (let type of ["mousedown", "mouseup"]) {
         await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));
       }
       let started = await waitFor(() => pdfs.length == 2, 8000);
+      info.titleAfterPrintClick = B.selected.title;
+      B.printClone = realClone;
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
       await wait(1000);
       let stat2 = pdfs[1] ? await IOUtils.stat(pdfs[1]).catch(() => null) : null;
