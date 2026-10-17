@@ -117,7 +117,7 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
 
   frameInfo() {
     // The window side adds the top page's origin, which it can always see.
-    let principal = this.manager.documentPrincipal;
+    let principal = this.document.nodePrincipal;
     return { origin: originOf(principal), host: principal.host, framed: !!this.browsingContext.parent };
   }
 
