@@ -11,9 +11,15 @@
 # portable app. On our own Gecko build breached.exe also starts the shell by
 # itself (gecko/patches). Needs 7-Zip (7z) and Python 3 on PATH.
 
+# -MozillaEngine keeps Mozilla's files exactly as Mozilla signed them
+# (firefox.exe is not renamed) and adds breached.exe as a small launcher
+# (scripts/build/Launcher.cs), for sites that only play video in browsers
+# whose engine Google has certified.
+
 param(
     [Parameter(Mandatory)] [string] $Installer,
-    [Parameter(Mandatory)] [string] $Out
+    [Parameter(Mandatory)] [string] $Out,
+    [switch] $MozillaEngine
 )
 $ErrorActionPreference = 'Stop'
 $repo = Resolve-Path "$PSScriptRoot\..\.."
@@ -46,7 +52,14 @@ foreach ($name in $drop) {
 
 # The engine's program is breached.exe. Gecko starts its child processes from
 # its own path, so the name doesn't matter to it.
-Rename-Item (Join-Path $app 'firefox.exe') 'breached.exe'
+if ($MozillaEngine) {
+    $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+    & $csc /nologo /target:winexe "/win32icon:$(Join-Path $repo 'branding\breached.ico')" "/out:$(Join-Path $app 'breached.exe')" (Join-Path $repo 'scripts\build\Launcher.cs')
+    if ($LASTEXITCODE) { throw 'building the launcher failed' }
+    "Signature files kept: $((Get-ChildItem $app -Filter *.sig | ForEach-Object Name) -join ', ')"
+} else {
+    Rename-Item (Join-Path $app 'firefox.exe') 'breached.exe'
+}
 
 # The shell, with config/breached.cfg baked in as defaults.
 Copy-Item -Recurse (Join-Path $repo 'shell') (Join-Path $app 'breached')
@@ -54,7 +67,11 @@ Copy-Item -Recurse (Join-Path $repo 'shell') (Join-Path $app 'breached')
 if ($LASTEXITCODE) { throw 'cfg-to-prefs failed' }
 
 # Portable: the profile lives next to the app, separate from any Firefox.
-$bat = '@start "" "%~dp0breached.exe" -app "%~dp0breached\application.ini" -profile "%~dp0profile" -no-remote %*'
+$bat = if ($MozillaEngine) {
+    '@start "" "%~dp0breached.exe" -profile "%~dp0profile" -no-remote %*'
+} else {
+    '@start "" "%~dp0breached.exe" -app "%~dp0breached\application.ini" -profile "%~dp0profile" -no-remote %*'
+}
 Set-Content (Join-Path $app 'Breached.bat') $bat -Encoding ascii
 New-Item -ItemType Directory -Force (Join-Path $app 'profile') | Out-Null
 
