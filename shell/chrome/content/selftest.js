@@ -554,6 +554,7 @@ var SelfTest = {
         await this.screenshot(outDir, "14-bitwarden-filled.png");
       }
       B.closeTab(B.selected);
+      await this.passkeys(B, check, waitFor, press, outDir, report, loginPage);
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
     }
 
@@ -563,6 +564,32 @@ var SelfTest = {
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
     );
+    B.closeTab(B.selected);
+  },
+
+  // Bitwarden makes a passkey for a page and signs in with it; the page
+  // checks the signature itself (scripts/test/passkey.html).
+  async passkeys(B, check, waitFor, press, outDir, report, loginPage) {
+    // WebAuthn wants a domain, so localhost rather than 127.0.0.1.
+    let page = loginPage.replace("127.0.0.1", "localhost").replace(/[^/]*$/, "passkey.html");
+    let asking = what =>
+      waitFor(() => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes(what), 15000);
+    B.openTab(page);
+    let save = await asking("wants to make a passkey for breached-user");
+    report.info.passkeySavePrompt = document.getElementById("prompt").textContent;
+    check("a site making a passkey offers to keep it in Bitwarden", save);
+    await this.screenshot(outDir, "14b-passkey-save.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let pick = await asking("localhost passkey:");
+    report.info.passkeyTitleAfterCreate = B.selected.title;
+    report.info.passkeyRows = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
+    check("signing in shows Bitwarden's passkeys as rows", pick && report.info.passkeyRows[0]?.includes("breached-user"));
+    await this.screenshot(outDir, "14c-passkey-pick.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let verified = await waitFor(() => /^passkey:(verified|not|bad|[A-Z])/.test(B.selected.title), 15000);
+    report.info.passkeyResult = B.selected.title;
+    report.info.passkeyMessage = document.getElementById("message").textContent;
+    check("the site accepts the Bitwarden passkey's signature", verified && B.selected.title == "passkey:verified");
     B.closeTab(B.selected);
   },
 

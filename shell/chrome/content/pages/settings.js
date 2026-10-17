@@ -352,7 +352,7 @@ const BUILD = {
     for (let [value, text] of item.options) {
       select.append(el("option", { value }, text));
     }
-    select.value = read(item.pref);
+    select.value = read(item.pref) ?? item.options[0][0];
     select.addEventListener("change", () =>
       write(item.pref, P.getPrefType(item.pref) == P.PREF_INT ? Number(select.value) : select.value)
     );
@@ -638,7 +638,7 @@ const BUILD = {
               continue; // mods only get their own settings
             }
             let settingId = "setting-" + setting.pref.replace(/\W/g, "-");
-            let type = setting.type == "bool" ? "bool" : "text";
+            let type = ["bool", "choice"].includes(setting.type) ? setting.type : "text";
             let r = BUILD[type](setting, settingId);
             r.classList.add("mod-setting");
             rows.push(r);

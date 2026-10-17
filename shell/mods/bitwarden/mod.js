@@ -10,6 +10,12 @@
  *   :bw.exe login    log in to Bitwarden
  *   :bw.exe status
  *
+ * Passkeys: when a site asks to sign in with a passkey, the ones Bitwarden
+ * has for it show as rows (or one is used straight away, if the setting
+ * says so). A site that offers passkeys in its login box without asking
+ * gets one from :bw.exe. New passkeys can be kept in Bitwarden too. The
+ * signing happens here (PasskeyCrypto.sys.mjs); bw.exe only stores them.
+ *
  * The unlock key is kept in memory only, and the master password is passed
  * to bw.exe in an environment variable, never on its command line. */
 
@@ -229,29 +235,284 @@ const Bitwarden = {
     }
     await this.unlock();
     let logins = await this.logins(url);
+    // A login box that offers passkeys: Bitwarden's can answer it.
+    let waiting = Passkeys.waitingFor(Breached.selectedBrowser);
+    let passkeys = waiting ? await Passkeys.matches(waiting.request) : [];
     this.touch();
-    if (!logins.length) {
+    if (!logins.length && !passkeys.length) {
       Breached.showMessage("No Bitwarden logins for this site", "error");
       return;
     }
-    if (logins.length == 1) {
+    if (logins.length == 1 && !passkeys.length) {
       await this.fill(logins[0]);
       return;
     }
-    let picked = await Breached.pick(
-      "bitwarden:",
-      logins.map(login => ({
+    let picked = await Breached.pick("bitwarden:", [
+      ...passkeys.map(passkey => ({
+        label: Passkeys.userOf(passkey),
+        detail: `passkey, ${passkey.item.name}`,
+        passkey,
+      })),
+      ...logins.map(login => ({
         label: login.login.username || "(no username)",
         detail: login.name,
         login,
-      }))
-    );
+      })),
+    ]);
     // The page may have changed while the list was open.
-    if (picked && Breached.selectedBrowser?.currentURI?.spec == url) {
+    if (!picked || Breached.selectedBrowser?.currentURI?.spec != url) {
+      return;
+    }
+    if (picked.passkey) {
+      await Passkeys.answerWaiting(waiting, picked.passkey);
+    } else {
       await this.fill(picked.login);
     }
   },
 };
+
+const PasskeyCrypto = ChromeUtils.importESModule(Mod.url + "PasskeyCrypto.sys.mjs");
+
+/** Passkeys from the vault, for BitwardenPasskeysParent. */
+const Passkeys = {
+  // A page's login box asking for a passkey without a prompt (conditional
+  // mediation) waits here for :bw.exe. actor -> { request, resolve, browser }
+  waiting: new Map(),
+
+  /** "ask" (rows), "auto" (use the only match without asking) or "off". */
+  mode() {
+    return Mod.pref("breached.mods.bitwarden.passkeys", "ask");
+  },
+
+  userOf({ item, passkey }) {
+    return passkey.userName || item.login?.username || passkey.userDisplayName || item.name;
+  },
+
+  /** The vault's passkeys for a request: { item, passkey }. */
+  async matches(request) {
+    let items = await Bitwarden.json(["list", "items"]);
+    let allowed = new Set(request.allowCredentials ?? []);
+    let found = [];
+    for (let item of items) {
+      for (let passkey of item.login?.fido2Credentials ?? []) {
+        if (passkey.rpId != request.rpId) {
+          continue;
+        }
+        let id = PasskeyCrypto.toB64url(PasskeyCrypto.credentialIdBytes(passkey.credentialId));
+        let discoverable = String(passkey.discoverable) != "false";
+        if (allowed.size ? allowed.has(id) : discoverable) {
+          found.push({ item, passkey });
+        }
+      }
+    }
+    return found;
+  },
+
+  /** Checks the request's site; fills in the rpId. False: leave it to Gecko. */
+  prepare(request, rpId) {
+    request.rpId = rpId ?? request.host;
+    return this.mode() != "off" && PasskeyCrypto.rpIdAllowed(request.origin, request.rpId);
+  },
+
+  /** Asks "Bitwarden or something else?" for a locked vault. */
+  async useBitwarden(browser, question, detail) {
+    let picked = await Breached.pickForTab(browser, question, [
+      { label: "bitwarden", detail, answer: "bitwarden" },
+      { label: "other", detail: "Windows Hello or a security key", answer: "native" },
+    ]);
+    return picked?.answer ?? null;
+  },
+
+  async get(actor, browser, request) {
+    if (!this.prepare(request, request.rpId)) {
+      return null;
+    }
+    if (request.mediation == "conditional") {
+      if (this.mode() == "auto" && Bitwarden.session) {
+        let found = await this.matches(request);
+        if (found.length == 1) {
+          return this.sign(request, found[0]);
+        }
+      }
+      return new Promise(resolve => this.waiting.set(actor, { request, resolve, browser }));
+    }
+    if (!Bitwarden.session) {
+      let answer = await this.useBitwarden(
+        browser,
+        `${request.rpId} asks for a passkey:`,
+        "unlock your vault and use a passkey from it"
+      );
+      if (answer != "bitwarden") {
+        return answer == "native" ? null : { error: "NotAllowedError" };
+      }
+      try {
+        await Bitwarden.unlock();
+      } catch (e) {
+        return { error: "NotAllowedError" };
+      }
+    }
+    let found = await this.matches(request);
+    Bitwarden.touch();
+    if (!found.length) {
+      Breached.showMessage(`Bitwarden has no passkey for ${request.rpId}`);
+      return null;
+    }
+    let choice = found[0];
+    if (this.mode() != "auto" || found.length > 1) {
+      let picked = await Breached.pickForTab(browser, `${request.rpId} passkey:`, [
+        ...found.map(f => ({ label: this.userOf(f), detail: `passkey, ${f.item.name}`, found: f })),
+        { label: "other", detail: "Windows Hello or a security key", native: true },
+      ]);
+      if (!picked) {
+        return { error: "NotAllowedError" };
+      }
+      if (picked.native) {
+        return null;
+      }
+      choice = picked.found;
+    }
+    return this.sign(request, choice);
+  },
+
+  async sign(request, { item, passkey }) {
+    let counter = Number(passkey.counter) || 0;
+    // Bitwarden leaves a counter at 0 (sites accept that); one in use goes up.
+    let next = counter > 0 ? counter + 1 : 0;
+    let credential = await PasskeyCrypto.assert(crypto.subtle, request, passkey, next);
+    if (next) {
+      this.saveCounter(item.id, passkey.credentialId, next).catch(e =>
+        console.error("Bitwarden: saving the passkey counter", e)
+      );
+    }
+    Breached.showMessage(`Signed in to ${request.rpId} as ${this.userOf({ item, passkey })} with a Bitwarden passkey`);
+    return { credential };
+  },
+
+  async saveCounter(id, credentialId, counter) {
+    let item = await Bitwarden.json(["get", "item", id]);
+    let passkey = item.login?.fido2Credentials?.find(p => p.credentialId == credentialId);
+    if (passkey) {
+      passkey.counter = String(counter);
+      await this.saveItem(item);
+    }
+  },
+
+  /** bw.exe create item / edit item with the item as base64 JSON. */
+  async saveItem(item) {
+    let encoded = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(item))));
+    let args = item.id ? ["edit", "item", item.id, encoded] : ["create", "item", encoded];
+    return Bitwarden.json(args);
+  },
+
+  /** For :bw.exe: the passkey request waiting on this tab's page, if any. */
+  waitingFor(browser) {
+    for (let [actor, entry] of this.waiting) {
+      if (entry.browser === browser) {
+        return { actor, ...entry };
+      }
+    }
+    return null;
+  },
+
+  async answerWaiting(waiting, found) {
+    this.waiting.delete(waiting.actor);
+    waiting.resolve(await this.sign(waiting.request, found));
+  },
+
+  async create(actor, browser, request) {
+    if (!this.prepare(request, request.rp.id) || !request.algorithms.includes(-7)) {
+      return null;
+    }
+    let user = request.user.name || request.user.displayName;
+    if (this.mode() != "auto") {
+      let answer = await this.useBitwarden(
+        browser,
+        `${request.rpId} wants to make a passkey for ${user}:`,
+        "keep it in your Bitwarden vault"
+      );
+      if (answer != "bitwarden") {
+        return answer == "native" ? null : { error: "NotAllowedError" };
+      }
+    }
+    try {
+      await Bitwarden.unlock();
+    } catch (e) {
+      return { error: "NotAllowedError" };
+    }
+    if (request.excludeCredentials.length) {
+      let existing = await this.matches({ ...request, allowCredentials: request.excludeCredentials });
+      if (existing.length) {
+        Breached.showMessage(`Bitwarden already has a passkey for ${user} on ${request.rpId}`, "error");
+        return { error: "InvalidStateError", message: "This account already has a passkey here." };
+      }
+    }
+    let made = await PasskeyCrypto.create(
+      crypto.subtle,
+      { ...request, rpName: request.rp.name },
+      () => crypto.randomUUID()
+    );
+    // Onto this site's login for the same user, or a new login.
+    let login = (await Bitwarden.logins(request.origin)).find(
+      i => i.login.username == request.user.name && !i.login.fido2Credentials?.length
+    );
+    try {
+      if (login) {
+        let item = await Bitwarden.json(["get", "item", login.id]);
+        item.login.fido2Credentials = [made.passkey];
+        await this.saveItem(item);
+      } else {
+        await this.saveItem({
+          organizationId: null,
+          collectionIds: null,
+          folderId: null,
+          type: 1,
+          name: request.rp.name || request.rpId,
+          notes: null,
+          favorite: false,
+          fields: [],
+          login: {
+            uris: [{ match: null, uri: request.origin }],
+            username: request.user.name,
+            password: null,
+            totp: null,
+            fido2Credentials: [made.passkey],
+          },
+          secureNote: null,
+          card: null,
+          identity: null,
+          reprompt: 0,
+        });
+      }
+    } catch (e) {
+      Breached.showMessage(`Couldn't save the passkey in Bitwarden: ${e.message}`, "error");
+      return { error: "NotAllowedError" };
+    }
+    Bitwarden.touch();
+    Breached.showMessage(`Saved a passkey for ${user} on ${request.rpId} in Bitwarden`);
+    return { credential: made.credential };
+  },
+
+  abort(actor, id) {
+    let entry = this.waiting.get(actor);
+    if (entry?.request.id == id) {
+      this.waiting.delete(actor);
+      entry.resolve(null);
+    }
+  },
+
+  forget(actor) {
+    let entry = this.waiting.get(actor);
+    this.waiting.delete(actor);
+    entry?.resolve(null);
+  },
+};
+Mod.passkeys = Passkeys;
+
+Mod.actor("BitwardenPasskeys", {
+  parent: "PasskeysParent.sys.mjs",
+  child: "PasskeysChild.sys.mjs",
+  events: { DOMWindowCreated: {} },
+});
 
 function siteOf(principal) {
   try {
@@ -281,4 +542,10 @@ Mod.command("bw.exe", {
   },
 });
 Mod.command("bw", { alias: "bw.exe" });
-Mod.onUnload(() => Bitwarden.lock());
+Mod.onUnload(() => {
+  Bitwarden.lock();
+  for (let actor of [...Passkeys.waiting.keys()]) {
+    Passkeys.forget(actor);
+  }
+  Mod.passkeys = null;
+});

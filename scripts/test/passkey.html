@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>passkey</title>
+</head>
+<body>
+  <p>Breached self-test: makes a passkey, signs in with it, and checks the signature like a website would. The result goes in the title.</p>
+  <script>
+    let step = text => (document.title = "passkey:" + text);
+    let random = () => crypto.getRandomValues(new Uint8Array(32));
+    let sha256 = async bytes => new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    // DER (r, s) to the 64 bytes WebCrypto checks.
+    function derToRaw(der) {
+      let out = new Uint8Array(64);
+      let offset = 2;
+      for (let half = 0; half < 2; half++) {
+        let length = der[offset + 1];
+        let bytes = der.slice(offset + 2, offset + 2 + length);
+        bytes = bytes.slice(Math.max(0, bytes.length - 32));
+        out.set(bytes, half * 32 + (32 - bytes.length));
+        offset += 2 + length;
+      }
+      return out;
+    }
+    async function run() {
+      let made = await navigator.credentials.create({
+        publicKey: {
+          rp: { name: "Breached test" },
+          user: { id: new Uint8Array([1, 2, 3, 4]), name: "breached-user", displayName: "Breached User" },
+          challenge: random(),
+          pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+          authenticatorSelection: { residentKey: "required", userVerification: "preferred" },
+        },
+      });
+      if (!(made instanceof PublicKeyCredential)) {
+        return step("create gave no PublicKeyCredential");
+      }
+      let spki = made.response.getPublicKey();
+      let key = await crypto.subtle.importKey("spki", spki, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+      step("made");
+      let challenge = random();
+      let got = await navigator.credentials.get({
+        publicKey: { challenge, allowCredentials: [{ type: "public-key", id: made.rawId }] },
+      });
+      let r = got.response;
+      let client = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
+      let b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      if (client.type != "webauthn.get" || client.challenge != b64(challenge) || client.origin != location.origin) {
+        return step("bad client data " + JSON.stringify(client));
+      }
+      let authData = new Uint8Array(r.authenticatorData);
+      if (b64(authData.slice(0, 32)) != b64(await sha256(new TextEncoder().encode(location.hostname)))) {
+        return step("bad rp id hash");
+      }
+      let signed = new Uint8Array([...authData, ...(await sha256(new Uint8Array(r.clientDataJSON)))]);
+      let ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, derToRaw(new Uint8Array(r.signature)), signed);
+      let user = new Uint8Array(r.userHandle ?? []).join(",");
+      step(ok && user == "1,2,3,4" && got.id == made.id ? "verified" : `not verified (${ok}, ${user})`);
+    }
+    run().catch(e => step(e.name + " " + e.message));
+  </script>
+</body>
+</html>

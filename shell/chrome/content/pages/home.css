@@ -108,6 +108,9 @@ footer {
 .link-button:focus-visible {
   color: var(--accent);
 }
+#pin-form[hidden] {
+  display: none;
+}
 #pin-form {
   display: flex;
   flex-wrap: wrap;

@@ -24,6 +24,7 @@ $env:BREACHED_SELFTEST = $shotDir
 $tools = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\breached-test"
 & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /out:"$tools\bw.exe" (Join-Path $repo 'scripts\test\FakeBw.cs')
 $env:BREACHED_TEST_BW = "$tools\bw.exe"
+Remove-Item "$tools\items.txt" -ErrorAction SilentlyContinue
 $server = Start-Process python -PassThru -NoNewWindow -ArgumentList '-m', 'http.server', '8123', '--bind', '127.0.0.1', '--directory', (Join-Path $repo 'scripts\test')
 $env:BREACHED_TEST_LOGIN_PAGE = 'http://127.0.0.1:8123/login.html'
 
