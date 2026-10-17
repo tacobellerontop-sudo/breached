@@ -983,6 +983,7 @@ var SelfTest = {
     let pdfs = [];
     B.printDialog = async settings => {
       info.dialogCalls = (info.dialogCalls ?? 0) + 1;
+      (info.dialogStacks ??= []).push(new Error().stack.split("\n").slice(1, 6).join(" | "));
       let path = PathUtils.join(outDir, `print-${pdfs.length + 1}.pdf`);
       pdfs.push(path);
       settings.outputDestination = Ci.nsIPrintSettings.kOutputDestinationFile;
