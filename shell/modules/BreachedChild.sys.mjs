@@ -9,6 +9,9 @@
 // - Ctrl+click or middle-click on a link opens it in a new background tab.
 // - Pressing the mouse on a link starts connecting to its site, so the page
 //   loads sooner once the click lands.
+// - Right-click: what was clicked (link, image, selection, text field) goes
+//   to the window, which shows the menu (contextmenu.js) and sends back
+//   editing commands (copy, paste...) to run here.
 
 const TEXT_INPUT_TYPES = new Set([
   "text", "search", "url", "email", "password", "tel", "number",
@@ -18,13 +21,24 @@ const TEXT_INPUT_TYPES = new Set([
 export class BreachedChild extends JSWindowActorChild {
   receiveMessage(message) {
     // Lets the window check this helper is running in a page.
-    if (message.name == "Breached:Ping") {
-      return "pong";
+    switch (message.name) {
+      case "Breached:Ping":
+        return "pong";
+      case "Breached:DoCommand":
+        // cmd_copy, cmd_paste, cmd_selectAll... on the focused field or page.
+        if (this.docShell.isCommandEnabled(message.data.command)) {
+          this.docShell.doCommand(message.data.command);
+        }
+        break;
     }
     return undefined;
   }
 
   handleEvent(event) {
+    if (event.type == "contextmenu") {
+      this.#onContextMenu(event);
+      return;
+    }
     if (event.type == "keydown" && event.isTrusted && event.key == "Escape") {
       this.#onEscape(event);
       return;
@@ -75,6 +89,59 @@ export class BreachedChild extends JSWindowActorChild {
         doc.activeElement?.blur?.();
       }
     }, 0);
+  }
+
+  #onContextMenu(event) {
+    // A page with its own menu (a web app's) keeps it; Shift+right-click
+    // shows Breached's anyway.
+    if (!event.isTrusted || (event.defaultPrevented && !event.shiftKey)) {
+      return;
+    }
+    let win = this.contentWindow;
+    let path = event.composedPath();
+    let target = path[0];
+    if (!win || !target || target.nodeType != target.ELEMENT_NODE) {
+      return;
+    }
+    let data = {
+      pageURL: win.location.href, // the window puts the top page's here for frames
+      frameURL: this.browsingContext.parent ? win.location.href : null,
+      frameId: this.browsingContext.parent ? this.browsingContext.id : 0,
+      principal: this.document.nodePrincipal,
+      // Screen pixels (the window divides by its own scale).
+      x: event.screenX * win.devicePixelRatio,
+      y: event.screenY * win.devicePixelRatio,
+      title: this.document.title,
+    };
+    let link = path.find(n => n.nodeType == 1 && (n.localName == "a" || n.localName == "area") && n.href);
+    if (link && !/^javascript:/i.test(link.href)) {
+      data.link = link.href;
+      data.linkText = (link.textContent ?? "").trim().slice(0, 200);
+    }
+    let media = path.find(n => n.nodeType == 1 && ["img", "video", "audio"].includes(n.localName));
+    if (media) {
+      let src = media.currentSrc || media.src;
+      if (src) {
+        data.mediaType = media.localName == "img" ? "image" : media.localName;
+        data.mediaURL = src;
+      }
+    }
+    let editable = this.#isEditable(event);
+    if (editable) {
+      data.editable = true;
+      data.password = target.localName == "input" && target.type == "password";
+    }
+    let selection = "";
+    if (editable && typeof target.selectionStart == "number" && !data.password) {
+      selection = target.value.substring(target.selectionStart, target.selectionEnd);
+    } else if (!editable) {
+      selection = win.getSelection()?.toString() ?? "";
+    }
+    data.selection = selection.trim().slice(0, 1000) || null;
+    for (let command of ["cmd_undo", "cmd_cut", "cmd_copy", "cmd_paste", "cmd_delete"]) {
+      data[command] = this.docShell.isCommandEnabled(command);
+    }
+    this.sendAsyncMessage("Breached:ContextMenu", data);
   }
 
   #onMouseDown(event) {

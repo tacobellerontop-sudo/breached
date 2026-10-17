@@ -408,3 +408,24 @@ body {
   display: block;
   background: white;
 }
+
+/* ---- Private windows: a lavender line over the page and a mark in the
+   tab bar, so they can't be mistaken for normal ones ---- */
+:root[private] {
+  --private: #a58fd6;
+}
+:root[private] #content {
+  border-top: 2px solid var(--private);
+}
+:root[private] #tabbar::before {
+  content: "private";
+  flex: none;
+  padding-inline: 6px;
+  line-height: var(--tab-height);
+  background: var(--private);
+  color: #fff;
+}
+:root[private] #prompt::before {
+  content: "private ";
+  color: var(--private);
+}

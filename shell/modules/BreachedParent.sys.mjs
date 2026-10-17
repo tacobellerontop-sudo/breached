@@ -15,6 +15,9 @@ export class BreachedParent extends JSWindowActorParent {
       case "Breached:Preconnect":
         shell.preconnect(message.data.url);
         break;
+      case "Breached:ContextMenu":
+        shell.contextMenu?.show(this, message.data);
+        break;
       case "Breached:OpenLinkInTab":
         shell.openTab(message.data.url, {
           background: true,

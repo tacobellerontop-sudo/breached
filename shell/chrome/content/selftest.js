@@ -398,6 +398,9 @@ var SelfTest = {
     await this.permissions(B, check, waitFor, wait, press, outDir, report);
     await this.pins(B, check, waitFor, wait, outDir, report);
 
+    // 12. Private windows, the right-click menu, zoom per site, saving, printing
+    await this.dailyDriver(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -789,6 +792,199 @@ var SelfTest = {
     B.closeTab(B.selected);
   },
 
+  async dailyDriver(B, check, waitFor, wait, outDir, report) {
+    const base = "http://127.0.0.1:8123/";
+    const { PrivateBrowsingUtils } = ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs");
+    const { PlacesUtils } = ChromeUtils.importESModule("resource://gre/modules/PlacesUtils.sys.mjs");
+    const { Downloads } = ChromeUtils.importESModule("resource://gre/modules/Downloads.sys.mjs");
+    let info = (report.info.dailyDriver = {});
+
+    // Private window: private pages, no history, closes with its last tab.
+    let privateURL = base + "menu.html?private";
+    let pwin = B.openPrivateWindow(privateURL);
+    let pB = () => pwin.Breached;
+    let privateLoaded = await waitFor(() => pB()?.selected?.title == "menu", 20000);
+    check("private: :private opens a window with the page", privateLoaded);
+    check("private: the window is private", PrivateBrowsingUtils.isWindowPrivate(pwin));
+    let pb = pB()?.selectedBrowser;
+    info.private = {
+      usePrivateBrowsing: pb?.browsingContext.usePrivateBrowsing,
+      privateBrowsingId: pb?.contentPrincipal?.privateBrowsingId,
+      title: pwin.document.title,
+      remote: pb?.isRemoteBrowser,
+    };
+    check("private: its pages load privately", pb?.browsingContext.usePrivateBrowsing && pb.contentPrincipal.privateBrowsingId > 0);
+    check("private: the title says so", pwin.document.title.includes("(private)"));
+    await wait(1500);
+    await this.screenshot(outDir, "12-private.png", pwin);
+    check("private: no history kept", !(await PlacesUtils.history.hasVisits(privateURL)));
+    pB().closeTab();
+    check("private: closing its last tab closes it", await waitFor(() => pwin.closed, 5000));
+    window.focus();
+    await wait(500);
+
+    // The right-click menu, with an extension's item
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    let extDir = PathUtils.join(PathUtils.tempDir, "breached-menu-extension");
+    await IOUtils.remove(extDir, { recursive: true, ignoreAbsent: true });
+    await IOUtils.makeDirectory(extDir);
+    await IOUtils.writeJSON(PathUtils.join(extDir, "manifest.json"), {
+      manifest_version: 2,
+      name: "Menu test",
+      version: "1.0",
+      browser_specific_settings: { gecko: { id: "menutest@breached.browser" } },
+      permissions: ["menus", "tabs", "<all_urls>"],
+      background: { scripts: ["background.js"] },
+    });
+    await IOUtils.writeUTF8(
+      PathUtils.join(extDir, "background.js"),
+      `browser.menus.create({ id: "link", title: "Menu test: link", contexts: ["link"] });
+       browser.menus.onClicked.addListener((info, tab) => {
+         browser.tabs.executeScript(tab.id, { code: "document.title = " + JSON.stringify("clicked:" + info.linkUrl) });
+       });`
+    );
+    let menuAddon = null;
+    try {
+      let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+      file.initWithPath(extDir);
+      menuAddon = await AddonManager.installTemporaryAddon(file);
+    } catch (e) {
+      info.menuExtension = String(e);
+    }
+    await wait(1500);
+    B.openTab(base + "menu.html");
+    await waitFor(() => B.selected.title == "menu" && !B.selected.el.hasAttribute("busy"), 15000);
+    await wait(500);
+    let menu = () => document.getElementById("contextmenu");
+    let rightClick = async (x, y) => {
+      let r = B.selectedBrowser.getBoundingClientRect();
+      window.windowUtils.sendMouseEvent("contextmenu", r.left + x, r.top + y, 2, 1, 0);
+      if (!(await waitFor(() => menu()?.state == "open", 5000))) {
+        return [];
+      }
+      return [...menu().children].map(e => e.getAttribute("label") || "—");
+    };
+    let closeMenu = async () => {
+      menu()?.hidePopup();
+      await waitFor(() => menu().state == "closed", 3000);
+    };
+    let choose = async id => {
+      let item = document.getElementById("context-" + id);
+      item?.doCommand();
+      await closeMenu();
+      return !!item;
+    };
+
+    let onLink = await rightClick(40, 30);
+    info.linkMenu = onLink;
+    check("menu: right-click on a link shows link items", onLink.includes("Open link in new tab") && onLink.includes("Copy link"));
+    check("menu: extension items show", onLink.includes("Menu test: link"));
+    await this.screenshot(outDir, "12a-menu-link.png");
+    check("menu: Copy link", await choose("copylink"));
+
+    // A real right-click presses the mouse first, which focuses the field.
+    let r0 = B.selectedBrowser.getBoundingClientRect();
+    for (let type of ["mousedown", "mouseup"]) {
+      window.windowUtils.sendMouseEvent(type, r0.left + 40, r0.top + 160, 0, 1, 0);
+    }
+    await wait(300);
+    let onField = await rightClick(40, 160);
+    info.fieldMenu = onField;
+    check("menu: a text field gets cut, copy, paste", ["Cut", "Copy", "Paste", "Select all"].every(l => onField.includes(l)));
+    await choose("paste");
+    let pasted = await waitFor(() => B.selected.title == "field:" + base + "login.html", 5000);
+    info.afterPaste = B.selected.title;
+    check("menu: Paste pastes the copied link into the page", pasted);
+
+    let onImage = await rightClick(40, 100);
+    info.imageMenu = onImage;
+    check("menu: an image gets image items", onImage.includes("Save image") && onImage.includes("Open image in new tab"));
+    let list = await Downloads.getList(Downloads.PUBLIC);
+    let before = (await list.getAll()).length;
+    await choose("savemedia");
+    let saved = null;
+    await waitFor(() => {
+      list.getAll().then(all => (saved = all.slice(before).find(d => d.succeeded && d.target.path.endsWith(".svg"))));
+      return saved;
+    }, 15000);
+    info.saved = saved?.target.path ?? null;
+    check("menu: Save image downloads it", saved && (await IOUtils.exists(saved.target.path)));
+    if (saved) {
+      await IOUtils.remove(saved.target.path, { ignoreAbsent: true });
+      await list.remove(saved);
+    }
+
+    let onPage = await rightClick(500, 400);
+    info.pageMenu = onPage;
+    check("menu: the page gets back, reload, print, view source", ["Back", "Reload", "Print…", "View page source"].every(l => onPage.includes(l)));
+    await closeMenu();
+
+    // An extension's item gets the click, with the tab.
+    await rightClick(40, 30);
+    let extItem = [...menu().children].find(e => e.getAttribute("label") == "Menu test: link");
+    extItem?.doCommand();
+    await closeMenu();
+    let extClicked = await waitFor(() => B.selected.title == "clicked:" + base + "login.html", 8000);
+    info.afterExtensionClick = B.selected.title;
+    check("menu: an extension's item tells the extension what was clicked", extClicked);
+    await menuAddon?.uninstall();
+
+    // Zoom per site: the same site follows, other sites keep their own.
+    B.run("zoom 150");
+    let sameSite = B.openTab(base + "login.html");
+    await waitFor(() => sameSite.title && !sameSite.el.hasAttribute("busy"), 10000);
+    info.zoomSameSite = sameSite.browser.fullZoom;
+    check("zoom: kept for the site's other pages", Math.abs(sameSite.browser.fullZoom - 1.5) < 0.01);
+    B.load(sameSite.browser, "http://localhost:8123/login.html");
+    sameSite.url = "http://localhost:8123/login.html";
+    await waitFor(() => sameSite.browser.currentURI.host == "localhost" && !sameSite.el.hasAttribute("busy"), 10000);
+    info.zoomOtherSite = sameSite.browser.fullZoom;
+    check("zoom: other sites aren't zoomed", Math.abs(sameSite.browser.fullZoom - 1) < 0.01);
+    B.closeTab(sameSite);
+    B.run("zoom 100");
+    check("zoom: 100% forgets the site", !Services.prefs.getStringPref("breached.zoom.sites", "{}").includes("127.0.0.1"));
+
+    // Printing, to a PDF instead of the printer (the dialog is skipped).
+    let realDialog = B.printDialog;
+    let pdfs = [];
+    B.printDialog = async settings => {
+      let path = PathUtils.join(outDir, `print-${pdfs.length + 1}.pdf`);
+      pdfs.push(path);
+      settings.outputDestination = Ci.nsIPrintSettings.kOutputDestinationFile;
+      settings.outputFormat = Ci.nsIPrintSettings.kOutputFormatPDF;
+      settings.toFileName = path;
+      return true;
+    };
+    try {
+      info.printDialogService = typeof Cc["@mozilla.org/widget/printdialog-service;1"]?.getService(Ci.nsIPrintDialogService)
+        .showPrintDialog;
+    } catch (e) {
+      info.printDialogService = String(e);
+    }
+    try {
+      await B.print();
+      await wait(1000);
+      let stat = pdfs[0] ? await IOUtils.stat(pdfs[0]).catch(() => null) : null;
+      info.printSize = stat?.size ?? null;
+      check("print: Ctrl+P prints the page", stat?.size > 500);
+      // The page's own print button (window.print())
+      let tabsBefore = B.tabs.length;
+      let r = B.selectedBrowser.getBoundingClientRect();
+      for (let type of ["mousedown", "mouseup"]) {
+        window.windowUtils.sendMouseEvent(type, r.left + 40, r.top + 220, 0, 1, 0);
+      }
+      let started = await waitFor(() => pdfs.length == 2, 8000);
+      let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
+      await wait(1000);
+      let stat2 = pdfs[1] ? await IOUtils.stat(pdfs[1]).catch(() => null) : null;
+      info.windowPrint = { started, done, size: stat2?.size ?? null, tabs: B.tabs.length - tabsBefore };
+      check("print: a page's print button prints", done && stat2?.size > 500 && B.tabs.length == tabsBefore);
+    } finally {
+      B.printDialog = realDialog;
+    }
+    B.closeTab(B.selected);
+  },
+
   async extensions(B, check, waitFor, wait, outDir, report) {
     let { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
     check("the extension manager is running", AddonManager.isReady);
@@ -910,9 +1106,9 @@ var SelfTest = {
     B.closeTab(B.selected);
   },
 
-  async screenshot(outDir, name) {
+  async screenshot(outDir, name, win = window) {
     try {
-      let bitmap = await window.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
+      let bitmap = await win.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
       let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
       canvas.width = bitmap.width;
       canvas.height = bitmap.height;

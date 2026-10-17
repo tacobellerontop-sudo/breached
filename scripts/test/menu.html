@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>menu</title>
+  <style>
+    body { margin: 0; font: 16px sans-serif; }
+    #link, #image, #field, #print { position: absolute; left: 20px; width: 200px; height: 40px; display: block; }
+    #link { top: 20px; }
+    #image { top: 80px; }
+    #field { top: 140px; }
+    #print { top: 200px; }
+    #blank { position: absolute; left: 300px; top: 300px; }
+  </style>
+</head>
+<body>
+  <p id="blank">Breached self-test: the right-click menu, saving and printing.</p>
+  <a id="link" href="http://127.0.0.1:8123/login.html">a link</a>
+  <img id="image" src="dot.svg" alt="a picture" />
+  <input id="field" type="text" />
+  <button id="print" onclick="window.print()">print</button>
+  <script>
+    // What's pasted into the field shows in the title, for the test to see.
+    document.getElementById("field").addEventListener("input", e => (document.title = "field:" + e.target.value));
+  </script>
+</body>
+</html>

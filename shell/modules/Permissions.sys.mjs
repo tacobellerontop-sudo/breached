@@ -101,7 +101,8 @@ export async function decide(browser, principal, kinds, { text } = {}) {
   let answer = await shell.askPermission(browser, {
     host: hostOf(principal),
     what,
-    canRemember: kinds.every(k => !KINDS[k]?.once),
+    // Private windows leave nothing behind, answers included.
+    canRemember: !principal.privateBrowsingId && kinds.every(k => !KINDS[k]?.once),
   });
   let allow = answer == "allow" || answer == "always";
   if (answer == "always" || answer == "never") {

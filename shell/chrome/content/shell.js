@@ -13,6 +13,7 @@ const { E10SUtils } = ChromeUtils.importESModule(
 );
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
 const Permissions = ChromeUtils.importESModule("resource://breached/Permissions.sys.mjs");
+const { PrivateBrowsingUtils } = ChromeUtils.importESModule("resource://gre/modules/PrivateBrowsingUtils.sys.mjs");
 const { SessionHistory } = ChromeUtils.importESModule(
   "resource://gre/modules/sessionstore/SessionHistory.sys.mjs"
 );
@@ -24,7 +25,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.4";
+const BREACHED_VERSION = "0.1.5";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -64,6 +65,8 @@ function registerActors() {
           mousedown: { capture: true },
           click: { capture: true },
           auxclick: { capture: true },
+          // After the page's own handlers, to see whether it showed its own menu.
+          contextmenu: { mozSystemGroup: true },
         },
       },
       allFrames: true,
@@ -234,6 +237,12 @@ var Breached = {
   // ---------------------------------------------------------------- startup
 
   init() {
+    // A private window keeps no history, cookies or cache once it closes,
+    // and saves no session.
+    this.isPrivate = PrivateBrowsingUtils.isWindowPrivate(window);
+    if (this.isPrivate) {
+      document.documentElement.setAttribute("private", "true");
+    }
     registerActors();
     Permissions.init();
     window.browserDOMWindow = BrowserDOMWindow;
@@ -255,7 +264,7 @@ var Breached = {
     ModHost.init();
     Addons.init();
 
-    let restored = this.pref("restoreSession", true) && this.restoreSession();
+    let restored = !this.isPrivate && this.pref("restoreSession", true) && this.restoreSession();
     let urls = this.commandLineURLs();
     for (let url of urls) {
       this.openTab(url);
@@ -270,7 +279,7 @@ var Breached = {
     if (selftest) {
       Services.scriptloader.loadSubScript("chrome://breached/content/selftest.js", window);
       window.SelfTest.run(selftest);
-    } else {
+    } else if (!this.isPrivate) {
       setTimeout(() => this.autoCheckForUpdates(), 30 * 1000);
     }
   },
@@ -324,10 +333,21 @@ var Breached = {
     return this.openPage("settings", hash);
   },
 
+  /** Opens a private window, showing url (or the home page). */
+  openPrivateWindow(url) {
+    let arg = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+    arg.data = url || this.homepage();
+    return Services.ww.openWindow(null, window.location.href, "_blank", "chrome,all,dialog=no,private", arg);
+  },
+
   /** URLs passed on the command line ("breached.bat https://...") */
   commandLineURLs() {
     let urls = [];
     let cmdLine = window.arguments?.[0];
+    if (cmdLine instanceof Ci.nsISupportsString) {
+      // From openPrivateWindow
+      return [cmdLine.data];
+    }
     try {
       cmdLine = cmdLine?.QueryInterface(Ci.nsICommandLine);
     } catch (e) {
@@ -428,8 +448,8 @@ var Breached = {
     if (topic == "nsPref:changed") {
       if (data.startsWith(PREF + "colors.") || data.startsWith(PREF + "transparency")) {
         this.applyTheme();
-      } else if (data.startsWith(PREF + "mods.")) {
-        // mods.js watches these
+      } else if (data.startsWith(PREF + "mods.") || data.startsWith(PREF + "zoom.")) {
+        // mods.js watches mods.*; zoom.* is SiteZoom's
       } else {
         this.applyLayout();
       }
@@ -449,7 +469,8 @@ var Breached = {
 
   updateTitle() {
     let tab = this.selected;
-    document.title = tab ? `${tab.title || tab.url} - Breached` : "Breached";
+    let name = this.isPrivate ? "Breached (private)" : "Breached";
+    document.title = tab ? `${tab.title || tab.url} - ${name}` : name;
     document.getElementById("titlebar-title").textContent = document.title;
   },
 
@@ -539,6 +560,7 @@ var Breached = {
         if (!(flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
           // A new page: the old one's camera or microphone use ended with it.
           tab.capture.clear();
+          SiteZoom.apply(b, location);
         }
         tab.update();
         if (tab === Breached.selected) {
@@ -708,6 +730,11 @@ var Breached = {
     }
     if (!this.tabs.length) {
       this.selected = null;
+      if (this.isPrivate) {
+        // Closing a private window's last tab ends it.
+        window.close();
+        return;
+      }
       this.openTab(this.homepage());
       return;
     }
@@ -881,7 +908,7 @@ var Breached = {
 
   saveSessionNow() {
     clearTimeout(this._saveTimer);
-    if (!this.pref("restoreSession", true)) {
+    if (this.isPrivate || !this.pref("restoreSession", true)) {
       return;
     }
     let json = JSON.stringify(this.sessionData());
@@ -1487,6 +1514,9 @@ var BrowserDOMWindow = {
   },
 
   openURI(uri, openWindowInfo, where, flags, triggeringPrincipal, policyContainer) {
+    if (where == Ci.nsIBrowserDOMWindow.OPEN_PRINT_BROWSER) {
+      return Breached.printClone(openWindowInfo).browsingContext;
+    }
     if (where == Ci.nsIBrowserDOMWindow.OPEN_CURRENTWINDOW && uri && Breached.selectedBrowser) {
       Breached.load(Breached.selectedBrowser, uri.spec, { triggeringPrincipal, policyContainer });
       return Breached.selectedBrowser.browsingContext;
@@ -1505,6 +1535,9 @@ var BrowserDOMWindow = {
   },
 
   createContentWindowInFrame(uri, params, where, flags, name) {
+    if (where == Ci.nsIBrowserDOMWindow.OPEN_PRINT_BROWSER) {
+      return Breached.printClone(params.openWindowInfo);
+    }
     return this._newTab(null, {
       openWindowInfo: params.openWindowInfo,
       openerBrowser: params.openerBrowser,
@@ -1665,7 +1698,7 @@ var Downloads = {
   async watch() {
     try {
       let { Downloads: D } = ChromeUtils.importESModule("resource://gre/modules/Downloads.sys.mjs");
-      this._list = await D.getList(D.ALL);
+      this._list = await D.getList(Breached.isPrivate ? D.PRIVATE : D.PUBLIC);
       await this._list.addView(this._view);
     } catch (e) {
       console.error("Breached: downloads", e);
@@ -1676,6 +1709,75 @@ var Downloads = {
   },
 };
 
+/**
+ * Zoom is kept per site (breached.zoom.sites, {"host": percent}), like
+ * Firefox: zooming one page of a site zooms the site's other pages, and
+ * pages elsewhere keep their own. A private window's zooming is forgotten
+ * when it closes.
+ */
+var SiteZoom = {
+  PREF: "breached.zoom.sites",
+  _private: new Map(),
+
+  siteOf(uri) {
+    try {
+      return uri.host || null;
+    } catch (e) {
+      return null; // about:, breached: and file: pages zoom one at a time
+    }
+  },
+
+  saved() {
+    try {
+      return JSON.parse(Services.prefs.getStringPref(this.PREF, "{}"));
+    } catch (e) {
+      return {};
+    }
+  },
+
+  /** The zoom for a site in percent (100 when never zoomed). */
+  get(site) {
+    if (Breached.isPrivate && this._private.has(site)) {
+      return this._private.get(site);
+    }
+    return this.saved()[site] ?? 100;
+  },
+
+  /** A page loaded in b: zoom it as its site was zoomed. */
+  apply(b, uri) {
+    let site = this.siteOf(uri);
+    if (site) {
+      b.fullZoom = this.get(site) / 100;
+    }
+  },
+
+  /** Remembers b's zoom for its site; returns the site (null if none). */
+  set(b, pct) {
+    let site = this.siteOf(b.currentURI);
+    if (!site) {
+      return null;
+    }
+    if (Breached.isPrivate) {
+      this._private.set(site, pct);
+    } else {
+      let sites = this.saved();
+      if (pct == 100) {
+        delete sites[site];
+      } else {
+        sites[site] = pct;
+      }
+      Services.prefs.setStringPref(this.PREF, JSON.stringify(sites));
+    }
+    // Other tabs on the same site follow.
+    for (let tab of Breached.tabs) {
+      if (tab.browser && tab.browser != b && this.siteOf(tab.browser.currentURI) == site) {
+        tab.browser.fullZoom = pct / 100;
+      }
+    }
+    return site;
+  },
+};
+
 /** Keyboard shortcuts. Reserved, so pages can't take them over. */
 var Keys = {
   bindings: [
@@ -1683,6 +1785,8 @@ var Keys = {
     ["t", "accel", () => Breached.newTab()],
     ["w", "accel", () => Breached.closeTab()],
     ["t", "accel,shift", () => Breached.undoCloseTab()],
+    ["p", "accel,shift", () => Breached.openPrivateWindow()],
+    ["w", "accel,shift", () => window.close()],
     ["VK_TAB", "control", () => Breached.advance(1)],
     ["VK_TAB", "control,shift", () => Breached.advance(-1)],
     ["VK_PAGE_DOWN", "accel", () => Breached.advance(1)],
@@ -1752,13 +1856,15 @@ var Keys = {
 /** ":" commands. "alias" entries expand to another command line. */
 var Commands = {
   open: {
-    usage: "open [-t|-b] <address or search>",
+    usage: "open [-t|-b|-p] <address or search>  (new tab, background tab, private window)",
     run(args) {
-      let m = args.match(/^(-[tbw])\s+(.*)$|^(-[tbw])$/);
+      let m = args.match(/^(-[tbwp])\s+(.*)$|^(-[tbwp])$/);
       let flag = m?.[1] || m?.[3];
       let text = m ? (m[2] ?? "") : args;
       let url = Breached.urlFor(text);
-      if (flag == "-t" || flag == "-w" || !Breached.selectedBrowser) {
+      if (flag == "-p") {
+        Breached.openPrivateWindow(url);
+      } else if (flag == "-t" || flag == "-w" || !Breached.selectedBrowser) {
         Breached.openTab(url);
       } else if (flag == "-b") {
         Breached.openTab(url, { background: true, afterCurrent: true });
@@ -1769,6 +1875,7 @@ var Commands = {
     },
   },
   tabopen: { alias: "open -t" },
+  private: { alias: "open -p" },
   o: { alias: "open" },
   O: { alias: "open -t" },
   close: {
@@ -1994,7 +2101,8 @@ var Commands = {
         throw new Error("zoom takes a percentage from 30 to 500");
       }
       b.fullZoom = pct / 100;
-      Breached.showMessage(`Zoom ${pct}%`);
+      let site = SiteZoom.set(b, pct);
+      Breached.showMessage(site ? `Zoom ${pct}% on ${site}` : `Zoom ${pct}%`);
     },
   },
   "zoom-in": {
