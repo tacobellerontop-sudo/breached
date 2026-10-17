@@ -11,6 +11,7 @@ export class BitwardenPasskeysParent extends JSWindowActorParent {
     let win = browser?.ownerGlobal;
     let passkeys = win?.ModHost?.loaded?.get("bitwarden")?.passkeys;
     if (!passkeys) {
+      console.error(`Breached passkeys: ${message.name} with no Bitwarden mod in the window`);
       return null;
     }
     this._passkeys = passkeys;
@@ -20,11 +21,18 @@ export class BitwardenPasskeysParent extends JSWindowActorParent {
       topOrigin: topPrincipal?.originNoSuffix ?? message.data.origin,
     };
     request.crossOrigin = request.framed && request.topOrigin != request.origin;
+    let failed = e => {
+      console.error(`Breached passkeys: ${message.name}`, e);
+      return null;
+    };
     switch (message.name) {
       case "Passkey:get":
-        return passkeys.get(this, browser, request);
+        return passkeys.get(this, browser, request).catch(failed);
       case "Passkey:create":
-        return passkeys.create(this, browser, request);
+        return passkeys.create(this, browser, request).catch(failed);
+      case "Passkey:Error":
+        console.error("Breached passkeys (page side): " + message.data.message);
+        return null;
       case "Passkey:Abort":
         passkeys.abort(this, request.id);
         return null;

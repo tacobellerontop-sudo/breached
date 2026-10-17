@@ -21,6 +21,15 @@ function b64(source) {
   return enc(source);
 }
 
+/** A sequence from the page (through Xray wrappers) as a plain array. */
+function listOf(sequence) {
+  let out = [];
+  for (let i = 0; i < (sequence?.length ?? 0); i++) {
+    out.push(sequence[i]);
+  }
+  return out;
+}
+
 function originOf(principal) {
   return principal.originNoSuffix;
 }
@@ -65,6 +74,7 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
       request = kind == "get" ? this.readGet(win, options) : this.readCreate(win, options);
     } catch (e) {
       // Something we don't understand: Gecko checks it and says what's wrong.
+      this.sendAsyncMessage("Passkey:Error", { message: `reading the ${kind} request: ${e}` });
       return native();
     }
     let signal = options.signal;
@@ -95,7 +105,10 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
               resolve(native());
             }
           },
-          () => resolve(native())
+          e => {
+            this.sendAsyncMessage("Passkey:Error", { message: `asking the window: ${e}` });
+            resolve(native());
+          }
         );
       }, win)
     );
@@ -114,7 +127,7 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
       mediation: String(options.mediation ?? "optional"),
       rpId: pk.rpId != null ? String(pk.rpId) : null,
       challenge: b64(pk.challenge),
-      allowCredentials: [...(pk.allowCredentials ?? [])].map(c => b64(c.id)),
+      allowCredentials: listOf(pk.allowCredentials).map(c => b64(c.id)),
       userVerification: String(pk.userVerification ?? "preferred"),
     };
   }
@@ -130,8 +143,8 @@ export class BitwardenPasskeysChild extends JSWindowActorChild {
         displayName: String(pk.user.displayName ?? ""),
       },
       challenge: b64(pk.challenge),
-      algorithms: [...(pk.pubKeyCredParams ?? [])].map(p => Number(p.alg)),
-      excludeCredentials: [...(pk.excludeCredentials ?? [])].map(c => b64(c.id)),
+      algorithms: listOf(pk.pubKeyCredParams).map(p => Number(p.alg)),
+      excludeCredentials: listOf(pk.excludeCredentials).map(c => b64(c.id)),
       residentKey: String(pk.authenticatorSelection?.residentKey ?? ""),
       credProps: !!pk.extensions?.credProps,
     };
