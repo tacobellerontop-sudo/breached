@@ -1007,7 +1007,12 @@ var SelfTest = {
       info.printClones = 0;
       B.printClone = function (...args) {
         info.printClones++;
-        return realClone.apply(this, args);
+        try {
+          return realClone.apply(this, args);
+        } catch (e) {
+          info.printCloneError = `${e}\n${e.stack}`;
+          throw e;
+        }
       };
       for (let type of ["mousedown", "mouseup"]) {
         await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));

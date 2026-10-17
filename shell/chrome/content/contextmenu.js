@@ -337,13 +337,21 @@ Object.assign(Breached, {
    */
   printClone(openWindowInfo) {
     let parent = openWindowInfo.parent;
-    let b = this.createBrowser({ remoteType: parent.currentRemoteType, openWindowInfo });
+    let remoteType = parent.currentRemoteType || E10SUtils.NOT_REMOTE;
+    let b = this.createBrowser({ remoteType, openWindowInfo });
     b.classList.add("print-clone");
     this.$content.append(b);
     setTimeout(() => this.print(b, { clone: b }), 0);
     return b;
   },
 });
+
+/** Gecko's printing actor reports failures through this (Firefox's name). */
+var PrintUtils = {
+  _displayPrintingError(nsresult, isPrinting) {
+    Breached.showMessage(`${isPrinting ? "Printing" : "Print preview"} failed (error 0x${(nsresult >>> 0).toString(16)})`, "error");
+  },
+};
 
 Object.assign(Commands, {
   print: {
