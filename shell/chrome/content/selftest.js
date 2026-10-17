@@ -857,17 +857,44 @@ var SelfTest = {
     await waitFor(() => B.selected.title == "menu" && !B.selected.el.hasAttribute("busy"), 15000);
     await wait(500);
     let menu = () => document.getElementById("contextmenu");
+    try {
+      ChromeUtils.registerWindowActor("BreachedSelfTest", {
+        child: { esModuleURI: "resource://breached/SelfTestChild.sys.mjs" },
+        messageManagerGroups: ["browsers"],
+      });
+    } catch (e) {
+      info.testActor = String(e);
+    }
+    // Mouse events made in the page's own process.
+    let mouse = (type, x, y, button = 0) =>
+      B.selectedBrowser.browsingContext.currentWindowGlobal
+        .getActor("BreachedSelfTest")
+        .sendQuery("SelfTest:Mouse", { type, x, y, button });
+    let realShow = B.contextMenu.show;
+    info.menuShown = 0;
+    B.contextMenu.show = function (...args) {
+      info.menuShown++;
+      try {
+        return realShow.apply(this, args);
+      } catch (e) {
+        info.menuError = `${e}\n${e.stack}`;
+        throw e;
+      }
+    };
     let rightClick = async (x, y) => {
       let r = B.selectedBrowser.getBoundingClientRect();
       window.synthesizeMouseEvent("contextmenu", r.left + x, r.top + y, { button: 2, buttons: 0, clickCount: 1 });
-      if (!(await waitFor(() => menu()?.state == "open", 5000))) {
-        return [];
+      if (!(await waitFor(() => menu()?.state == "open", 1500))) {
+        info.rightClickInPage = await mouse("contextmenu", x, y, 2).catch(e => String(e));
+        if (!(await waitFor(() => menu()?.state == "open", 5000))) {
+          return [];
+        }
       }
       return [...menu().children].map(e => e.getAttribute("label") || "—");
     };
     let closeMenu = async () => {
       menu()?.hidePopup();
-      await waitFor(() => menu().state == "closed", 3000);
+      await waitFor(() => !menu() || menu().state == "closed", 3000);
     };
     let choose = async id => {
       let item = document.getElementById("context-" + id);
@@ -884,9 +911,8 @@ var SelfTest = {
     check("menu: Copy link", await choose("copylink"));
 
     // A real right-click presses the mouse first, which focuses the field.
-    let r0 = B.selectedBrowser.getBoundingClientRect();
     for (let type of ["mousedown", "mouseup"]) {
-      window.synthesizeMouseEvent(type, r0.left + 40, r0.top + 160, { button: 0, buttons: type == "mousedown" ? 1 : 0, clickCount: 1 });
+      await mouse(type, 40, 160).catch(e => (info.focusField = String(e)));
     }
     await wait(300);
     let onField = await rightClick(40, 160);
@@ -922,9 +948,10 @@ var SelfTest = {
 
     // An extension's item gets the click, with the tab.
     await rightClick(40, 30);
-    let extItem = [...menu().children].find(e => e.getAttribute("label") == "Menu test: link");
+    let extItem = [...(menu()?.children ?? [])].find(e => e.getAttribute("label") == "Menu test: link");
     extItem?.doCommand();
     await closeMenu();
+    B.contextMenu.show = realShow;
     let extClicked = await waitFor(() => B.selected.title == "clicked:" + base + "login.html", 8000);
     info.afterExtensionClick = B.selected.title;
     check("menu: an extension's item tells the extension what was clicked", extClicked);
@@ -970,9 +997,8 @@ var SelfTest = {
       check("print: Ctrl+P prints the page", stat?.size > 500);
       // The page's own print button (window.print())
       let tabsBefore = B.tabs.length;
-      let r = B.selectedBrowser.getBoundingClientRect();
       for (let type of ["mousedown", "mouseup"]) {
-        window.synthesizeMouseEvent(type, r.left + 40, r.top + 220, { button: 0, buttons: type == "mousedown" ? 1 : 0, clickCount: 1 });
+        await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));
       }
       let started = await waitFor(() => pdfs.length == 2, 8000);
       let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));

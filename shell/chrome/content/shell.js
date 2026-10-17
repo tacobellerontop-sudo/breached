@@ -344,7 +344,8 @@ var Breached = {
   windowArgs() {
     let arg = window.arguments?.[0];
     try {
-      return JSON.parse(arg.QueryInterface(Ci.nsISupportsString).data);
+      // The window watcher hands a string argument over as a JS string.
+      return JSON.parse(typeof arg == "string" ? arg : arg.QueryInterface(Ci.nsISupportsString).data);
     } catch (e) {
       return {};
     }
