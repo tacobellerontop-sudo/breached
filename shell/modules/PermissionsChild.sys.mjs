@@ -66,8 +66,12 @@ function handleRequest(request) {
     "unload",
     () => {
       if (pending.has(request.callID)) {
-        actor.sendAsyncMessage("Media:Cancel", { callID: request.callID });
         pending.delete(request.callID);
+        try {
+          actor.sendAsyncMessage("Media:Cancel", { callID: request.callID });
+        } catch (e) {
+          // Already gone; the window drops the question when the tab closes.
+        }
       }
     },
     { once: true }
@@ -105,8 +109,12 @@ function reportCapture(window, ended = false) {
   if (!actor) {
     return;
   }
-  let state = ended ? { camera: false, microphone: false, screen: false } : captureState(window);
-  actor.sendAsyncMessage("Media:State", { windowID: window.windowGlobalChild.innerWindowId, ...state });
+  try {
+    let state = ended ? { camera: false, microphone: false, screen: false } : captureState(window);
+    actor.sendAsyncMessage("Media:State", { windowID: window.windowGlobalChild.innerWindowId, ...state });
+  } catch (e) {
+    // The page is closing; its tab mark goes with it.
+  }
 }
 
 /** Process actor: hears Gecko's media notifications in each page process. */

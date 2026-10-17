@@ -535,6 +535,10 @@ var Breached = {
         }
         tab.url = displayURL(location.spec);
         tab.title = b.contentTitle || "";
+        if (!(flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_SAME_DOCUMENT)) {
+          // A new page: the old one's camera or microphone use ended with it.
+          tab.capture.clear();
+        }
         tab.update();
         if (tab === Breached.selected) {
           Breached.updateTitle();
