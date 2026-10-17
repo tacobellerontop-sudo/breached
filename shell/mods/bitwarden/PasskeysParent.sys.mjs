@@ -10,16 +10,26 @@ export function log(text) {
   Services.console.logStringMessage("Breached passkeys: " + text);
 }
 
+// The Bitwarden mod's passkey handler (Passkeys in mod.js), set while the
+// mod is loaded. This module is the mod's own, so mod.js and the actor share it.
+let handler = null;
+export function setHandler(h) {
+  handler = h;
+}
+
 export class BitwardenPasskeysParent extends JSWindowActorParent {
   receiveMessage(message) {
-    let browser = this.browsingContext.top.embedderElement;
-    let win = browser?.ownerGlobal;
-    let passkeys = win?.ModHost?.loaded?.get("bitwarden")?.passkeys;
+    if (message.name == "Passkey:Error") {
+      log("page side: " + message.data.message);
+      return null;
+    }
+    let passkeys = handler;
     if (!passkeys) {
-      log(`${message.name} with no Bitwarden mod in the window`);
+      log(`${message.name} with the Bitwarden mod not loaded`);
       return null;
     }
     this._passkeys = passkeys;
+    let browser = this.browsingContext.top.embedderElement;
     let topPrincipal = this.browsingContext.top.currentWindowGlobal?.documentPrincipal;
     let request = {
       ...message.data,
@@ -36,9 +46,6 @@ export class BitwardenPasskeysParent extends JSWindowActorParent {
         return passkeys.get(this, browser, request).catch(failed);
       case "Passkey:create":
         return passkeys.create(this, browser, request).catch(failed);
-      case "Passkey:Error":
-        log("page side: " + message.data.message);
-        return null;
       case "Passkey:Abort":
         passkeys.abort(this, request.id);
         return null;

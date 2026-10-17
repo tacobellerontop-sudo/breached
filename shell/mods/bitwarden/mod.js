@@ -512,7 +512,8 @@ const Passkeys = {
     entry?.resolve(null);
   },
 };
-Mod.passkeys = Passkeys;
+const { setHandler } = ChromeUtils.importESModule(Mod.url + "PasskeysParent.sys.mjs");
+setHandler(Passkeys);
 
 Mod.actor("BitwardenPasskeys", {
   parent: "PasskeysParent.sys.mjs",
@@ -554,5 +555,5 @@ Mod.onUnload(() => {
   for (let actor of [...Passkeys.waiting.keys()]) {
     Passkeys.forget(actor);
   }
-  Mod.passkeys = null;
+  setHandler(null);
 });
