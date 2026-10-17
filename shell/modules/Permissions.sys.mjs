@@ -212,6 +212,14 @@ export class BreachedPermissionsParent extends JSWindowActorParent {
       case "Media:State":
         shell?.setCapture(browser, message.data);
         break;
+      case "EME:Request":
+        if (shell && browser) {
+          let Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
+          Drm.request(shell, browser, hostOf(this.manager.documentPrincipal), message.data).catch(e =>
+            console.error("Breached DRM request", e)
+          );
+        }
+        break;
     }
   }
 }
@@ -271,6 +279,7 @@ export function init() {
         "PeerConnection:request",
         "recording-device-events",
         "recording-window-ended",
+        "mediakeys-request",
       ],
     },
     safeForUntrustedWebProcess: true,

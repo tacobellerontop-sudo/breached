@@ -25,7 +25,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.5";
+const BREACHED_VERSION = "0.1.6";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -72,6 +72,24 @@ function registerActors() {
       allFrames: true,
       messageManagerGroups: ["browsers"],
       // Allowed in the processes that run web pages.
+      safeForUntrustedWebProcess: true,
+    },
+    // Reader view: finding the article in a page (made on demand)...
+    BreachedReader: {
+      parent: { esModuleURI: "resource://breached/ReaderParent.sys.mjs" },
+      child: { esModuleURI: "resource://breached/ReaderChild.sys.mjs" },
+      messageManagerGroups: ["browsers"],
+      safeForUntrustedWebProcess: true,
+    },
+    // ...and showing it in Gecko's about:reader page.
+    BreachedReaderView: {
+      parent: { esModuleURI: "resource://breached/ReaderParent.sys.mjs" },
+      child: {
+        esModuleURI: "resource://breached/ReaderChild.sys.mjs",
+        events: { DOMContentLoaded: {} },
+      },
+      matches: ["about:reader*"],
+      messageManagerGroups: ["browsers"],
       safeForUntrustedWebProcess: true,
     },
     // Page fullscreen (video players), copied from Firefox.
@@ -245,6 +263,7 @@ var Breached = {
     }
     registerActors();
     Permissions.init();
+    ChromeUtils.importESModule("resource://breached/Drm.sys.mjs").init();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
     Services.prefs.addObserver(PREF, this);
@@ -389,11 +408,17 @@ var Breached = {
 
   applyLayout() {
     let root = document.documentElement;
-    let position = this.pref("tabs.position", "bottom") == "top" ? "top" : "bottom";
+    let position = this.pref("tabs.position", "bottom");
+    if (!["top", "bottom", "left", "right"].includes(position)) {
+      position = "bottom";
+    }
     let autohide = this.pref("tabs.autohide", false);
     let custom = this.pref("titlebar", "custom") != "native";
     root.setAttribute("tabs-position", position);
+    root.toggleAttribute("tabs-vertical", position == "left" || position == "right");
     root.toggleAttribute("tabs-autohide", autohide);
+    // A hidden tab bar shows while the mouse is at its edge of the window.
+    root.toggleAttribute("tabs-hover-edge", autohide && this.pref("tabs.showOnHover", true));
     root.toggleAttribute("customtitlebar", custom);
     // Tabs on top share the row with our title bar.
     let titlebarRow = document.getElementById("titlebar-content");

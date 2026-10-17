@@ -50,12 +50,20 @@ const SECTIONS = [
         options: [
           ["bottom", "Bottom"],
           ["top", "Top"],
+          ["left", "Left (tabs in a column)"],
+          ["right", "Right (tabs in a column)"],
         ],
       },
       {
         pref: "breached.tabs.autohide",
         label: "Hide the tab bar",
         hint: "It shows for a moment when you switch tabs, and while the command bar is open.",
+        type: "bool",
+      },
+      {
+        pref: "breached.tabs.showOnHover",
+        label: "Show the hidden tab bar when the mouse reaches its edge",
+        hint: "Move the mouse to the edge of the window where the tab bar sits.",
         type: "bool",
       },
       {
@@ -194,6 +202,12 @@ const SECTIONS = [
         pref: "privacy.globalprivacycontrol.enabled",
         label: "Ask sites not to sell or share my data",
         type: "bool",
+      },
+      {
+        id: "drm",
+        label: "Protected video (DRM)",
+        hint: "Netflix, Disney+, Spotify and the like need Google's Widevine, downloaded the first time it's turned on (about 10 MB).",
+        type: "drm",
       },
       { id: "clear", label: "Clear browsing data", type: "clear" },
     ],
@@ -565,6 +579,41 @@ const BUILD = {
     let wrap = el("div", { class: "control" }, control);
     say = note(wrap);
     return el("div", { class: "row" }, labelBlock(item), wrap);
+  },
+
+  drm(item, id) {
+    const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
+    let select = el("select", { id: "setting-drm" });
+    for (let [value, text] of [
+      ["ask", "Ask when a site needs it"],
+      ["on", "On"],
+      ["off", "Off"],
+    ]) {
+      select.append(el("option", { value }, text));
+    }
+    select.value = Drm.setting();
+    let control = el("div", { class: "control" }, select);
+    let say = note(control);
+    let status = () => say(Drm.installed() ? "Widevine is installed" : "");
+    status();
+    select.addEventListener("change", async () => {
+      if (select.value == "ask") {
+        P.setStringPref("breached.drm", "ask");
+        Drm.init(); // off until a site asks
+        status();
+        return;
+      }
+      if (select.value == "on") {
+        say("Getting Widevine…");
+      }
+      try {
+        await Drm.turn(select.value == "on");
+        status();
+      } catch (e) {
+        say(`Couldn't get Widevine: ${e.message ?? e.type ?? e}`, true);
+      }
+    });
+    return el("div", { class: "row" }, labelBlock(item, "setting-drm"), control);
   },
 
   "download-dir"(item) {

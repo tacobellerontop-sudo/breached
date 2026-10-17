@@ -197,6 +197,109 @@ body {
 :root[tabs-autohide][commandbar-open] #tabbar {
   visibility: visible;
 }
+/* Show on hover: a thin strip at the bar's edge of the window stays live
+   while the bar is hidden; touching it shows the bar, which stays while the
+   mouse is on it and goes a moment after the mouse leaves. */
+:root[tabs-autohide][tabs-hover-edge] #tabbar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 3px;
+  visibility: visible;
+}
+:root[tabs-autohide][tabs-hover-edge][tabs-position="top"] #tabbar::after {
+  top: 0;
+}
+:root[tabs-autohide][tabs-hover-edge][tabs-position="bottom"] #tabbar::after {
+  bottom: 0;
+}
+:root[tabs-autohide][tabs-hover-edge] #tabbar {
+  transition: visibility 0s linear 300ms;
+}
+:root[tabs-autohide][tabs-hover-edge] #tabbar:hover {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* ---- Tabs on the left or right, in a column ---- */
+:root[tabs-vertical] {
+  --vtabs-width: 220px;
+}
+:root[tabs-vertical] body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: var(--vtabs-width) minmax(0, 1fr);
+}
+:root[tabs-vertical][tabs-position="right"] body {
+  grid-template-columns: minmax(0, 1fr) var(--vtabs-width);
+}
+:root[tabs-vertical][tabs-autohide] body {
+  grid-template-columns: minmax(0, 1fr);
+}
+:root[tabs-vertical] #titlebar {
+  grid-row: 1;
+  grid-column: 1 / -1;
+}
+:root[tabs-vertical] #bottom {
+  grid-row: 3;
+  grid-column: 1 / -1;
+}
+:root[tabs-vertical] #tabbar {
+  grid-row: 2;
+  grid-column: 1;
+  height: auto;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+:root[tabs-vertical] #content {
+  grid-row: 2;
+  grid-column: 2;
+}
+:root[tabs-vertical][tabs-position="right"] #tabbar {
+  grid-column: 2;
+}
+:root[tabs-vertical][tabs-position="right"] #content,
+:root[tabs-vertical][tabs-autohide] #content {
+  grid-column: 1;
+}
+:root[tabs-vertical] .tab {
+  flex: none;
+  height: var(--tab-height);
+  max-width: none;
+}
+:root[tabs-vertical] .tab[pinned] .tab-label {
+  display: revert;
+}
+/* Hidden: over the page, from below the title bar to the bottom. */
+:root[tabs-vertical][tabs-autohide] #tabbar {
+  inset-inline: auto;
+  top: 0;
+  bottom: 0;
+  width: var(--vtabs-width);
+}
+:root[tabs-vertical][tabs-autohide][customtitlebar]:not([sizemode="fullscreen"]) #tabbar {
+  top: var(--titlebar-height);
+}
+:root[tabs-vertical][tabs-autohide][tabs-position="left"] #tabbar {
+  left: 0;
+}
+:root[tabs-vertical][tabs-autohide][tabs-position="right"] #tabbar {
+  right: 0;
+}
+:root[tabs-vertical][tabs-autohide][tabs-hover-edge] #tabbar::after {
+  inset-inline: auto;
+  top: 0;
+  bottom: 0;
+  height: auto;
+  width: 3px;
+}
+:root[tabs-vertical][tabs-autohide][tabs-hover-edge][tabs-position="left"] #tabbar::after {
+  left: 0;
+}
+:root[tabs-vertical][tabs-autohide][tabs-hover-edge][tabs-position="right"] #tabbar::after {
+  right: 0;
+}
 
 .tab {
   flex: 1 1 0;

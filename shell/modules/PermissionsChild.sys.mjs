@@ -137,6 +137,18 @@ export class BreachedMediaChild extends JSProcessActorChild {
           }
         }
         break;
+      case "mediakeys-request": {
+        // A page wants protected video (DRM); Drm.sys.mjs decides.
+        let window = subject;
+        let actor = actorFor(window);
+        try {
+          let { keySystem, status } = JSON.parse(data);
+          actor?.sendAsyncMessage("EME:Request", { keySystem, status });
+        } catch (e) {
+          // A closing page.
+        }
+        break;
+      }
       case "recording-window-ended": {
         let window = Services.wm.getOuterWindowWithId(data);
         if (window) {

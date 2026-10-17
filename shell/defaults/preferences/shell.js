@@ -5,8 +5,9 @@ pref("toolkit.defaultChromeURI", "chrome://breached/content/shell.xhtml");
 pref("toolkit.singletonWindowType", "breached:main");
 
 // Interface (change these on the settings page, or with :set)
-pref("breached.tabs.position", "bottom");        // "top" or "bottom"
+pref("breached.tabs.position", "bottom");        // "top", "bottom", "left" or "right" (vertical)
 pref("breached.tabs.autohide", false);           // true: show only while switching tabs
+pref("breached.tabs.showOnHover", true);         // with autohide: show while the mouse is at its edge
 pref("breached.tabs.unloadAfterMinutes", 15);    // 0 turns tab unloading off
 pref("breached.tabs.maxAwake", 0);               // >0: also unload beyond this many loaded tabs
 pref("breached.homepage", "breached:home");      // breached:home, about:blank or any address

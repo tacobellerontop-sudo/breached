@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>drm:waiting</title>
+</head>
+<body>
+  <p>Breached self-test: asks for Widevine (protected video) and puts the result in the title.</p>
+  <script>
+    navigator
+      .requestMediaKeySystemAccess("com.widevine.alpha", [
+        {
+          initDataTypes: ["cenc"],
+          videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }],
+        },
+      ])
+      .then(access => access.createMediaKeys())
+      .then(
+        () => (document.title = "drm:ok"),
+        e => (document.title = "drm:" + e.name + " " + e.message)
+      );
+  </script>
+</body>
+</html>

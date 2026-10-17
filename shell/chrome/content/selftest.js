@@ -12,7 +12,7 @@ var SelfTest = {
       report.checks[name] = !!ok;
       dump(`SELFTEST ${ok ? "PASS" : "FAIL"} ${name}\n`);
     };
-    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 300 * 1000);
+    let timeout = setTimeout(() => this.finish(outDir, report, "timed out"), 480 * 1000);
     try {
       await IOUtils.makeDirectory(outDir, { ignoreExisting: true });
       await this.steps(outDir, report, check);
@@ -400,6 +400,11 @@ var SelfTest = {
 
     // 12. Private windows, the right-click menu, zoom per site, saving, printing
     await this.dailyDriver(B, check, waitFor, wait, outDir, report);
+
+    // 13. Tabs in a column and the tab bar on hover, reader view, protected video
+    await this.tabBarHover(B, check, waitFor, wait, outDir, report);
+    await this.readerView(B, check, waitFor, wait, outDir, report);
+    await this.drm(B, check, waitFor, wait, press, outDir, report);
 
     report.errors = Services.console
       .getMessageArray()
@@ -1018,6 +1023,123 @@ var SelfTest = {
       B.printDialog = realDialog;
     }
     B.closeTab(B.selected);
+  },
+
+  async tabBarHover(B, check, waitFor, wait, outDir, report) {
+    let info = (report.info.tabBar = {});
+    let $ = id => document.getElementById(id);
+    let shown = () => getComputedStyle($("tabbar")).visibility == "visible";
+    let P = Services.prefs;
+    B.openTab("about:blank", { background: true });
+    P.setStringPref("breached.tabs.position", "left");
+    await wait(300);
+    let bar = $("tabbar").getBoundingClientRect();
+    let content = $("content").getBoundingClientRect();
+    info.left = { bar: [bar.left, bar.top, bar.width, bar.height], content: [content.left, content.width] };
+    check("tabs on the left: a column beside the page", bar.right <= content.left + 1 && bar.height > bar.width && bar.width > 50);
+    await this.screenshot(outDir, "21-tabs-left.png");
+    P.setStringPref("breached.tabs.position", "right");
+    await wait(300);
+    bar = $("tabbar").getBoundingClientRect();
+    content = $("content").getBoundingClientRect();
+    check("tabs on the right: a column beside the page", bar.left >= content.right - 1 && bar.height > bar.width);
+
+    // Hidden, then shown by the mouse at the window's edge
+    P.setBoolPref("breached.tabs.autohide", true);
+    await wait(500);
+    content = $("content").getBoundingClientRect();
+    check("hidden column: the page takes the whole width", !shown() && content.width >= window.innerWidth - 2);
+    let move = (x, y) => window.synthesizeMouseEvent("mousemove", x, y, { button: 0, buttons: 0 });
+    move(window.innerWidth - 1, window.innerHeight / 2);
+    let hovered = await waitFor(shown, 3000);
+    info.rightEdge = hovered;
+    check("show on hover: the mouse at the right edge shows the column", hovered);
+    await this.screenshot(outDir, "22-tabs-right-hover.png");
+    move(window.innerWidth / 2, window.innerHeight / 2);
+    check("show on hover: it goes again when the mouse leaves", await waitFor(() => !shown(), 3000));
+
+    P.setStringPref("breached.tabs.position", "bottom");
+    await wait(500);
+    check("hidden bottom bar starts hidden", !shown());
+    move(window.innerWidth / 2, window.innerHeight - 1);
+    check("show on hover: the mouse at the bottom edge shows the tab bar", await waitFor(shown, 3000));
+    move(window.innerWidth / 2, window.innerHeight / 2);
+    await waitFor(() => !shown(), 3000);
+    P.setBoolPref("breached.tabs.showOnHover", false);
+    await wait(300);
+    move(window.innerWidth / 2, window.innerHeight - 1);
+    await wait(800);
+    check("show on hover can be turned off", !shown());
+    move(window.innerWidth / 2, window.innerHeight / 2);
+    for (let name of ["breached.tabs.position", "breached.tabs.autohide", "breached.tabs.showOnHover"]) {
+      P.clearUserPref(name);
+    }
+    await wait(300);
+    B.closeTab(B.tabs[B.tabs.length - 1]);
+  },
+
+  async readerView(B, check, waitFor, wait, outDir, report) {
+    let info = (report.info.reader = {});
+    let base = "http://127.0.0.1:8123/";
+    try {
+      ChromeUtils.registerWindowActor("BreachedSelfTest", {
+        child: { esModuleURI: "resource://breached/SelfTestChild.sys.mjs" },
+        messageManagerGroups: ["browsers"],
+        safeForUntrustedWebProcess: true,
+      });
+    } catch (e) {
+      // registered by an earlier step
+    }
+    let tab = B.openTab(base + "article.html");
+    await waitFor(() => tab.title == "A long walk" && !tab.el.hasAttribute("busy"), 15000);
+    B.run("reader");
+    let entered = await waitFor(() => tab.browser.currentURI.spec.startsWith("about:reader"), 10000);
+    let page = null;
+    await waitFor(() => {
+      tab.browser.browsingContext.currentWindowGlobal
+        ?.getActor("BreachedSelfTest")
+        .sendQuery("SelfTest:Reader")
+        .then(r => (page = r), e => (info.queryError = String(e)));
+      return page?.chars > 1000;
+    }, 15000);
+    info.page = page;
+    check("reader view: :reader opens the article in about:reader", entered && page?.chars > 1000);
+    await wait(500);
+    await this.screenshot(outDir, "23-reader.png");
+    B.run("reader");
+    let left = await waitFor(() => tab.browser.currentURI.spec == base + "article.html", 10000);
+    check("reader view: :reader again goes back to the page", left);
+    B.closeTab(tab);
+  },
+
+  async drm(B, check, waitFor, wait, press, outDir, report) {
+    let info = (report.info.drm = {});
+    const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
+    info.before = { setting: Drm.setting(), eme: Services.prefs.getBoolPref("media.eme.enabled", false), installed: Drm.installed() };
+    check("protected video starts off (asked for first)", Drm.setting() == "ask" && !info.before.eme);
+    let tab = B.openTab("http://127.0.0.1:8123/drm.html");
+    let asked = await waitFor(
+      () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("protected video"),
+      15000
+    );
+    info.prompt = document.getElementById("prompt").textContent;
+    check("a site wanting protected video asks first", asked);
+    await this.screenshot(outDir, "24-drm-prompt.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    // The first try fails (it was off); the reload after the download works.
+    let played = await waitFor(() => tab.title == "drm:ok" || /Couldn't/.test(document.getElementById("message").textContent), 150000);
+    info.title = tab.title;
+    info.after = {
+      setting: Drm.setting(),
+      eme: Services.prefs.getBoolPref("media.eme.enabled", false),
+      installed: Drm.installed(),
+      version: Services.prefs.getStringPref("media.gmp-widevinecdm.version", ""),
+      lastFail: Services.prefs.getStringPref("media.gmp-widevinecdm.lastInstallFailReason", ""),
+      message: document.getElementById("message").textContent,
+    };
+    check("turning it on downloads Widevine", Drm.installed());
+    check("the page gets Widevine after the reload", played && tab.title == "drm:ok");
+    B.closeTab(tab);
   },
 
   async extensions(B, check, waitFor, wait, outDir, report) {

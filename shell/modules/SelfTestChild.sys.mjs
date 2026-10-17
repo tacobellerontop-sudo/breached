@@ -7,6 +7,10 @@
 
 export class BreachedSelfTestChild extends JSWindowActorChild {
   receiveMessage(message) {
+    if (message.name == "SelfTest:Reader") {
+      let content = this.document.querySelector(".moz-reader-content");
+      return { url: this.document.documentURI, chars: content?.textContent.length ?? 0, title: this.document.title };
+    }
     if (message.name != "SelfTest:Mouse") {
       return null;
     }

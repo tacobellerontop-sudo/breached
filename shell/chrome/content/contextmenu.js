@@ -184,6 +184,7 @@ var ContextMenu = {
         [
           { id: "savepage", label: "Save page", run: () => Breached.run("save") },
           { id: "print", label: "Print…", run: () => Breached.print(browser) },
+          { id: "reader", label: d.pageURL.startsWith("about:reader") ? "Leave reader view" : "Reader view", run: () => Breached.run("reader") },
           { id: "viewsource", label: "View page source", run: () => Breached.openTab("view-source:" + (d.frameURL || d.pageURL), { afterCurrent: true }) },
           { id: "copypage", label: "Copy page address", run: () => Breached.copy(d.pageURL, "Address copied") },
           d.frameURL && { id: "openframe", label: "Open frame in new tab", run: () => open(d.frameURL) },
@@ -380,6 +381,45 @@ Object.assign(Commands, {
       Breached.saveURL(b.currentURI.spec, { principal: b.contentPrincipal, title: b.contentTitle });
     },
   },
+  reader: {
+    usage: "reader  (reader view on or off, also F9)",
+    async run() {
+      let b = Breached.selectedBrowser;
+      if (!b) {
+        return;
+      }
+      let result;
+      try {
+        result = await b.browsingContext.currentWindowGlobal.getActor("BreachedReader").sendQuery("Reader:Toggle");
+      } catch (e) {
+        result = "no-article";
+      }
+      if (result == "no-article") {
+        Breached.showMessage("No article found on this page", "error");
+      }
+    },
+  },
+  drm: {
+    usage: "drm [on|off]  (protected video: Netflix, Disney+...)",
+    async run(args) {
+      const Drm = ChromeUtils.importESModule("resource://breached/Drm.sys.mjs");
+      if (args != "on" && args != "off") {
+        Breached.showMessage(
+          `Protected video: ${Drm.setting()}${Drm.installed() ? " (Widevine installed)" : ""}. :drm on or :drm off`
+        );
+        return;
+      }
+      if (args == "on") {
+        Breached.showMessage("Getting Widevine for protected video…");
+      }
+      try {
+        await Drm.turn(args == "on");
+        Breached.showMessage(args == "on" ? "Protected video is on" : "Protected video is off");
+      } catch (e) {
+        Breached.showMessage(`Couldn't get Widevine: ${e.message ?? e.type ?? e}`, "error");
+      }
+    },
+  },
   yank: {
     usage: "yank  (copy the page's address)",
     run() {
@@ -404,5 +444,7 @@ Object.assign(Commands, {
 Keys.bindings.push(
   ["p", "accel", () => Breached.print()],
   ["s", "accel", () => Breached.run("save")],
-  ["u", "accel", () => Breached.run("view-source")]
+  ["u", "accel", () => Breached.run("view-source")],
+  ["VK_F9", "", () => Breached.run("reader")],
+  ["r", "accel,alt", () => Breached.run("reader")]
 );
