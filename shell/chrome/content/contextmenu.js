@@ -307,11 +307,21 @@ Object.assign(Breached, {
     return true;
   },
 
-  /** Ctrl+P: prints the tab's page (or a page's own window.print() copy). */
-  async print(browser = this.selectedBrowser, { clone } = {}) {
-    if (!browser) {
-      return;
+  /**
+   * Ctrl+P: prints the tab's page. The page does what its own print button
+   * would (window.print()), so there is one way printing goes: Gecko makes
+   * a still copy of the page (printClone) and printCopy prints that.
+   */
+  print(browser = this.selectedBrowser) {
+    try {
+      browser?.browsingContext.currentWindowGlobal.getActor("Breached").sendAsyncMessage("Breached:Print");
+    } catch (e) {
+      this.showMessage("This page can't be printed", "error");
     }
+  },
+
+  /** Asks Windows' print dialog, then prints the copy and lets it go. */
+  async printCopy(clone) {
     let settings = this.printSettings();
     try {
       if (!(await this.printDialog(settings, false))) {
@@ -319,26 +329,15 @@ Object.assign(Breached, {
       }
       // The dialog has asked already.
       settings.printSilent = true;
-      // Gecko may make its still copy of the page through printClone while
-      // this runs; that copy is printed with these settings, no second dialog.
-      this._printCopies = clone ? this._printCopies : [];
-      try {
-        await browser.browsingContext.print(settings);
-      } finally {
-        if (!clone) {
-          this._printCopies.forEach(b => b.remove());
-          this._printCopies = null;
-        }
-      }
+      await clone.browsingContext.print(settings);
     } catch (e) {
-      this._lastPrintError = String(e);
       if (e.result != Cr.NS_ERROR_ABORT) {
         console.error("Breached print:", e);
         this.showMessage(`Printing failed: ${e.message}`, "error");
       }
     } finally {
       // window.print() waits until its copy of the page is gone.
-      clone?.remove();
+      clone.remove();
     }
   },
 
@@ -352,12 +351,7 @@ Object.assign(Breached, {
     let b = this.createBrowser({ remoteType, openWindowInfo });
     b.classList.add("print-clone");
     this.$content.append(b);
-    if (this._printCopies) {
-      // For a print already under way (Ctrl+P).
-      this._printCopies.push(b);
-    } else {
-      setTimeout(() => this.print(b, { clone: b }), 0);
-    }
+    setTimeout(() => this.printCopy(b), 0);
     return b;
   },
 });

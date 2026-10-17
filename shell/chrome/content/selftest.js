@@ -982,8 +982,6 @@ var SelfTest = {
     let realDialog = B.printDialog;
     let pdfs = [];
     B.printDialog = async settings => {
-      info.dialogCalls = (info.dialogCalls ?? 0) + 1;
-      (info.dialogStacks ??= []).push(new Error().stack.split("\n").slice(1, 6).join(" | "));
       let path = PathUtils.join(outDir, `print-${pdfs.length + 1}.pdf`);
       pdfs.push(path);
       settings.outputDestination = Ci.nsIPrintSettings.kOutputDestinationFile;
@@ -997,64 +995,25 @@ var SelfTest = {
     } catch (e) {
       info.printDialogService = String(e);
     }
-    try {
-      await B.print();
+    let printed = async (n, what) => {
+      let asked = await waitFor(() => pdfs.length >= n, 10000);
+      let gone = asked && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
       await wait(1000);
-      let stat = pdfs[0] ? await IOUtils.stat(pdfs[0]).catch(() => null) : null;
-      info.printSize = stat?.size ?? null;
-      check("print: Ctrl+P prints the page", stat?.size > 500);
-      // The page's own print button (window.print())
+      let stat = pdfs[n - 1] ? await IOUtils.stat(pdfs[n - 1]).catch(() => null) : null;
+      info[what] = { asked, gone, size: stat?.size ?? null, dialogs: pdfs.length };
+      return gone && stat?.size > 500;
+    };
+    try {
       let tabsBefore = B.tabs.length;
-      let realClone = B.printClone;
-      info.printClones = 0;
-      B.printClone = function (...args) {
-        info.printClones++;
-        try {
-          return realClone.apply(this, args);
-        } catch (e) {
-          info.printCloneError = `${e}\n${e.stack}`;
-          throw e;
-        }
-      };
-      let realPrint = B.print;
-      let realMessage = B.showMessage;
-      info.printCalls = [];
-      info.messages = [];
-      B.print = async function (browser, options) {
-        let call = { clone: !!options?.clone, hasBC: !!browser?.browsingContext, remoteType: browser?.remoteType };
-        info.printCalls.push(call);
-        try {
-          let result = await realPrint.call(this, browser, options);
-          call.finished = true;
-          call.lastError = B._lastPrintError ?? null;
-          return result;
-        } catch (e) {
-          call.error = String(e);
-          throw e;
-        }
-      };
-      B.showMessage = function (text, level) {
-        info.messages.push(text);
-        return realMessage.call(this, text, level);
-      };
+      B.print();
+      check("print: Ctrl+P prints the page", await printed(1, "ctrlP"));
+      check("print: Ctrl+P asks once", pdfs.length == 1);
+      // The page's own print button (window.print())
       for (let type of ["mousedown", "mouseup"]) {
         await mouse(type, 40, 220).catch(e => (info.printClick = String(e)));
       }
-      let dialogsBefore = pdfs.length;
-      info.dialogsForCtrlP = dialogsBefore;
-      check("print: Ctrl+P asks once", dialogsBefore == 1);
-      let started = await waitFor(() => pdfs.length == dialogsBefore + 1, 8000);
-      info.titleAfterPrintClick = B.selected.title;
-      B.printClone = realClone;
-      await wait(3000);
-      B.print = realPrint;
-      B.showMessage = realMessage;
-      let done = started && (await waitFor(() => !document.querySelector("browser.print-clone"), 15000));
-      await wait(1000);
-      let stat2 = pdfs[dialogsBefore] ? await IOUtils.stat(pdfs[dialogsBefore]).catch(() => null) : null;
-      info.pdfs = pdfs.slice();
-      info.windowPrint = { started, done, size: stat2?.size ?? null, tabs: B.tabs.length - tabsBefore };
-      check("print: a page's print button prints", done && stat2?.size > 500 && B.tabs.length == tabsBefore);
+      check("print: a page's print button prints", await printed(2, "windowPrint"));
+      check("print: no tab is left behind", B.tabs.length == tabsBefore && pdfs.length == 2);
     } finally {
       B.printDialog = realDialog;
     }

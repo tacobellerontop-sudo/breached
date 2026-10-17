@@ -24,6 +24,10 @@ export class BreachedChild extends JSWindowActorChild {
     switch (message.name) {
       case "Breached:Ping":
         return "pong";
+      case "Breached:Print":
+        // Ctrl+P: the same as the page's own print button would do.
+        this.contentWindow?.print();
+        break;
       case "Breached:DoCommand":
         // cmd_copy, cmd_paste, cmd_selectAll... on the focused field or page.
         if (this.docShell.isCommandEnabled(message.data.command)) {
