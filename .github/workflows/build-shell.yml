@@ -1,16 +1,12 @@
 name: Build Breached
 
 # Packages the Breached shell (shell/) on Mozilla's prebuilt Gecko engine for
-# Windows, runs the built-in self-test with real key presses, publishes
-# screenshots to the ci-screenshots branch, and uploads a portable zip.
+# Windows (Mozilla's files unchanged, breached.exe a launcher), runs the
+# built-in self-test with real key presses, publishes screenshots to the
+# ci-screenshots branch, and uploads a portable zip.
 
 on:
   workflow_dispatch:
-    inputs:
-      mozilla_engine:
-        description: "Keep Mozilla's signed engine files as they are (firefox.exe plus a breached.exe launcher)"
-        type: boolean
-        default: false
   push:
     paths:
       - "shell/**"
@@ -63,17 +59,13 @@ jobs:
 
       - name: Package Breached
         shell: pwsh
-        run: |
-          $mozilla = '${{ inputs.mozilla_engine }}' -eq 'true'
-          scripts/build/package-shell.ps1 -Installer "$env:RUNNER_TEMP\gecko-setup.exe" -Out out -MozillaEngine:$mozilla
+        run: scripts/build/package-shell.ps1 -Installer "$env:RUNNER_TEMP\gecko-setup.exe" -Out out -MozillaEngine
 
       - name: Self-test
         id: selftest
         continue-on-error: true
         shell: pwsh
-        run: |
-          $exe = if ('${{ inputs.mozilla_engine }}' -eq 'true') { 'firefox.exe' } else { 'breached.exe' }
-          scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots -Exe $exe
+        run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots -Exe firefox.exe
 
       - name: Publish screenshots to the ci-screenshots branch
         if: always()
@@ -93,7 +85,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.mozilla_engine && 'breached-win64-mozilla-engine' || 'breached-win64' }}
+          name: breached-win64
           path: breached-win64.zip
 
       - name: Fail if the self-test failed

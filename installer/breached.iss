@@ -2,9 +2,9 @@
 ;
 ;   iscc /DAppVersion=0.1.0 /DAppDir=..\out\breached /DOutDir=..\release installer\breached.iss
 ;
-; Installs the packaged app (scripts/build/package-shell.ps1 on our own Gecko
-; build) to Program Files, or the user's own folder when not run as admin.
-; breached.exe starts the shell by itself and keeps the profile in
+; Installs the packaged app (scripts/build/package-shell.ps1 -MozillaEngine)
+; to Program Files, or the user's own folder when not run as admin.
+; breached.exe starts firefox.exe with the shell, which keeps the profile in
 ; %APPDATA%\Breached, so the install folder stays read-only.
 
 #ifndef AppVersion

@@ -1,7 +1,7 @@
 name: Release
 
-# Builds a Breached release on our own Gecko engine (the newest successful
-# Build Gecko run): breached.exe with Breached's icon, the self-test on it,
+# Builds a Breached release on Mozilla's own Gecko engine (Firefox's signed
+# files, unchanged) with breached.exe as a launcher, the self-test on it,
 # a Windows installer (Inno Setup) and a portable zip, then publishes them
 # as a GitHub release tagged v<version>.
 
@@ -57,23 +57,35 @@ jobs:
             Invoke-WebRequest "https://tacobellerontop-sudo.github.io/breached-mods/mods/$id.zip" -Method Head | Out-Null
           }
 
-      - name: Download our Gecko engine
+      # Mozilla's own Firefox build, kept exactly as Mozilla signed it: sites
+      # like Netflix only play protected video on engines Google certified.
+      - name: Download Mozilla's Gecko (Firefox release build)
         shell: pwsh
         run: |
-          $run = gh run list --workflow build-gecko.yml --status success --limit 1 --json databaseId,headSha,createdAt | ConvertFrom-Json
-          if (-not $run) { throw 'no successful Build Gecko run' }
-          "Gecko from Build Gecko run $($run[0].databaseId) ($($run[0].headSha), $($run[0].createdAt))"
-          "GECKO_RUN=$($run[0].databaseId)" | Out-File -Append $env:GITHUB_ENV
-          gh run download $run[0].databaseId --dir "$env:RUNNER_TEMP\gecko"
-          $zip = Get-ChildItem -Recurse "$env:RUNNER_TEMP\gecko" -Filter gecko-win64.zip | Select-Object -First 1
-          if (-not $zip) { throw 'no gecko-win64.zip in that run' }
-          "GECKO_ZIP=$($zip.FullName)" | Out-File -Append $env:GITHUB_ENV
+          # The newest Windows release of the major version in
+          # app/firefox-source.txt (security fixes), else the one named there.
+          $wanted = (Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]
+          $major = $wanted.Split('.')[0]
+          $releases = (Invoke-WebRequest https://archive.mozilla.org/pub/firefox/releases/).Links.href |
+            ForEach-Object { if ($_ -match '/releases/(\d+\.\d+(\.\d+)?)/$') { $Matches[1] } } |
+            Sort-Object -Descending { [version]($_ + ('.0' * (3 - $_.Split('.').Count))) }
+          $candidates = @($releases | Where-Object { $_.Split('.')[0] -eq $major }) + @($wanted)
+          foreach ($version in $candidates) {
+            $url = "https://archive.mozilla.org/pub/firefox/releases/$version/win64/en-US/Firefox%20Setup%20$version.exe"
+            try {
+              Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP\gecko-setup.exe"
+              "Gecko $version from $url"
+              "GECKO_VERSION=$version" | Out-File -Append $env:GITHUB_ENV
+              exit 0
+            } catch { "No Windows build at $url" }
+          }
+          throw 'no Gecko download found'
 
       - name: Package Breached
         shell: pwsh
-        run: scripts/build/package-shell.ps1 -Installer $env:GECKO_ZIP -Out out
+        run: scripts/build/package-shell.ps1 -Installer "$env:RUNNER_TEMP\gecko-setup.exe" -Out out -MozillaEngine
 
-      # breached.exe on its own (no -app): proves the engine finds the shell.
+      # breached.exe on its own (no -app): proves the launcher starts the shell.
       - name: Self-test
         shell: pwsh
         run: scripts/test/run-selftest.ps1 -App out\breached -Shots screenshots -NoAppArg
@@ -109,7 +121,7 @@ jobs:
           $p = Start-Process $setup.FullName -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/CURRENTUSER', '/NORESTART', "/LOG=$PWD\install.log"
           if ($p.ExitCode) { Get-Content install.log -Tail 30; throw "installer exited with $($p.ExitCode)" }
           $dir = "$env:LOCALAPPDATA\Programs\Breached"
-          foreach ($f in 'breached.exe', 'xul.dll', 'breached\application.ini', 'unins000.exe') {
+          foreach ($f in 'breached.exe', 'firefox.exe', 'xul.dll', 'breached\application.ini', 'unins000.exe') {
             if (-not (Test-Path "$dir\$f")) { throw "installed app has no $f" }
           }
           if (Test-Path "$dir\Breached.bat") { throw 'portable start script was installed' }
@@ -134,14 +146,14 @@ jobs:
         run: |
           $changes = "docs/releases/$env:VERSION.md"
           $notes = @"
-          Breached $env:VERSION for Windows 10 and 11 (64-bit), on Breached's own build of the Gecko engine (Firefox $((Select-String '^version=' app/firefox-source.txt).Line.Split('=')[1]) source).
+          Breached $env:VERSION for Windows 10 and 11 (64-bit), on Mozilla's Gecko engine from Firefox $env:GECKO_VERSION, unchanged.
 
           - **BreachedSetup-$env:VERSION.exe**: the installer. It installs for you alone without admin rights, or for everyone if you choose that.
           - **Breached-$env:VERSION-win64-portable.zip**: no install. Unzip and run Breached.bat; the profile stays in the profile folder next to it.
 
           The files aren't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
 
-          Built by [this run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) from commit ${{ github.sha }}, with Gecko from [Build Gecko run $env:GECKO_RUN](https://github.com/${{ github.repository }}/actions/runs/$env:GECKO_RUN).
+          Built by [this run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) from commit ${{ github.sha }}.
           "@
           $notes = ($notes -split "`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`n"
           if (Test-Path $changes) { $notes = (Get-Content -Raw $changes).Trim() + "`n`n" + $notes }

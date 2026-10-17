@@ -25,7 +25,7 @@ const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.7";
+const BREACHED_VERSION = "0.1.8";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
