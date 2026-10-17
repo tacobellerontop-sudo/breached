@@ -56,7 +56,7 @@ export class BreachedReaderViewChild extends JSWindowActorChild {
     let url = decodeURIComponent(this.document.documentURI.slice("about:reader?url=".length));
     let article = this.sendQuery("Reader:GetCachedArticle", { url });
     let AboutReader = load("AboutReader");
-    this._reader = new AboutReader(this, article, "document", null);
+    this._reader = new AboutReader(this, article, "document");
   }
 
   receiveMessage(message) {

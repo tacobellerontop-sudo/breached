@@ -196,6 +196,8 @@ body {
 :root[tabs-autohide][tabs-peek] #tabbar,
 :root[tabs-autohide][commandbar-open] #tabbar {
   visibility: visible;
+  /* Showing is immediate; only hiding waits (see show on hover). */
+  transition-delay: 0s;
 }
 /* Show on hover: a thin strip at the bar's edge of the window stays live
    while the bar is hidden; touching it shows the bar, which stays while the

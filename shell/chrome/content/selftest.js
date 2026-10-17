@@ -1048,7 +1048,9 @@ var SelfTest = {
     P.setBoolPref("breached.tabs.autohide", true);
     await wait(500);
     content = $("content").getBoundingClientRect();
-    check("hidden column: the page takes the whole width", !shown() && content.width >= window.innerWidth - 2);
+    info.hiddenColumn = { shown: shown(), content: [content.left, content.width], window: window.innerWidth, peek: document.documentElement.hasAttribute("tabs-peek") };
+    check("hidden column: the page takes the whole width", content.width >= window.innerWidth - 2);
+    check("hidden column: hidden", await waitFor(() => !shown(), 3000));
     let move = (x, y) => window.synthesizeMouseEvent("mousemove", x, y, { button: 0, buttons: 0 });
     move(window.innerWidth - 1, window.innerHeight / 2);
     let hovered = await waitFor(shown, 3000);
