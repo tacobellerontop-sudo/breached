@@ -88,7 +88,7 @@ function registerActors() {
     },
     // Draws the PDF viewer's toolbar icons (see PdfIconsChild).
     BreachedPdfIcons: {
-      parent: { esModuleURI: "resource://breached/PdfIconsChild.sys.mjs" },
+      parent: { esModuleURI: "resource://breached/PdfIconsParent.sys.mjs" },
       child: {
         esModuleURI: "resource://breached/PdfIconsChild.sys.mjs",
         events: { DOMContentLoaded: {} },
