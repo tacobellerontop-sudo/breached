@@ -169,6 +169,8 @@ jobs:
 
           The files aren't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
 
+          Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). [Code signing policy](https://tacobellerontop-sudo.github.io/breached/code-signing.html) · [Privacy policy](https://tacobellerontop-sudo.github.io/breached/privacy.html)
+
           Built by [this run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) from commit ${{ github.sha }}.
           "@
           $notes = ($notes -split "`n" | ForEach-Object { $_ -replace '^          ', '' }) -join "`n"
