@@ -1330,7 +1330,14 @@ var SelfTest = {
     info.pdfUrl = tab.browser?.currentURI?.spec;
     check("files: a PDF shows in the built-in PDF viewer", !!shown);
     // Its toolbar icons are drawn in a colour from the page's style.
-    let icon = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["background-color", "mask-image"] });
+    let icon = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["background-color", "mask-image", "width", "height", "display", "content", "opacity", "visibility", "position", "mask-size"] });
+    try {
+      let r = await fetch("resource://pdf.js/web/images/toolbarButton-zoomOut.svg");
+      info.zoomSvg = `${r.status} ${(await r.text()).length}`;
+    } catch (e) {
+      info.zoomSvg = String(e);
+    }
+    info.zoomButton = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", props: ["width", "height", "display", "visibility", "opacity", "color"] });
     info.zoomIcon = icon;
     check("files: the PDF viewer's buttons show their icons", !!icon && !/rgba\(0, 0, 0, 0\)|transparent/.test(icon["background-color"]) && /zoomOut/.test(icon["mask-image"]));
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
