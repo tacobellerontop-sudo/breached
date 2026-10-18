@@ -1356,6 +1356,7 @@ var SelfTest = {
     info.probe = {
       page: await actor.sendQuery("SelfTest:PdfProbe", { fetch: "resource://pdf.js/web/images/toolbarButton-zoomOut.svg" }),
       textInk: await ink(".textLayer"),
+      numPagesInk: await ink("#numPages"),
       buttonInk: await ink(),
     };
     await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16'/></svg>") !important; }` });

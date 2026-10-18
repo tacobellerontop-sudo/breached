@@ -38,9 +38,8 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       let win = this.contentWindow;
       let out = { origin: doc.nodePrincipal.origin, uri: doc.documentURI };
       if (message.data.css) {
-        let style = doc.createElement("style");
-        style.textContent = message.data.css;
-        doc.head.append(style);
+        // The viewer's CSP blocks <style>, so add the rules as a user sheet.
+        win.windowUtils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(message.data.css), win.windowUtils.AUTHOR_SHEET);
         await new Promise(r => win.setTimeout(r, 500));
       }
       if (message.data.fetch) {
