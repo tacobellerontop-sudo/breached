@@ -5,8 +5,8 @@
 // The PDF viewer's toolbar icons are SVG files under resource://pdf.js/,
 // and Gecko draws nothing for them when the page uses them as images
 // (masks or backgrounds), though the files themselves load. Icons given
-// as data: addresses draw, so this adds a copy of the viewer's styles
-// with every SVG inlined.
+// as data: addresses draw, so this puts every SVG in the viewer's styles
+// inline.
 
 const SVG_URL = /url\((["']?)([^)"']+\.svg)\1\)/g;
 
@@ -14,14 +14,11 @@ export class BreachedPdfIconsChild extends JSWindowActorChild {
   async handleEvent() {
     let doc = this.document;
     let win = this.contentWindow;
-    let note = text => doc.documentElement?.setAttribute("data-breached-pdf-icons", (doc.documentElement.getAttribute("data-breached-pdf-icons") ?? "") + text + ";");
-    note("seen " + doc.nodePrincipal.origin);
     if (doc.nodePrincipal.origin != "resource://pdf.js") {
       return;
     }
-    note("links " + doc.querySelectorAll("link[rel=stylesheet]").length + " sheets " + [...doc.styleSheets].map(x => x.href).join(","));
     let icons = new Map();
-    let icon = async url => {
+    let icon = url => {
       if (!icons.has(url)) {
         icons.set(
           url,
@@ -30,22 +27,33 @@ export class BreachedPdfIconsChild extends JSWindowActorChild {
       }
       return icons.get(url);
     };
+    let inline = async (rules, base) => {
+      for (let rule of rules) {
+        if (rule.cssRules) {
+          await inline(rule.cssRules, base);
+        }
+        let style = rule.style;
+        for (let i = 0; style && i < style.length; i++) {
+          let prop = style[i];
+          let value = style.getPropertyValue(prop);
+          let found = [...value.matchAll(SVG_URL)];
+          if (!found.length) {
+            continue;
+          }
+          for (let [whole, , url] of found) {
+            value = value.replace(whole, `url("${await icon(new URL(url, base).href)}")`);
+          }
+          style.setProperty(prop, value, style.getPropertyPriority(prop));
+        }
+      }
+    };
     for (let link of doc.querySelectorAll("link[rel=stylesheet]")) {
       try {
-        let css = await (await win.fetch(link.href)).text();
-        let urls = [...new Set([...css.matchAll(SVG_URL)].map(m => m[2]))];
-        note(`${link.href} ${css.length} ${urls.length}`);
-        if (!urls.length) {
-          continue;
+        if (!link.sheet) {
+          await new Promise(resolve => link.addEventListener("load", resolve, { once: true }));
         }
-        let inlined = new Map();
-        for (let url of urls) {
-          inlined.set(url, await icon(new URL(url, link.href).href));
-        }
-        css = css.replace(SVG_URL, (_, quote, url) => `url("${inlined.get(url)}")`);
-        win.windowUtils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(css), win.windowUtils.AUTHOR_SHEET);
+        await inline(link.sheet.cssRules, link.sheet.href);
       } catch (e) {
-        note(String(e));
         console.error("Breached: PDF viewer icons", e);
       }
     }

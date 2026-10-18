@@ -32,14 +32,6 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       let style = this.contentWindow.getComputedStyle(el, message.data.pseudo ?? null);
       return Object.fromEntries(message.data.props.map(p => [p, style.getPropertyValue(p)]));
     }
-    if (message.name == "SelfTest:Actor") {
-      try {
-        let actor = this.manager.getActor(message.data.name);
-        return { ok: !!actor, note: this.document.documentElement.getAttribute("data-breached-pdf-icons") };
-      } catch (e) {
-        return { error: String(e) };
-      }
-    }
     if (message.name == "SelfTest:Page") {
       let doc = this.document;
       return {
