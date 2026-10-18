@@ -14,6 +14,7 @@ const SITE_MODS = {
   keys: { name: "Vim keys and link hints", commands: ["hint"] },
   dark: { name: "Dark pages", commands: ["dark"] },
   screenshot: { name: "Screenshots", commands: ["screenshot"] },
+  groups: { name: "Tab groups", commands: ["group", "ungroup", "groups"] },
   sync: { name: "Firefox Sync", commands: ["sync"] },
 };
 

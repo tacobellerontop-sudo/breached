@@ -23,9 +23,10 @@ ChromeUtils.importESModule("resource://gre/modules/ActorManagerParent.sys.mjs");
 
 const PREF = "breached.";
 const SESSION_FILE = "breached-session.json";
+const SESSION_LAST = "breached-session-last.json"; // what the last start found, for :restore
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.9";
+const BREACHED_VERSION = "0.1.10";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -314,7 +315,14 @@ var Breached = {
     ModHost.init();
     Addons.init();
 
-    let restored = !this.isPrivate && this.pref("restoreSession", true) && this.restoreSession();
+    // Last time's tabs, kept for :restore (and the "ask" setting).
+    let previous = this.isPrivate ? null : this.readSession(this.sessionPath());
+    if (previous) {
+      IOUtils.writeJSON(this.sessionPath(SESSION_LAST), previous).catch(e => console.error("Breached: keeping last session", e));
+    }
+    let reopen = !this.isPrivate && this.pref("restoreSession", true);
+    let ask = reopen && this.pref("restoreSession.ask", false) && previous?.tabs?.length;
+    let restored = reopen && !ask && this.restoreSession();
     let urls = this.commandLineURLs();
     for (let url of urls) {
       this.openTab(url);
@@ -323,6 +331,9 @@ var Breached = {
       this.openTab("breached:welcome");
     } else if (!restored && !urls.length) {
       this.openTab(this.homepage());
+    }
+    if (ask) {
+      setTimeout(() => this.askToRestore(previous), 300);
     }
 
     this._unloadTimer = setInterval(() => this.unloadIdleTabs(), 60 * 1000);
@@ -990,8 +1001,8 @@ var Breached = {
 
   // -------------------------------------------------------------- session
 
-  sessionPath() {
-    return PathUtils.join(PathUtils.profileDir, SESSION_FILE);
+  sessionPath(name = SESSION_FILE) {
+    return PathUtils.join(PathUtils.profileDir, name);
   },
 
   sessionData() {
@@ -1023,40 +1034,75 @@ var Breached = {
   },
 
   /** Reopens the last session's tabs (asleep, except the selected one). */
-  restoreSession() {
-    let data;
+  /** A saved session's data, or null. */
+  readSession(path) {
     try {
       let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
-      file.initWithPath(this.sessionPath());
+      file.initWithPath(path);
       if (!file.exists()) {
-        return false;
+        return null;
       }
       let stream = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
       stream.init(file, -1, 0, 0);
       let text = NetUtil.readInputStreamToString(stream, stream.available(), { charset: "UTF-8" });
       stream.close();
-      data = JSON.parse(text);
+      let data = JSON.parse(text);
+      data.tabs = (data.tabs || []).filter(t => t.url && t.url != "about:blank");
+      return data;
     } catch (e) {
       console.error("Breached: reading session failed", e);
-      return false;
+      return null;
     }
-    let tabs = (data.tabs || []).filter(t => t.url && t.url != "about:blank");
+  },
+
+  restoreSession() {
+    return this.openSession(this.readSession(this.sessionPath()));
+  },
+
+  /** Opens a session's tabs (asleep until clicked). */
+  openSession(data, { select = true } = {}) {
+    let tabs = data?.tabs ?? [];
     if (!tabs.length) {
       return false;
     }
     let selected = Math.max(0, Math.min(data.selected ?? 0, tabs.length - 1));
-    tabs.forEach((t, i) => {
-      let tab = this.openTab(t.url, {
-        asleep: true,
-        background: true,
-        title: t.title,
-        history: t.history,
-      });
-      tab.pinned = !!t.pinned;
-      tab.update();
-    });
-    this.selectTab(this.tabs[selected]);
+    let opened = tabs.map(t => this.openSessionTab(t));
+    if (select) {
+      this.selectTab(opened[selected]);
+    }
     return true;
+  },
+
+  openSessionTab(t) {
+    let tab = this.openTab(t.url, {
+      asleep: true,
+      background: true,
+      title: t.title,
+      history: t.history,
+    });
+    tab.pinned = !!t.pinned;
+    tab.update();
+    return tab;
+  },
+
+  /** Asks in the command bar which of last time's tabs to reopen. */
+  async askToRestore(data) {
+    let tabs = data?.tabs ?? [];
+    if (!tabs.length) {
+      this.showMessage("No tabs from last time");
+      return;
+    }
+    let items = [
+      { label: "all", detail: `reopen all ${tabs.length} tab${tabs.length == 1 ? "" : "s"}`, answer: "all" },
+      { label: "none", detail: "start fresh (:restore asks again)", answer: "none" },
+      ...tabs.map((t, i) => ({ label: t.title || t.url, detail: t.url, answer: i })),
+    ];
+    let picked = await this.pick("Reopen last time's tabs? Pick all, none or one:", items);
+    if (picked?.answer == "all") {
+      this.openSession(data);
+    } else if (typeof picked?.answer == "number") {
+      this.selectTab(this.openSessionTab(tabs[picked.answer]));
+    }
   },
 
   // ------------------------------------------------------ site permissions
@@ -1468,11 +1514,17 @@ var Breached = {
     if (command.alias) {
       return this.run(command.alias + (args ? " " + args : ""));
     }
-    try {
-      return command.run(args);
-    } catch (e) {
+    let fail = e => {
       console.error(e);
       this.showMessage(`${name}: ${e.message}`, "error");
+    };
+    try {
+      let result = command.run(args);
+      // Async commands (often from mods) fail later; say so the same way.
+      result?.catch?.(fail);
+      return result;
+    } catch (e) {
+      fail(e);
     }
     return undefined;
   },
@@ -2270,6 +2322,51 @@ var Commands = {
         Services.prefs.setStringPref(full, value);
       }
       Breached.showMessage(`${name}=${Breached.pref(name)}`);
+    },
+  },
+  import: {
+    usage: "import [passwords]  (bookmarks and history from Chrome, Edge, Brave or Firefox; passwords from an exported .csv)",
+    run(args) {
+      let Import = ChromeUtils.importESModule("resource://breached/Import.sys.mjs");
+      let fail = e => Breached.showMessage(`Import failed: ${e.message}`, "error");
+      if (args.trim() == "passwords") {
+        let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+        fp.init(window.browsingContext, "Passwords exported from another browser (.csv)", Ci.nsIFilePicker.modeOpen);
+        fp.appendFilter("Passwords (.csv)", "*.csv");
+        fp.open(result => {
+          if (result == Ci.nsIFilePicker.returnOK && fp.file) {
+            Import.importPasswordsCSV(fp.file.path)
+              .then(r => Breached.showMessage(`Brought over ${r.added} password${r.added == 1 ? "" : "s"} (${r.skipped} skipped). The Password manager mod fills them in`))
+              .catch(fail);
+          }
+        });
+        return;
+      }
+      (async () => {
+        let found = await Import.detect();
+        if (!found.length) {
+          throw new Error("no Chrome, Edge, Brave or Firefox found on this computer");
+        }
+        let picked = await Breached.pick(
+          "Bring over bookmarks and history from:",
+          found.map(b => ({ label: b.name, detail: b.profile, answer: b }))
+        );
+        if (!picked) {
+          return;
+        }
+        Breached.showMessage(`Bringing over bookmarks and history from ${picked.answer.name}…`);
+        let r = await Import.importFrom(picked.answer);
+        Breached.showMessage(
+          `Brought over ${r.bookmarks} bookmarks (in "From ${picked.answer.name}") and ${r.history} pages of history` +
+            (r.errors.length ? `. Problems: ${r.errors.join("; ")}` : "")
+        );
+      })().catch(fail);
+    },
+  },
+  restore: {
+    usage: "restore  (pick tabs to reopen from when Breached last started)",
+    run() {
+      Breached.askToRestore(Breached.readSession(Breached.sessionPath(SESSION_LAST)));
     },
   },
   welcome: {

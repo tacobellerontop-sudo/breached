@@ -411,8 +411,9 @@ var SelfTest = {
     // 14. The other mods: passwords, bookmarks, Firefox Sync
     await this.moreMods(B, check, waitFor, wait, press, outDir, report);
 
-    // 15. The first-start welcome page
+    // 15. The first-start welcome page, importing, reopening last time's tabs
     await this.welcome(B, check, waitFor, wait, outDir, report);
+    await this.importing(B, check, waitFor, wait, press, outDir, report);
 
     report.errors = Services.console
       .getMessageArray()
@@ -1280,6 +1281,124 @@ var SelfTest = {
   },
 
   // The other mods on the mods site: passwords, bookmarks, Firefox Sync.
+  async importing(B, check, waitFor, wait, press, outDir, report) {
+    let info = (report.info.importing = {});
+    let Import = ChromeUtils.importESModule("resource://breached/Import.sys.mjs");
+    let { Sqlite } = ChromeUtils.importESModule("resource://gre/modules/Sqlite.sys.mjs");
+    let { PlacesUtils } = ChromeUtils.importESModule("resource://gre/modules/PlacesUtils.sys.mjs");
+    let tmp = PathUtils.join(PathUtils.tempDir, "breached-import-test-" + Date.now());
+    let local = PathUtils.join(tmp, "local");
+    let roaming = PathUtils.join(tmp, "roaming");
+    let env = { LOCALAPPDATA: Services.env.get("LOCALAPPDATA"), APPDATA: Services.env.get("APPDATA") };
+    let makeDb = async (path, sql) => {
+      let db = await Sqlite.openConnection({ path });
+      for (let s of sql) {
+        await db.execute(s);
+      }
+      await db.close();
+    };
+    try {
+      // A Chrome with two bookmarks (one in a folder) and two pages of history.
+      let chrome = PathUtils.join(local, "Google", "Chrome", "User Data", "Default");
+      await IOUtils.makeDirectory(chrome, { createAncestors: true });
+      await IOUtils.writeJSON(PathUtils.join(chrome, "Bookmarks"), {
+        roots: {
+          bookmark_bar: {
+            name: "Bookmarks bar",
+            type: "folder",
+            children: [
+              { type: "url", name: "Chrome one", url: "https://chrome-one.example/" },
+              { type: "folder", name: "Stuff", children: [{ type: "url", name: "Chrome two", url: "https://chrome-two.example/" }] },
+              { type: "url", name: "settings", url: "chrome://settings/" },
+            ],
+          },
+          other: { name: "Other", type: "folder", children: [] },
+        },
+      });
+      let chromeTime = (Date.now() + 11644473600000) * 1000;
+      await makeDb(PathUtils.join(chrome, "History"), [
+        "CREATE TABLE urls (id INTEGER PRIMARY KEY, url TEXT, title TEXT, visit_count INTEGER, last_visit_time INTEGER, hidden INTEGER DEFAULT 0)",
+        `INSERT INTO urls (url, title, visit_count, last_visit_time) VALUES ('https://chrome-history-a.example/', 'A', 3, ${chromeTime - 1000000}), ('https://chrome-history-b.example/', 'B', 1, ${chromeTime - 2000000})`,
+      ]);
+      // A Firefox with one bookmark in its menu.
+      let firefox = PathUtils.join(roaming, "Mozilla", "Firefox", "Profiles", "test.default-release");
+      await IOUtils.makeDirectory(firefox, { createAncestors: true });
+      let ffTime = (Date.now() - 60000) * 1000;
+      await makeDb(PathUtils.join(firefox, "places.sqlite"), [
+        "CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT, title TEXT, last_visit_date INTEGER, hidden INTEGER DEFAULT 0)",
+        "CREATE TABLE moz_bookmarks (id INTEGER PRIMARY KEY, type INTEGER, fk INTEGER, parent INTEGER, position INTEGER, title TEXT, guid TEXT)",
+        `INSERT INTO moz_places (id, url, title, last_visit_date) VALUES (1, 'https://firefox-one.example/', 'Firefox one', ${ffTime})`,
+        "INSERT INTO moz_bookmarks VALUES (1, 2, NULL, 0, 0, '', 'root________'), (2, 2, NULL, 1, 0, 'menu', 'menu________'), (3, 1, 1, 2, 0, 'Firefox one', 'aaaaaaaaaaaa')",
+      ]);
+      Services.env.set("LOCALAPPDATA", local);
+      Services.env.set("APPDATA", roaming);
+
+      let found = await Import.detect();
+      info.found = found.map(b => b.id);
+      check("import: finds Chrome and Firefox", info.found.includes("chrome") && info.found.includes("firefox"));
+      let fromChrome = await Import.importFrom(found.find(b => b.id == "chrome"));
+      info.chrome = fromChrome;
+      check("import: Chrome's bookmarks come over (web addresses only)", fromChrome.bookmarks == 2);
+      check("import: Chrome's history comes over", fromChrome.history == 2);
+      check("import: an imported bookmark is a Breached bookmark", !!(await PlacesUtils.bookmarks.fetch({ url: "https://chrome-two.example/" })));
+      let fromFirefox = await Import.importFrom(found.find(b => b.id == "firefox"));
+      info.firefox = fromFirefox;
+      check("import: Firefox's bookmarks and history come over", fromFirefox.bookmarks == 1 && fromFirefox.history == 1);
+      check("import: imported history shows in Breached", !!(await PlacesUtils.history.fetch("https://chrome-history-a.example/")));
+
+      // Passwords from an exported .csv (Chrome's columns, a quoted comma).
+      let csv = PathUtils.join(tmp, "passwords.csv");
+      await IOUtils.writeUTF8(
+        csv,
+        'name,url,username,password,note\r\nsite,https://csv-site.example/login,tester,"pa,ss",\r\nother,https://csv-other.example/,me,secret,\r\nbad,not a url,x,y,\r\n'
+      );
+      let pw = await Import.importPasswordsCSV(csv);
+      info.passwords = pw;
+      check("import: passwords come over from a .csv", pw.added == 2 && pw.skipped == 1);
+      let saved = await Services.logins.searchLoginsAsync({ origin: "https://csv-site.example" });
+      check("import: a password with a comma is kept whole", saved[0]?.password == "pa,ss");
+      check("import: the same .csv twice adds nothing new", (await Import.importPasswordsCSV(csv)).added == 0);
+      for (let origin of ["https://csv-site.example", "https://csv-other.example"]) {
+        for (let login of await Services.logins.searchLoginsAsync({ origin })) {
+          await Services.logins.removeLoginAsync(login);
+        }
+      }
+      let tree = await PlacesUtils.promiseBookmarksTree(PlacesUtils.bookmarks.unfiledGuid);
+      for (let child of tree.children ?? []) {
+        if (/^From (Chrome|Firefox)$/.test(child.title)) {
+          await PlacesUtils.bookmarks.remove(child.guid);
+        }
+      }
+    } catch (e) {
+      info.error = String(e) + " " + e.stack;
+      check("import: ran without errors", false);
+    } finally {
+      for (let [k, v] of Object.entries(env)) {
+        Services.env.set(k, v ?? "");
+      }
+      await IOUtils.remove(tmp, { recursive: true, ignoreAbsent: true });
+    }
+
+    // Reopening last time's tabs: the command bar lists them.
+    let url = "http://127.0.0.1:8123/keys.html?restored";
+    let before = B.tabs.length;
+    let asked = B.askToRestore({ tabs: [{ url, title: "restored tab" }, { url: url + "2", title: "another" }] });
+    let listed = await waitFor(
+      () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("Reopen last time"),
+      5000
+    );
+    check("restore: asks which of last time's tabs to reopen", !!listed);
+    info.restoreRows = document.getElementById("picker").textContent.slice(0, 200);
+    await this.screenshot(outDir, "35-restore-ask.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    await asked;
+    let reopened = B.tabs.filter(t => t.url?.startsWith(url));
+    check("restore: all reopens every tab", reopened.length == 2 && B.tabs.length == before + 2);
+    for (let t of reopened) {
+      B.closeTab(t);
+    }
+  },
+
   async welcome(B, check, waitFor, wait, outDir, report) {
     let Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
     let { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
@@ -1323,6 +1442,15 @@ var SelfTest = {
     await wait(300);
     await this.screenshot(outDir, "31-welcome-tabs.png");
 
+    $("next").click();
+    check("welcome: Next goes to your stuff", visible("step-stuff"));
+    check("welcome: it looks for other browsers", !!(await waitFor(() => !$("browsers").textContent.includes("Looking"), 10000)));
+    info.browsers = $("browsers").textContent;
+    doc().querySelector("input[name=startup][value=ask]").click();
+    check("welcome: the start choice applies at once", P.getBoolPref("breached.restoreSession.ask", false));
+    P.clearUserPref("breached.restoreSession.ask");
+    P.clearUserPref("breached.restoreSession");
+    await this.screenshot(outDir, "31a-welcome-stuff.png");
     $("next").click();
     check("welcome: Next goes to mods", visible("step-mods"));
     let free = await waitFor(() => doc().querySelector("#mods input:not(:disabled)"), 10000);
@@ -1459,6 +1587,41 @@ var SelfTest = {
         await ModHost.Mods.uninstall(id);
       }
       check("dark: removing it puts the page colour scheme back", await waitFor(() => Services.prefs.getIntPref("layout.css.prefers-color-scheme.content-override") != 0, 5000));
+    }
+
+    // Tab groups
+    {
+      check("the Tab groups mod installs", await install("groups"));
+      let G = ModHost.hooks.get("groups");
+      let a = B.openTab("about:blank", { background: true });
+      let b = B.openTab("about:blank", { background: true });
+      let c = B.openTab("about:blank", { background: true });
+      B.selectTab(a);
+      B.run("group work");
+      B.selectTab(c);
+      B.run("group work");
+      check("groups: :group puts tabs in a group", G.groupOf(a) == "work" && G.groupOf(c) == "work" && !G.groupOf(b));
+      check("groups: a group's tabs sit together", Math.abs(a.index - c.index) == 1);
+      let label = document.querySelector('.group-label[data-group="work"]');
+      check("groups: the group's name shows in the tab bar", !!label && label.nextElementSibling == B.tabs[Math.min(a.index, c.index)].el);
+      await wait(200);
+      await this.screenshot(outDir, "36-tab-groups.png");
+      B.selectTab(b);
+      label.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
+      check("groups: clicking the name folds the group away", getComputedStyle(a.el).display == "none" && getComputedStyle(c.el).display == "none");
+      document.querySelector('.group-label[data-group="work"]').dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true }));
+      check("groups: clicking again opens it", getComputedStyle(a.el).display != "none");
+      B.selectTab(c);
+      B.run("ungroup");
+      check("groups: :ungroup takes a tab out", !G.groupOf(c) && G.groupOf(a) == "work");
+      await wait(700);
+      check("groups: groups are saved", Services.prefs.getStringPref("breached.mods.groups.state", "").includes('"work"'));
+      for (let t of [a, b, c]) {
+        B.closeTab(t);
+      }
+      await wait(100);
+      check("groups: a group with no tabs is gone", !G.groups.has("work") && !document.querySelector(".group-label"));
+      await ModHost.Mods.uninstall("groups");
     }
 
     // Password manager: asks to save a login, then fills it in next time.

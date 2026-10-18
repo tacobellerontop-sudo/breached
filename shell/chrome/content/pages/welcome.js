@@ -1,11 +1,13 @@
 /* The first-run welcome page (breached:welcome): colours, where the tab bar
- * goes, and which mods to install. Colours and the tab bar change as you
- * pick them; mods install when you finish. */
+ * goes, bookmarks, history and passwords from other browsers, what happens
+ * at start, and which mods to install. Colours, the tab bar and the start
+ * choice change as you pick them; imports and mods happen when you finish. */
 
 "use strict";
 
 const Theme = ChromeUtils.importESModule("resource://breached/Theme.sys.mjs");
 const { Mods } = ChromeUtils.importESModule("resource://breached/Mods.sys.mjs");
+const Import = ChromeUtils.importESModule("resource://breached/Import.sys.mjs");
 const P = Services.prefs;
 
 // Used when the mods site can't be reached, so the step still shows them.
@@ -14,6 +16,7 @@ const KNOWN_MODS = [
   { id: "bookmarks", name: "Bookmarks", description: "Ctrl+D saves the page, Ctrl+B lists your bookmarks." },
   { id: "drm", name: "Protected video (DRM)", description: "Plays Netflix, Disney+, Spotify and other protected video and music." },
   { id: "bitwarden", name: "Bitwarden", description: "Fill logins and use passkeys from your Bitwarden vault." },
+  { id: "groups", name: "Tab groups", description: "Keep tabs together under a coloured name in the tab bar, and fold groups away." },
   { id: "speed", name: "Speed", description: "Trades memory for speed: tabs stay loaded and new tabs open sooner." },
   { id: "sync", name: "Firefox Sync", description: "Sync history, bookmarks and passwords with Firefox.", experimental: true },
 ];
@@ -185,8 +188,91 @@ const TabBar = {
 
 // ------------------------------------------------------------ mods
 
-const ModPicker = {
+// ------------------------------------------------------------ your stuff
+
+const Stuff = {
+  browsers: [],
+  passwordsFile: null,
+
   async init() {
+    let current = !P.getBoolPref("breached.restoreSession", true) ? "fresh" : P.getBoolPref("breached.restoreSession.ask", false) ? "ask" : "restore";
+    for (let radio of document.querySelectorAll("input[name=startup]")) {
+      radio.checked = radio.value == current;
+      radio.addEventListener("change", () => {
+        P.setBoolPref("breached.restoreSession", radio.value != "fresh");
+        P.setBoolPref("breached.restoreSession.ask", radio.value == "ask");
+      });
+    }
+    $("passwords-csv").addEventListener("click", () => this.chooseCSV());
+
+    let box = $("browsers");
+    try {
+      this.browsers = await Import.detect();
+    } catch (e) {
+      console.error("Breached: looking for browsers", e);
+    }
+    box.textContent = "";
+    if (!this.browsers.length) {
+      box.append(el("p", { class: "muted" }, "No other browsers found on this computer."));
+    }
+    for (let b of this.browsers) {
+      let id = "import-" + b.id;
+      // Bookmarks show through the Bookmarks mod.
+      let check = el("input", { type: "checkbox", id, value: b.id, onchange: () => check.checked && ModPicker.want("bookmarks") });
+      box.append(el("label", { class: "browser", for: id }, check, `Bookmarks and history from ${b.name}`));
+    }
+  },
+
+  chooseCSV() {
+    let fp = Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+    fp.init(window.browsingContext, "Passwords exported from another browser", Ci.nsIFilePicker.modeOpen);
+    fp.appendFilter("Passwords (.csv)", "*.csv");
+    fp.open(result => {
+      if (result == Ci.nsIFilePicker.returnOK && fp.file) {
+        this.setCSV(fp.file.path);
+      }
+    });
+  },
+
+  setCSV(path) {
+    this.passwordsFile = path;
+    $("passwords-file").textContent = PathUtils.filename(path);
+    // Saved passwords need the Password manager mod to fill in.
+    ModPicker.want("passwords");
+  },
+
+  picked() {
+    let ids = [...document.querySelectorAll("#browsers input:checked")].map(c => c.value);
+    return this.browsers.filter(b => ids.includes(b.id));
+  },
+
+  /** Imports what was picked; resolves to a line saying what came over. */
+  async run(say) {
+    let parts = [];
+    for (let b of this.picked()) {
+      say(`Bringing over bookmarks and history from ${b.name}…`);
+      let r = await Import.importFrom(b);
+      parts.push(`${r.bookmarks} bookmarks and ${r.history} pages of history from ${b.name}`);
+    }
+    if (this.passwordsFile) {
+      say("Bringing over passwords…");
+      try {
+        let r = await Import.importPasswordsCSV(this.passwordsFile);
+        parts.push(`${r.added} password${r.added == 1 ? "" : "s"}`);
+      } catch (e) {
+        parts.push(`no passwords (${e.message})`);
+      }
+    }
+    return parts.length ? "Brought over " + parts.join(", ") : "";
+  },
+};
+
+const ModPicker = {
+  init() {
+    this.ready = this.load();
+  },
+
+  async load() {
     let list = KNOWN_MODS;
     try {
       let response = await fetch(Mods.site + "mods.json", { cache: "no-cache", credentials: "omit" });
@@ -219,6 +305,15 @@ const ModPicker = {
 
   picked() {
     return [...document.querySelectorAll("#mods input:checked:not(:disabled)")].map(c => c.value);
+  },
+
+  /** Ticks a mod (once the list is there). */
+  async want(id) {
+    await this.ready;
+    let box = document.getElementById("mod-" + id);
+    if (box && !box.disabled) {
+      box.checked = true;
+    }
   },
 };
 
@@ -255,10 +350,14 @@ const Steps = {
   async finish() {
     let ids = ModPicker.picked();
     let shell = window.browsingContext.topChromeWindow?.Breached;
+    for (let button of document.querySelectorAll("#buttons button")) {
+      button.disabled = true;
+    }
+    let brought = await Stuff.run(text => ($("status").textContent = text));
+    if (brought) {
+      shell?.showMessage(brought);
+    }
     if (ids.length && shell) {
-      for (let button of document.querySelectorAll("#buttons button")) {
-        button.disabled = true;
-      }
       let failed = [];
       for (let [i, id] of ids.entries()) {
         $("status").textContent = `Installing mods (${i + 1} of ${ids.length})…`;
@@ -290,6 +389,7 @@ const Steps = {
 window.addEventListener("DOMContentLoaded", () => {
   Colours.init();
   TabBar.init();
+  Stuff.init();
   ModPicker.init();
   Steps.init();
   const stop = Theme.watchColors(() => Colours.showSelected());

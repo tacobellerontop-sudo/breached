@@ -40,6 +40,27 @@
       <label class="check"><input type="checkbox" id="nav-buttons" /> Back and forward buttons in the tab bar</label>
     </section>
 
+    <section class="step" id="step-stuff" data-title="your stuff" hidden="hidden">
+      <h2>your stuff</h2>
+      <p class="muted">Bring over what you had in another browser, and choose what happens when Breached starts.</p>
+      <h3>from other browsers</h3>
+      <div id="browsers"><p class="muted">Looking for other browsers…</p></div>
+      <h3>passwords</h3>
+      <p class="muted">Other browsers lock their saved passwords, so export them to a .csv file first:
+        in Chrome, Edge or Brave open Settings &gt; Passwords (Password Manager) &gt; Settings &gt; Export passwords;
+        in Firefox open about:logins, the ⋯ menu &gt; Export passwords. Delete the file once it's in.</p>
+      <div class="inline">
+        <button type="button" id="passwords-csv">Choose a passwords .csv…</button>
+        <span id="passwords-file" class="muted"></span>
+      </div>
+      <h3>when Breached starts</h3>
+      <div id="startup">
+        <label class="check"><input type="radio" name="startup" value="restore" /> Reopen my tabs from last time</label>
+        <label class="check"><input type="radio" name="startup" value="ask" /> Ask which tabs to reopen</label>
+        <label class="check"><input type="radio" name="startup" value="fresh" /> Start fresh with the home page</label>
+      </div>
+    </section>
+
     <section class="step" id="step-mods" data-title="mods" hidden="hidden">
       <h2>mods</h2>
       <p class="muted">Breached leaves the bigger features out to stay light. Tick the ones you want and Breached installs them when you finish. More are on the mods site (<kbd>:mods get</kbd>).</p>

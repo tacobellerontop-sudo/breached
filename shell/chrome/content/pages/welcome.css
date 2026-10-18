@@ -200,6 +200,25 @@ label.check {
   color: var(--muted);
 }
 
+h3 {
+  font-size: 14px;
+  font-weight: normal;
+  margin: 20px 0 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+#browsers .browser {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 6px;
+}
+
 #buttons {
   display: flex;
   gap: 8px;

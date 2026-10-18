@@ -161,6 +161,12 @@ const SECTIONS = [
         label: "Reopen my tabs when Breached starts",
         type: "bool",
       },
+      {
+        pref: "breached.restoreSession.ask",
+        label: "Ask which tabs to reopen",
+        hint: "Breached lists last time's tabs in the command bar: all, none or one. :restore asks again later.",
+        type: "bool",
+      },
     ],
   },
   {

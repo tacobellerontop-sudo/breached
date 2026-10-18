@@ -16,6 +16,7 @@ pref("breached.homepage", "breached:home");      // breached:home, about:blank o
 pref("breached.newTab", "home");                  // Ctrl+T opens "home" or the "commandbar"
 pref("breached.searchUrl", "https://duckduckgo.com/?q=%s");
 pref("breached.restoreSession", true);
+pref("breached.restoreSession.ask", false);       // ask which of last time's tabs to reopen
 pref("breached.titlebar", "custom");             // "custom" (Breached's own) or "native" (Windows')
 
 // Colours (#rrggbb): pastel silver and orange by default (Theme.sys.mjs). Presets are on the settings page.
