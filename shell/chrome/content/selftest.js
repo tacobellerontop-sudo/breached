@@ -1331,12 +1331,39 @@ var SelfTest = {
     check("files: a PDF shows in the built-in PDF viewer", !!shown);
     // Its toolbar icons are drawn in a colour from the page's style.
     let icon = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["background-color", "mask-image", "width", "height", "display", "content", "opacity", "visibility", "position", "mask-size"] });
-    try {
-      let r = await fetch("resource://pdf.js/web/images/toolbarButton-zoomOut.svg");
-      info.zoomSvg = `${r.status} ${(await r.text()).length}`;
-    } catch (e) {
-      info.zoomSvg = String(e);
-    }
+    // How many dark pixels the zoom-out button really draws.
+    let actor = this.testActor(tab.browser);
+    let ink = async (selector = "#zoomOutButton") => {
+      try {
+        let r = (await actor.sendQuery("SelfTest:Element", { selector })).rect;
+        let bmp = await tab.browser.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(r.x, r.y, r.width, r.height), 1, "white");
+        let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+        let ctx = canvas.getContext("2d");
+        ctx.drawImage(bmp, 0, 0);
+        let data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let n = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          n += data[i] < 160 ? 1 : 0;
+        }
+        return n;
+      } catch (e) {
+        return String(e);
+      }
+    };
+    await wait(1000);
+    info.probe = {
+      page: await actor.sendQuery("SelfTest:PdfProbe", { fetch: "resource://pdf.js/web/images/toolbarButton-zoomOut.svg" }),
+      textInk: await ink(".textLayer"),
+      buttonInk: await ink(),
+    };
+    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16'/></svg>") !important; }` });
+    info.probe.dataMaskInk = await ink();
+    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: none !important; background: url(resource://pdf.js/web/images/toolbarButton-zoomOut.svg) center / 16px no-repeat !important; }` });
+    info.probe.backgroundInk = await ink();
+    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: none !important; background: black !important; }` });
+    info.probe.plainInk = await ink();
     info.zoomButton = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", props: ["width", "height", "display", "visibility", "opacity", "color"] });
     info.zoomIcon = icon;
     check("files: the PDF viewer's buttons show their icons", !!icon && !/rgba\(0, 0, 0, 0\)|transparent/.test(icon["background-color"]) && /zoomOut/.test(icon["mask-image"]));
