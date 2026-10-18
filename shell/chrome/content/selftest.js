@@ -1356,6 +1356,17 @@ var SelfTest = {
     }, 5000);
     info.zoomInk = drawn;
     let style = await actor.sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["mask-image", "background-color", "mask-size", "mask-repeat", "mask-position", "mask-mode", "mask-clip", "mask-origin", "mask-composite", "mask-type"] });
+    let svgs = {
+      rect: "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16'/></svg>",
+      rectFill: "<svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='16' height='16' fill='black'/></svg>",
+      path: "<svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M2 2H14V14H2Z' fill='black'/></svg>",
+      curve: "<svg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'><path d='M2 2C8 0 14 2 14 8C14 14 8 16 2 14Z'/></svg>",
+    };
+    info.svgInk = {};
+    for (let [name, svg] of Object.entries(svgs)) {
+      await actor.sendQuery("SelfTest:AddSheet", { css: `#zoomOutButton::before { mask-image: url("data:image/svg+xml,${encodeURIComponent(svg)}") !important; mask-size: 16px !important; }` });
+      info.svgInk[name] = await ink();
+    }
     info.zoomStyle = Object.fromEntries(Object.entries(style ?? {}).map(([k, v]) => [k, v.slice(0, 120)]));
     check("files: the PDF viewer's toolbar icons are drawn", !!drawn);
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
