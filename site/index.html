@@ -12,225 +12,77 @@
   <link rel="icon" href="icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="bg" aria-hidden="true"></canvas>
-  <div class="grain" aria-hidden="true"></div>
-
-  <nav class="top">
-    <a class="brand" href="#top"><img src="icon.png" alt="" width="28" height="28"> breached</a>
-    <div class="links">
-      <a href="#features">features</a>
-      <a href="#keys">keys</a>
-      <a href="#colours">colours</a>
-      <a href="#mods">mods</a>
-      <a href="#faq">faq</a>
-      <a class="nav-dl" href="#download">download</a>
-    </div>
+  <nav>
+    <a class="brand" href="#top"><img src="icon.png" alt="" width="24" height="24"> breached</a>
+    <a href="#download">download</a>
   </nav>
 
-  <header class="hero" id="top">
-    <div class="hero-text">
-      <svg class="logo" viewBox="0 0 120 120" aria-hidden="true">
-        <defs><clipPath id="logo-clip"><rect x="6" y="6" width="108" height="108" rx="26"/></clipPath></defs>
-        <rect class="logo-bg" x="6" y="6" width="108" height="108" rx="26"/>
-        <g clip-path="url(#logo-clip)">
-          <text class="logo-b" x="60" y="87" text-anchor="middle">B</text>
-          <path class="logo-cut" d="M10 82 L112 52 L112 60 L10 92 Z"/>
-          <path class="logo-slash" d="M28 78 L98 57 L98 65 L28 87 Z"/>
-        </g>
-      </svg>
-      <p class="eyebrow"><span class="dot"></span> <span id="hero-version">Windows</span><span class="eyebrow-extra">&nbsp;· free and open source</span></p>
-      <h1 class="title" aria-label="breached">
-        <span class="glitch" data-text="breached">breached</span><span class="cursor">_</span>
-      </h1>
-      <p class="lede">The browser that <span class="swap" id="swap">gets out of your way</span>.</p>
-      <p class="sub">A small, keyboard-first browser on Firefox's engine. No telemetry, no sponsored anything, idle tabs go to sleep, and every big extra is a mod you only add if you want it.</p>
-      <div class="cta">
-        <a class="btn primary magnetic" id="dl-main" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">
-          <span class="btn-slash"></span>
-          <span class="btn-label">Download for Windows</span>
-          <span class="btn-meta" id="dl-meta">latest release</span>
-        </a>
-        <a class="btn ghost magnetic" href="https://tacobellerontop-sudo.github.io/breached-mods/">Browse mods</a>
-      </div>
-      <p class="hint">Psst: press <kbd>:</kbd> on this page.</p>
-    </div>
-
-    <div class="stage" id="stage">
-      <div class="window tilt" id="mock" data-preset="pastel">
-        <div class="win-title">
-          <span class="win-name" id="mock-title">Home – Breached</span>
-          <span class="win-btns"><i></i><i></i><i></i></span>
-        </div>
-        <div class="win-page" id="mock-page">
-          <div class="mock-home" id="mock-home">
-            <div class="mock-logo">breached<span>_</span></div>
-            <div class="mock-search"><b>:open</b> <span id="mock-search-text">search or type an address</span></div>
-            <div class="mock-keys"><span><kbd>:</kbd> commands</span><span><kbd>Ctrl+T</kbd> new tab</span><span><kbd>Ctrl+W</kbd> close tab</span></div>
-          </div>
-          <div class="mock-site" id="mock-site" hidden>
-            <div class="ms-head"></div>
-            <div class="ms-hero"></div>
-            <div class="ms-lines"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          </div>
-          <div class="mock-reader" id="mock-reader" hidden>
-            <h4>The quiet web</h4>
-            <p></p><p></p><p class="short"></p><p></p><p class="short"></p>
-          </div>
-        </div>
-        <div class="win-tabs" id="mock-tabs">
-          <span class="nav-btns">‹ ›</span>
-          <span class="tab sel" data-i="0">Home</span>
-        </div>
-        <div class="win-cmd" id="mock-cmd" hidden><span id="mock-cmd-text"></span><span class="caret"></span><em id="mock-cmd-help"></em></div>
-        <div class="keycap" id="keycap" hidden></div>
-      </div>
-      <div class="presets" id="presets" role="group" aria-label="Try Breached's colour sets">
-        <span class="presets-label">try a colour set</span>
-      </div>
+  <header id="top">
+    <h1><span class="slash" data-text="breached">breached</span><span class="cursor">_</span></h1>
+    <p class="lede">A light, keyboard-first browser for Windows.</p>
+    <p class="sub">Firefox's engine, a much smaller browser around it. No telemetry, idle tabs sleep, and the big extras are mods you add only if you want them.</p>
+    <div class="cta">
+      <a class="btn primary" id="dl-main" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">Download <span class="meta" id="dl-meta"></span></a>
+      <a class="btn" href="https://tacobellerontop-sudo.github.io/breached-mods/">Mods</a>
     </div>
   </header>
 
-  <div class="marquee" aria-hidden="true">
-    <div class="track" id="marquee"></div>
+  <div class="shot">
+    <div class="window">
+      <div class="page">
+        <div class="home" id="mock-home">
+          <div class="logo">breached<span>_</span></div>
+          <div class="search"><b>:open</b> <span id="mock-search">search or type an address</span></div>
+        </div>
+        <div class="site" id="mock-site" hidden><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="tabs" id="mock-tabs"><span class="tab sel">Home</span></div>
+      <div class="cmd" id="mock-cmd" hidden><span id="mock-cmd-text"></span><span class="caret"></span></div>
+    </div>
   </div>
 
-  <section class="stats reveal">
-    <div class="stat"><b data-count="0">0</b><span>telemetry pings</span></div>
-    <div class="stat"><b data-count="15">0</b><span>minutes before an idle tab sleeps</span></div>
-    <div class="stat"><b data-count="4">0</b><span>page processes, not dozens</span></div>
-    <div class="stat"><b data-count="9" id="mod-count">0</b><span>mods, all optional</span></div>
+  <section class="features">
+    <div><h3>Keyboard first</h3><p>Press <kbd>:</kbd> and type: <code>:open</code>, <code>:reader</code>, <code>:pin</code>, <code>:private</code>. The mouse still works.</p></div>
+    <div><h3>Tabs that sleep</h3><p>Tabs you haven't used for 15 minutes free their memory and reload when you come back.</p></div>
+    <div><h3>Nothing phoning home</h3><p>No telemetry, studies, sponsored tiles or account nagging.</p></div>
+    <div><h3>Real extensions</h3><p>Firefox extensions from addons.mozilla.org, including the full uBlock Origin.</p></div>
   </section>
 
-  <section id="features" class="features">
-    <h2 class="reveal">Light by <em>leaving things out</em>.</h2>
-    <p class="section-sub reveal">Breached is its own small interface on top of Mozilla's signed Firefox engine. Pages work like they do in Firefox. Everything around them is new and much smaller.</p>
-    <div class="grid">
-      <article class="card reveal">
-        <span class="ico">⌁</span>
-        <h3>Keyboard first</h3>
-        <p>Press <kbd>:</kbd> and type. <code>:open</code>, <code>:close</code>, <code>:reader</code>, <code>:pin</code>, <code>:private</code>. Tab completes, Up and Down recall history. A mouse still works too.</p>
-      </article>
-      <article class="card reveal">
-        <span class="ico">◐</span>
-        <h3>Tabs that sleep</h3>
-        <p>Tabs you haven't touched for 15 minutes let go of their memory and reload when you come back. Tabs playing sound or using your camera are left alone.</p>
-      </article>
-      <article class="card reveal">
-        <span class="ico">⛨</span>
-        <h3>Nothing phoning home</h3>
-        <p>No telemetry, no studies, no sponsored tiles, no Pocket, no account nagging. Site permissions are asked for right in the command bar.</p>
-      </article>
-      <article class="card reveal">
-        <span class="ico">⧉</span>
-        <h3>Real extensions</h3>
-        <p>Firefox extensions install from addons.mozilla.org, including the full uBlock Origin. Their buttons and menus show up in Breached's bars.</p>
-      </article>
-      <article class="card reveal">
-        <span class="ico">▶</span>
-        <h3>Streaming works</h3>
-        <p>Runs on Mozilla's own signed engine, so Netflix, Disney+ and Spotify play once you add the Protected video mod. Breached offers it the first time a site needs it.</p>
-      </article>
-      <article class="card reveal">
-        <span class="ico">⇣</span>
-        <h3>Updates itself</h3>
-        <p>Checks GitHub once a day and updates in place with <code>:update</code>. Your profile, settings and mods stay put. Prefer a zip? There's a portable copy too.</p>
-      </article>
-    </div>
+  <section class="mods">
+    <h2>Mods</h2>
+    <p>Breached leaves the heavy extras out. Add the ones you want, with one click from inside Breached.</p>
+    <ul id="mod-list"></ul>
+    <a href="https://tacobellerontop-sudo.github.io/breached-mods/">All mods →</a>
   </section>
 
-  <div class="band" aria-hidden="true"><div class="track band-track"></div></div>
-  <section id="keys" class="keys">
-    <div class="keys-text reveal">
-      <h2>Your hands stay <em>on the keys</em>.</h2>
-      <p class="section-sub">The tab bar is a thin strip, top, bottom or down the side, and can hide until you need it. The command bar appears only when you press <kbd>:</kbd>. Add the Vim keys mod for link hints with <kbd>f</kbd> and scrolling with <kbd>j</kbd> and <kbd>k</kbd>.</p>
-      <p class="section-sub">This page listens too. Press <kbd>:</kbd> and try <code>download</code>, <code>mods</code>, <code>colour nord</code> or <code>help</code>, or use <kbd>j</kbd> and <kbd>k</kbd> to scroll.</p>
-    </div>
-    <div class="keyboard reveal" id="keyboard" aria-hidden="true"></div>
-  </section>
-
-  <section id="colours" class="colours">
-    <h2 class="reveal">Make it <em>yours</em> in one turn of a dial.</h2>
-    <p class="section-sub reveal">The welcome page on first start lets you pick a colour set or spin a dial to build one around any colour, choose where the tab bar goes, and tick the mods you want. Every colour can be changed later in settings.</p>
-    <div class="dial-wrap reveal">
-      <div class="dial" id="dial" tabindex="0" role="slider" aria-label="Colour dial" aria-valuemin="0" aria-valuemax="360" aria-valuenow="25">
-        <div class="dial-knob" id="dial-knob"></div>
-        <div class="dial-center"><span>drag me</span></div>
-      </div>
-      <div class="swatchbar" id="swatchbar"></div>
-    </div>
-  </section>
-
-  <div class="band" aria-hidden="true"><div class="track band-track"></div></div>
-  <section id="mods" class="mods">
-    <h2 class="reveal">Want more? <em>Add a mod.</em></h2>
-    <p class="section-sub reveal">Breached ships without the heavy extras. Mods bring them back one at a time, made by the Breached project and installed with one click from inside Breached.</p>
-    <div class="mod-list" id="mod-list"></div>
-    <p class="reveal center"><a class="btn ghost magnetic" href="https://tacobellerontop-sudo.github.io/breached-mods/">All mods →</a></p>
-  </section>
-
-  <div class="band" aria-hidden="true"><div class="track band-track"></div></div>
-  <section id="faq" class="faq">
-    <h2 class="reveal">You may be <em>wondering…</em></h2>
-    <div class="qs">
-      <details class="reveal"><summary>Is Breached really free?</summary><p>Yes. No account, no subscription, no ads, nothing to sign in to. The code is on GitHub.</p></details>
-      <details class="reveal"><summary>Why does Windows warn me when I install it?</summary><p>Breached isn't code-signed yet, so SmartScreen doesn't know the publisher. Choose <b>More info</b>, then <b>Run anyway</b>. The installer and zip come straight from the project's GitHub releases.</p></details>
-      <details class="reveal"><summary>Is it Firefox?</summary><p>It runs on Mozilla's own signed Firefox engine, so pages work the way they do in Firefox. Everything around the page (tabs, command bar, settings, history, downloads) is Breached's own and much smaller. Firefox's telemetry, studies, Pocket and sponsored content aren't there.</p></details>
-      <details class="reveal"><summary>Does uBlock Origin work?</summary><p>Yes, the full version. Firefox extensions install from addons.mozilla.org, and their buttons and menus show up in Breached's bars. <code>:ext ublock</code> opens its popup.</p></details>
-      <details class="reveal"><summary>Do Netflix and Spotify play?</summary><p>Yes, with the Protected video mod. Breached offers it the first time a site needs it, and downloads Widevine from Mozilla when you say yes.</p></details>
-      <details class="reveal"><summary>Where are bookmarks and saved passwords?</summary><p>They're mods, so you only carry them if you use them: Bookmarks, Password manager, Bitwarden (with passkeys) and Firefox Sync. Tick them on the welcome page or add them later from the mods site.</p></details>
-      <details class="reveal"><summary>How do I update?</summary><p>Breached checks GitHub once a day. Open settings &gt; Updates or type <code>:update</code>, and it installs the new version and starts again. Your profile and mods are kept.</p></details>
-      <details class="reveal"><summary>Where can I report a bug?</summary><p>Open an issue on <a href="https://github.com/tacobellerontop-sudo/breached/issues">GitHub</a>.</p></details>
-    </div>
+  <section class="faq">
+    <h2>Questions</h2>
+    <details><summary>Is it free?</summary><p>Yes. No account, no subscription, no ads. The code is on GitHub.</p></details>
+    <details><summary>Why does Windows warn me when I install it?</summary><p>Breached isn't code-signed yet, so SmartScreen doesn't know the publisher. Choose <b>More info</b>, then <b>Run anyway</b>.</p></details>
+    <details><summary>Is it Firefox?</summary><p>It runs on Mozilla's own signed Firefox engine, so pages work as they do in Firefox. Everything around the page is Breached's own.</p></details>
+    <details><summary>Do Netflix and Spotify play?</summary><p>Yes, with the Protected video mod. Breached offers it the first time a site needs it.</p></details>
+    <details><summary>How do I update?</summary><p>Type <code>:update</code> or open settings &gt; Updates. Breached also checks once a day.</p></details>
   </section>
 
   <section id="download" class="download">
-    <div class="dl-card reveal">
-      <h2>Get <span class="glitch small" data-text="breached">breached</span><span class="cursor">_</span></h2>
-      <p class="section-sub">Windows 10 and 11, 64-bit. Installs for your account without admin rights.</p>
-      <div class="cta center">
-        <a class="btn primary magnetic" id="dl-installer" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">
-          <span class="btn-slash"></span>
-          <span class="btn-label">Installer</span>
-          <span class="btn-meta" id="dl-installer-meta">.exe</span>
-        </a>
-        <a class="btn ghost magnetic" id="dl-portable" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">
-          <span class="btn-label">Portable zip</span>
-          <span class="btn-meta" id="dl-portable-meta">no install</span>
-        </a>
-      </div>
-      <ol class="steps">
-        <li>Run <b>BreachedSetup</b>. Windows may say it doesn't know the publisher: choose <b>More info</b>, then <b>Run anyway</b>.</li>
-        <li>Pick your colours, tab bar and mods on the welcome page.</li>
-        <li>Press <kbd>:</kbd> and start browsing.</li>
-      </ol>
-      <p class="fine" id="release-notes-link"><a href="https://github.com/tacobellerontop-sudo/breached/releases">All releases and what's new</a></p>
+    <h2>Get breached<span class="cursor">_</span></h2>
+    <p>Windows 10 and 11, 64-bit. No admin rights needed.</p>
+    <div class="cta">
+      <a class="btn primary" id="dl-installer" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">Installer</a>
+      <a class="btn" id="dl-portable" href="https://github.com/tacobellerontop-sudo/breached/releases/latest">Portable zip</a>
     </div>
+    <p class="fine" id="release-notes"><a href="https://github.com/tacobellerontop-sudo/breached/releases">Releases and what's new</a></p>
   </section>
 
   <footer>
-    <div class="foot-brand">
-      <a class="brand" href="#top"><img src="icon.png" alt="" width="28" height="28"> breached</a>
-      <p>A light, keyboard-first browser for Windows.</p>
-    </div>
-    <div class="foot-col"><h4>Product</h4>
-      <a href="#download">Download</a>
-      <a href="https://github.com/tacobellerontop-sudo/breached/releases">Releases</a>
-      <a href="https://tacobellerontop-sudo.github.io/breached-mods/">Mods</a>
-    </div>
-    <div class="foot-col"><h4>Resources</h4>
-      <a href="#faq">FAQ</a>
-      <a href="https://github.com/tacobellerontop-sudo/breached">Source code</a>
-      <a href="https://github.com/tacobellerontop-sudo/breached-mods">Mods source</a>
-    </div>
-    <div class="foot-col"><h4>Community</h4>
-      <a href="https://github.com/tacobellerontop-sudo/breached/issues">Report a bug</a>
-      <a href="https://github.com/tacobellerontop-sudo/breached">Star on GitHub</a>
-    </div>
-    <p class="muted">Built on Firefox's engine by Mozilla. Not made by or affiliated with Mozilla.</p>
+    <a href="https://github.com/tacobellerontop-sudo/breached">Source</a>
+    <a href="https://github.com/tacobellerontop-sudo/breached/issues">Report a bug</a>
+    <span>Press <kbd>:</kbd> on this page</span>
+    <span class="muted">Built on Firefox's engine by Mozilla. Not affiliated with Mozilla.</span>
   </footer>
 
   <div class="cmdbar" id="cmdbar" hidden>
