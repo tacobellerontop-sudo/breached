@@ -14,6 +14,7 @@ const KNOWN_MODS = [
   { id: "bookmarks", name: "Bookmarks", description: "Ctrl+D saves the page, Ctrl+B lists your bookmarks." },
   { id: "drm", name: "Protected video (DRM)", description: "Plays Netflix, Disney+, Spotify and other protected video and music." },
   { id: "bitwarden", name: "Bitwarden", description: "Fill logins and use passkeys from your Bitwarden vault." },
+  { id: "speed", name: "Speed", description: "Trades memory for speed: tabs stay loaded and new tabs open sooner." },
   { id: "sync", name: "Firefox Sync", description: "Sync history, bookmarks and passwords with Firefox.", experimental: true },
 ];
 

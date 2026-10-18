@@ -10,6 +10,7 @@ const SITE_MODS = {
   bookmarks: { name: "Bookmarks", commands: ["bookmark", "bookmarks"] },
   drm: { name: "Protected video (DRM)", commands: ["drm"] },
   passwords: { name: "Password manager", commands: ["passwords", "pw"] },
+  speed: { name: "Speed", commands: ["speed"] },
   sync: { name: "Firefox Sync", commands: ["sync"] },
 };
 

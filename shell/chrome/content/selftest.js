@@ -1359,6 +1359,26 @@ var SelfTest = {
       return waitFor(() => ModHost.loaded.has(id), 10000);
     };
 
+    // Speed: turns Breached's trimmed helpers back on, and off again when removed.
+    {
+      let D = Services.prefs.getDefaultBranch("");
+      let before = [D.getBoolPref("dom.ipc.processPrelaunch.enabled"), B.pref("tabs.unloadAfterMinutes", 15)];
+      check("the Speed mod installs", await install("speed"));
+      check("speed: a spare process waits", Services.prefs.getBoolPref("dom.ipc.processPrelaunch.enabled") === true);
+      check("speed: tabs stay loaded", B.pref("tabs.unloadAfterMinutes", 15) === 0);
+      check("speed: 256 MB memory cache", Services.prefs.getIntPref("browser.cache.memory.capacity") == 262144);
+      Services.prefs.setBoolPref("breached.mods.speed.keepTabsLoaded", false);
+      check("speed: its setting lets tabs sleep again", B.pref("tabs.unloadAfterMinutes", 0) == before[1]);
+      Services.prefs.clearUserPref("breached.mods.speed.keepTabsLoaded");
+      B.run("speed");
+      check(":speed lists what it changed", !!(await picking("The Speed mod changed")));
+      press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+      await ModHost.Mods.uninstall("speed");
+      await waitFor(() => !ModHost.loaded.has("speed"), 10000);
+      info.speedAfter = [D.getBoolPref("dom.ipc.processPrelaunch.enabled"), B.pref("tabs.unloadAfterMinutes", 15)];
+      check("speed: removing it puts Breached's values back", info.speedAfter[0] === before[0] && info.speedAfter[1] === before[1]);
+    }
+
     // Password manager: asks to save a login, then fills it in next time.
     check("saved passwords are off without the Password manager mod", !Services.prefs.getBoolPref("signon.rememberSignons"));
     check("the Password manager mod installs", await install("passwords"));
