@@ -6,7 +6,7 @@
 // inside a page, in the page's own process, like a real mouse would.
 
 export class BreachedSelfTestChild extends JSWindowActorChild {
-  async receiveMessage(message) {
+  receiveMessage(message) {
     if (message.name == "SelfTest:Reader") {
       let content = this.document.querySelector(".moz-reader-content");
       return { url: this.document.documentURI, chars: content?.textContent.length ?? 0, title: this.document.title };
@@ -31,26 +31,6 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       }
       let style = this.contentWindow.getComputedStyle(el, message.data.pseudo ?? null);
       return Object.fromEntries(message.data.props.map(p => [p, style.getPropertyValue(p)]));
-    }
-    if (message.name == "SelfTest:PdfProbe") {
-      // Finding why the PDF viewer's mask icons don't draw.
-      let doc = this.document;
-      let win = this.contentWindow;
-      let out = { origin: doc.nodePrincipal.origin, uri: doc.documentURI };
-      if (message.data.css) {
-        // The viewer's CSP blocks <style>, so add the rules as a user sheet.
-        win.windowUtils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(message.data.css), win.windowUtils.AUTHOR_SHEET);
-        await new Promise(r => win.setTimeout(r, 500));
-      }
-      if (message.data.fetch) {
-        try {
-          let r = await win.fetch(message.data.fetch);
-          out.fetch = `${r.status} ${(await r.text()).slice(0, 600)}`;
-        } catch (e) {
-          out.fetch = String(e);
-        }
-      }
-      return out;
     }
     if (message.name == "SelfTest:Page") {
       let doc = this.document;

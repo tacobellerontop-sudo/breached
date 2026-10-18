@@ -1329,8 +1329,6 @@ var SelfTest = {
     }, 15000);
     info.pdfUrl = tab.browser?.currentURI?.spec;
     check("files: a PDF shows in the built-in PDF viewer", !!shown);
-    // Its toolbar icons are drawn in a colour from the page's style.
-    let icon = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["background-color", "mask-image", "width", "height", "display", "content", "opacity", "visibility", "position", "mask-size"] });
     // How many dark pixels the zoom-out button really draws.
     let actor = this.testActor(tab.browser);
     let ink = async (selector = "#zoomOutButton") => {
@@ -1352,22 +1350,12 @@ var SelfTest = {
         return String(e);
       }
     };
-    await wait(1000);
-    info.probe = {
-      page: await actor.sendQuery("SelfTest:PdfProbe", { fetch: "resource://pdf.js/web/images/toolbarButton-zoomOut.svg" }),
-      textInk: await ink(".textLayer"),
-      numPagesInk: await ink("#numPages"),
-      buttonInk: await ink(),
-    };
-    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16'/></svg>") !important; }` });
-    info.probe.dataMaskInk = await ink();
-    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: none !important; background: url(resource://pdf.js/web/images/toolbarButton-zoomOut.svg) center / 16px no-repeat !important; }` });
-    info.probe.backgroundInk = await ink();
-    await actor.sendQuery("SelfTest:PdfProbe", { css: `#zoomOutButton::before { mask-image: none !important; background: black !important; }` });
-    info.probe.plainInk = await ink();
-    info.zoomButton = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", props: ["width", "height", "display", "visibility", "opacity", "color"] });
-    info.zoomIcon = icon;
-    check("files: the PDF viewer's buttons show their icons", !!icon && !/rgba\(0, 0, 0, 0\)|transparent/.test(icon["background-color"]) && /zoomOut/.test(icon["mask-image"]));
+    let drawn = await waitFor(async () => {
+      let n = await ink();
+      return n > 20 ? n : null;
+    }, 5000);
+    info.zoomInk = drawn;
+    check("files: the PDF viewer's toolbar icons are drawn", !!drawn);
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
     info.pdfBanner = !!banner?.rect?.height;
     await wait(1000);

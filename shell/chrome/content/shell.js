@@ -86,6 +86,18 @@ function registerActors() {
       // Allowed in the processes that run web pages.
       safeForUntrustedWebProcess: true,
     },
+    // Draws the PDF viewer's toolbar icons (see PdfIconsChild).
+    BreachedPdfIcons: {
+      parent: { esModuleURI: "resource://breached/PdfIconsChild.sys.mjs" },
+      child: {
+        esModuleURI: "resource://breached/PdfIconsChild.sys.mjs",
+        events: { DOMContentLoaded: {} },
+      },
+      matches: ["file:///*", "*://*/*"],
+      allFrames: true,
+      messageManagerGroups: ["browsers"],
+      safeForUntrustedWebProcess: true,
+    },
     // Reader view: finding the article in a page (made on demand)...
     BreachedReader: {
       parent: { esModuleURI: "resource://breached/ReaderParent.sys.mjs" },
