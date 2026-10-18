@@ -16,9 +16,12 @@ export class PdfIconsChild extends JSWindowActorChild {
   async handleEvent() {
     let doc = this.document;
     let win = this.contentWindow;
+    let note = text => doc.documentElement?.setAttribute("data-breached-pdf-icons", (doc.documentElement.getAttribute("data-breached-pdf-icons") ?? "") + text + ";");
+    note("seen " + doc.nodePrincipal.origin);
     if (doc.nodePrincipal.origin != "resource://pdf.js") {
       return;
     }
+    note("links " + doc.querySelectorAll("link[rel=stylesheet]").length + " sheets " + [...doc.styleSheets].map(x => x.href).join(","));
     let icons = new Map();
     let icon = async url => {
       if (!icons.has(url)) {
@@ -33,6 +36,7 @@ export class PdfIconsChild extends JSWindowActorChild {
       try {
         let css = await (await win.fetch(link.href)).text();
         let urls = [...new Set([...css.matchAll(SVG_URL)].map(m => m[2]))];
+        note(`${link.href} ${css.length} ${urls.length}`);
         if (!urls.length) {
           continue;
         }
@@ -43,6 +47,7 @@ export class PdfIconsChild extends JSWindowActorChild {
         css = css.replace(SVG_URL, (_, quote, url) => `url("${inlined.get(url)}")`);
         win.windowUtils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(css), win.windowUtils.AUTHOR_SHEET);
       } catch (e) {
+        note(String(e));
         console.error("Breached: PDF viewer icons", e);
       }
     }
