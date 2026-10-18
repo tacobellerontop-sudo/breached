@@ -10,7 +10,7 @@
 
 const SVG_URL = /url\((["']?)([^)"']+\.svg)\1\)/g;
 
-export class PdfIconsChild extends JSWindowActorChild {
+export class BreachedPdfIconsChild extends JSWindowActorChild {
   async handleEvent() {
     let doc = this.document;
     let win = this.contentWindow;

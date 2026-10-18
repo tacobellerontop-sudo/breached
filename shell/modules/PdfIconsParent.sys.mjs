@@ -3,4 +3,4 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 // The PDF icons actor needs nothing from the parent; see PdfIconsChild.
-export class PdfIconsParent extends JSWindowActorParent {}
+export class BreachedPdfIconsParent extends JSWindowActorParent {}

@@ -93,8 +93,8 @@ function registerActors() {
         esModuleURI: "resource://breached/PdfIconsChild.sys.mjs",
         events: { DOMContentLoaded: {} },
       },
-      // No address patterns: the viewer keeps the PDF's address, which
-      // patterns didn't catch, so the actor checks the page's origin.
+      // The viewer keeps the PDF's address; the actor checks the origin.
+      matches: ["file:///*", "*://*/*"],
       allFrames: true,
       messageManagerGroups: ["browsers"],
       safeForUntrustedWebProcess: true,
