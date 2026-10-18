@@ -1356,6 +1356,7 @@ var SelfTest = {
     }, 5000);
     info.zoomInk = drawn;
     info.iconsNote = (await actor.sendQuery("SelfTest:Element", { selector: "html" }))?.attrs;
+    info.iconsActor = await actor.sendQuery("SelfTest:Actor", { name: "BreachedPdfIcons" });
     check("files: the PDF viewer's toolbar icons are drawn", !!drawn);
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
     info.pdfBanner = !!banner?.rect?.height;
