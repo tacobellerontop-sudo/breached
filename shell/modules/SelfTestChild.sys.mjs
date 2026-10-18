@@ -24,6 +24,14 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       }
       return { text: el.textContent.trim(), attrs, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, root };
     }
+    if (message.name == "SelfTest:Style") {
+      let el = this.document.querySelector(message.data.selector);
+      if (!el) {
+        return null;
+      }
+      let style = this.contentWindow.getComputedStyle(el, message.data.pseudo ?? null);
+      return Object.fromEntries(message.data.props.map(p => [p, style.getPropertyValue(p)]));
+    }
     if (message.name == "SelfTest:Page") {
       let doc = this.document;
       return {

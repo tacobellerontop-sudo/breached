@@ -1329,6 +1329,12 @@ var SelfTest = {
     }, 15000);
     info.pdfUrl = tab.browser?.currentURI?.spec;
     check("files: a PDF shows in the built-in PDF viewer", !!shown);
+    // Its toolbar icons are drawn in a colour from the page's style.
+    let icon = await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["background-color", "mask-image"] });
+    info.zoomIcon = icon;
+    check("files: the PDF viewer's buttons show their icons", !!icon && !/rgba\(0, 0, 0, 0\)|transparent/.test(icon["background-color"]) && /zoomOut/.test(icon["mask-image"]));
+    let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
+    info.pdfBanner = !!banner?.rect?.height;
     await wait(1000);
     await this.screenshot(outDir, "37-pdf.png");
     B.closeTab(tab);
