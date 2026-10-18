@@ -1419,6 +1419,9 @@ var SelfTest = {
     {
       check("the Translate pages mod installs", await install("translate"));
       check("translate: turns Firefox's translation on", Services.prefs.getBoolPref("browser.translations.enable"));
+      // Firefox keeps its translation offer to itself while a test drives it.
+      let { TranslationsParent } = ChromeUtils.importESModule("resource://gre/actors/TranslationsParent.sys.mjs");
+      TranslationsParent.testAutomaticPopup = true;
       let tab = await open("http://127.0.0.1:8123/french.html", /promenade/i);
       let text = async () => (await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#text" }))?.text ?? "";
       let offered = await waitFor(
@@ -1450,6 +1453,9 @@ var SelfTest = {
         (await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "body", props: ["background-color"] }))?.["background-color"];
       B.run("css body { background: rgb(1, 2, 3) !important }");
       check(":css <rules> styles the site at once", await waitFor(async () => (await background()) == "rgb(1, 2, 3)", 5000));
+      info.cssMessage = message();
+      info.cssBackground = await background();
+      info.cssRoot = (await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "html" }))?.attrs;
       tab.browser.reload();
       await wait(500);
       await waitFor(() => !tab.el.hasAttribute("busy"), 10000);
