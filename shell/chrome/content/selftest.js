@@ -415,6 +415,9 @@ var SelfTest = {
     await this.welcome(B, check, waitFor, wait, outDir, report);
     await this.importing(B, check, waitFor, wait, press, outDir, report);
 
+    // 16. Opening files: a PDF handed over by Windows while Breached runs
+    await this.openFiles(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -1281,6 +1284,57 @@ var SelfTest = {
   },
 
   // The other mods on the mods site: passwords, bookmarks, Firefox Sync.
+  async openFiles(B, check, waitFor, wait, outDir, report) {
+    let info = (report.info.openFiles = {});
+    // A one-page PDF saying "Hello Breached".
+    let text = "BT /F1 24 Tf 72 720 Td (Hello Breached) Tj ET";
+    let objects = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+      `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ];
+    let pdf = "%PDF-1.4\n";
+    let offsets = [];
+    objects.forEach((o, i) => {
+      offsets.push(pdf.length);
+      pdf += `${i + 1} 0 obj\n${o}\nendobj\n`;
+    });
+    let xref = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n` + offsets.map(o => String(o).padStart(10, "0") + " 00000 n \n").join("");
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+    let dir = PathUtils.join(PathUtils.tempDir, "breached open test");
+    await IOUtils.makeDirectory(dir, { ignoreExisting: true });
+    let path = PathUtils.join(dir, "hello world.pdf");
+    await IOUtils.writeUTF8(path, pdf);
+
+    let cmdLine = Cu.createCommandLine(["-app", "C:\\x\\application.ini", "-osint", path], null, Ci.nsICommandLine.STATE_REMOTE_AUTO);
+    let urls = urlsFromCommandLine(cmdLine);
+    info.urls = urls;
+    check("files: a path on the command line becomes a file address", urls.length == 1 && urls[0].startsWith("file:///") && urls[0].endsWith("hello%20world.pdf"));
+
+    let before = B.tabs.length;
+    let handler = Cc["@breached/command-line-handler;1"].getService(Ci.nsICommandLineHandler);
+    handler.handle(Cu.createCommandLine([path], null, Ci.nsICommandLine.STATE_REMOTE_AUTO));
+    check("files: opening a file while Breached runs opens it in a new tab", B.tabs.length == before + 1);
+    let tab = B.selected;
+    let shown = await waitFor(async () => {
+      try {
+        let el = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#viewerContainer" });
+        return el?.rect ? el : null;
+      } catch (e) {
+        return null;
+      }
+    }, 15000);
+    info.pdfUrl = tab.browser?.currentURI?.spec;
+    check("files: a PDF shows in the built-in PDF viewer", !!shown);
+    await wait(1000);
+    await this.screenshot(outDir, "37-pdf.png");
+    B.closeTab(tab);
+    await IOUtils.remove(dir, { recursive: true, ignoreAbsent: true });
+  },
+
   async importing(B, check, waitFor, wait, press, outDir, report) {
     let info = (report.info.importing = {});
     let Import = ChromeUtils.importESModule("resource://breached/Import.sys.mjs");

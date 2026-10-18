@@ -26,7 +26,7 @@ const SESSION_FILE = "breached-session.json";
 const SESSION_LAST = "breached-session-last.json"; // what the last start found, for :restore
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.10";
+const BREACHED_VERSION = "0.1.11";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -136,6 +136,13 @@ function registerActors() {
       // Allowed in the processes that run web pages.
       safeForUntrustedWebProcess: true,
     },
+    // Firefox's PDF viewer (pdf.js), as Firefox registers it.
+    PdfJs: {
+      parent: { esModuleURI: "resource://pdf.js/PdfJsParent.sys.mjs" },
+      child: { esModuleURI: "resource://pdf.js/PdfJsChild.sys.mjs" },
+      allFrames: true,
+      safeForUntrustedWebProcess: true,
+    },
   };
   for (let [name, options] of Object.entries(actors)) {
     try {
@@ -146,6 +153,96 @@ function registerActors() {
         console.error(`Breached: registering ${name}`, e);
       }
     }
+  }
+}
+
+// Flags whose next argument isn't something to open.
+const FLAGS_WITH_VALUE = new Set(["app", "profile", "p", "remote-debugging-port", "marionette-port"]);
+
+/**
+ * The addresses and files to open from a command line: web addresses, and
+ * files given by their path (from Windows' "Open with", or a file
+ * dropped on breached.exe), as file:/// addresses.
+ */
+function urlsFromCommandLine(cmdLine) {
+  let urls = [];
+  for (let i = 0; i < cmdLine.length; i++) {
+    let arg = cmdLine.getArgument(i);
+    if (/^--?[\w-]+$/.test(arg)) {
+      let flag = arg.replace(/^--?/, "").toLowerCase();
+      if (FLAGS_WITH_VALUE.has(flag)) {
+        i++;
+      }
+      continue;
+    }
+    if (/^(https?|ftp|file|about|data|view-source|breached):/i.test(arg)) {
+      urls.push(arg);
+      continue;
+    }
+    if (/\.ini$/i.test(arg)) {
+      continue;
+    }
+    try {
+      let file = cmdLine.resolveFile(arg);
+      if (file.exists()) {
+        urls.push(Services.io.newFileURI(file).spec);
+      }
+    } catch (e) {
+      // not a file either
+    }
+  }
+  return urls;
+}
+
+/**
+ * Opening a file or address while Breached is already running: Windows
+ * starts breached.exe again, Gecko hands the command line to the running
+ * Breached, and this opens it in a tab there. (Gecko's own handler would
+ * only bring the window forward.) Registered once per app run.
+ */
+function registerCommandLineHandler() {
+  const CONTRACT = "@breached/command-line-handler;1";
+  const CID = Components.ID("{9f6b8f0e-4c2a-4d8e-9a57-3b1f2e7c5d41}");
+  let handler = {
+    QueryInterface: ChromeUtils.generateQI(["nsICommandLineHandler", "nsIFactory"]),
+    createInstance(iid) {
+      return this.QueryInterface(iid);
+    },
+    handle(cmdLine) {
+      if (cmdLine.state != Ci.nsICommandLine.STATE_REMOTE_AUTO && cmdLine.state != Ci.nsICommandLine.STATE_REMOTE_EXPLICIT) {
+        return; // the first start reads its own command line (commandLineURLs)
+      }
+      let win = Services.wm.getMostRecentWindow("breached:main");
+      let urls = urlsFromCommandLine(cmdLine);
+      if (!win?.Breached || !urls.length) {
+        return;
+      }
+      cmdLine.preventDefault = true;
+      let tab;
+      for (let url of urls) {
+        tab = win.Breached.openTab(url);
+      }
+      win.Breached.selectTab(tab);
+      win.focus();
+    },
+    helpInfo: "",
+  };
+  let registrar = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
+  if (registrar.isCIDRegistered(CID)) {
+    return;
+  }
+  registrar.registerFactory(CID, "Breached command line handler", CONTRACT, handler);
+  // "m-" runs before Gecko's own "x-default" handler.
+  Services.catMan.addCategoryEntry("command-line-handler", "m-breached", CONTRACT, false, true);
+}
+
+/** Lets Firefox's PDF viewer show PDFs (Firefox's front end does this at start). */
+function initPdfViewer(newProfile) {
+  try {
+    let { PdfJs } = ChromeUtils.importESModule("resource://pdf.js/PdfJs.sys.mjs");
+    PdfJs.init(newProfile);
+  } catch (e) {
+    console.error("Breached: starting the PDF viewer", e);
   }
 }
 
@@ -293,6 +390,8 @@ var Breached = {
       document.documentElement.setAttribute("private", "true");
     }
     registerActors();
+    registerCommandLineHandler();
+    initPdfViewer(!Services.prefs.prefHasUserValue("pdfjs.migrationVersion"));
     Permissions.init();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
@@ -444,16 +543,7 @@ var Breached = {
     } catch (e) {
       return urls;
     }
-    if (!cmdLine) {
-      return urls;
-    }
-    for (let i = 0; i < cmdLine.length; i++) {
-      let arg = cmdLine.getArgument(i);
-      if (!arg.startsWith("-") && (arg.includes("://") || arg.startsWith("about:"))) {
-        urls.push(arg);
-      }
-    }
-    return urls;
+    return cmdLine ? urlsFromCommandLine(cmdLine) : urls;
   },
 
   uninit() {
@@ -2361,6 +2451,15 @@ var Commands = {
             (r.errors.length ? `. Problems: ${r.errors.join("; ")}` : "")
         );
       })().catch(fail);
+    },
+  },
+  "default-apps": {
+    usage: "default-apps  (Windows' settings, to make Breached open web pages, PDFs and other files)",
+    run() {
+      let uri = Services.io.newURI("ms-settings:defaultapps?registeredAppUser=Breached");
+      Cc["@mozilla.org/uriloader/external-protocol-service;1"]
+        .getService(Ci.nsIExternalProtocolService)
+        .loadURI(uri, Services.scriptSecurityManager.getSystemPrincipal());
     },
   },
   restore: {

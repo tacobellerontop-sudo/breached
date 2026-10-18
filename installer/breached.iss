@@ -42,6 +42,8 @@ WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
 CloseApplications=yes
+; Tell Windows the file types changed (Open with, Default apps).
+ChangesAssociations=yes
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
@@ -59,6 +61,70 @@ Type: filesandordirs; Name: "{app}\*"; Check: IsBreachedFolder
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+[Registry]
+; Breached as an app Windows knows: listed under "Open with" and in Settings >
+; Apps > Default apps for web pages, PDFs and pictures, and for http(s) links.
+; Everything is under the user's own (or, for all users, the machine's)
+; Software key, and goes when Breached is uninstalled.
+Root: HKA; Subkey: "Software\Classes\BreachedHTML"; ValueType: string; ValueName: ""; ValueData: "Breached HTML Document"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\BreachedHTML\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Classes\BreachedHTML\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\BreachedPDF"; ValueType: string; ValueName: ""; ValueData: "Breached PDF Document"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\BreachedPDF\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Classes\BreachedPDF\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\BreachedFile"; ValueType: string; ValueName: ""; ValueData: "Breached Document"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\BreachedFile\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Classes\BreachedFile\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\BreachedURL"; ValueType: string; ValueName: ""; ValueData: "Breached URL"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\BreachedURL"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\BreachedURL\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Classes\BreachedURL\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached"; ValueType: string; ValueName: ""; ValueData: "Breached"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"""
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "Breached"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities"; ValueType: string; ValueName: "ApplicationIcon"; ValueData: "{app}\breached.exe,0"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "A light, keyboard-driven web browser"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\StartMenu"; ValueType: string; ValueName: "StartMenuInternet"; ValueData: "Breached"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\URLAssociations"; ValueType: string; ValueName: "http"; ValueData: "BreachedURL"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\URLAssociations"; ValueType: string; ValueName: "https"; ValueData: "BreachedURL"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".htm"; ValueData: "BreachedHTML"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".html"; ValueData: "BreachedHTML"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".shtml"; ValueData: "BreachedHTML"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xht"; ValueData: "BreachedHTML"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".xhtml"; ValueData: "BreachedHTML"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".pdf"; ValueData: "BreachedPDF"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".svg"; ValueData: "BreachedFile"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".webp"; ValueData: "BreachedFile"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".avif"; ValueData: "BreachedFile"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".txt"; ValueData: "BreachedFile"
+Root: HKA; Subkey: "Software\Clients\StartMenuInternet\Breached\Capabilities\FileAssociations"; ValueType: string; ValueName: ".json"; ValueData: "BreachedFile"
+Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Breached"; ValueData: "Software\Clients\StartMenuInternet\Breached\Capabilities"; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.htm\OpenWithProgids"; ValueType: string; ValueName: "BreachedHTML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.html\OpenWithProgids"; ValueType: string; ValueName: "BreachedHTML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.shtml\OpenWithProgids"; ValueType: string; ValueName: "BreachedHTML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.xht\OpenWithProgids"; ValueType: string; ValueName: "BreachedHTML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.xhtml\OpenWithProgids"; ValueType: string; ValueName: "BreachedHTML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.pdf\OpenWithProgids"; ValueType: string; ValueName: "BreachedPDF"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.svg\OpenWithProgids"; ValueType: string; ValueName: "BreachedFile"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.webp\OpenWithProgids"; ValueType: string; ValueName: "BreachedFile"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.avif\OpenWithProgids"; ValueType: string; ValueName: "BreachedFile"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.txt\OpenWithProgids"; ValueType: string; ValueName: "BreachedFile"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\.json\OpenWithProgids"; ValueType: string; ValueName: "BreachedFile"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Breached"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\breached.exe"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".htm"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".html"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".shtml"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".xht"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".xhtml"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".pdf"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".svg"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".webp"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".avif"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".txt"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\breached.exe\SupportedTypes"; ValueType: string; ValueName: ".json"; ValueData: ""
 
 [Icons]
 Name: "{autoprograms}\Breached"; Filename: "{app}\breached.exe"

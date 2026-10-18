@@ -141,12 +141,19 @@ jobs:
             if (-not (Test-Path "$dir\$f")) { throw "installed app has no $f" }
           }
           if (Test-Path "$dir\Breached.bat") { throw 'portable start script was installed' }
+          # Registered with Windows: Open with, Default apps.
+          $open = (Get-ItemProperty 'HKCU:\Software\Classes\BreachedPDF\shell\open\command').'(default)'
+          if ($open -notlike "*breached.exe*%1*") { throw "PDFs don't open with breached.exe ($open)" }
+          if (-not (Get-ItemProperty 'HKCU:\Software\RegisteredApplications').Breached) { throw 'Breached is not in Default apps' }
+          if ((Get-Item 'HKCU:\Software\Classes\.pdf\OpenWithProgids').Property -notcontains 'BreachedPDF') { throw 'Breached is not under Open with for .pdf' }
+          "Registered for PDFs and web pages: $open"
           $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Breached.lnk'
           if (-not $lnk) { throw 'no Start menu shortcut' }
           "Installed to $dir, shortcut $($lnk[0].FullName)"
           $u = Start-Process "$dir\unins000.exe" -PassThru -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           Start-Sleep 10
           if (Test-Path "$dir\breached.exe") { throw 'uninstall left breached.exe behind' }
+          if (Test-Path 'HKCU:\Software\Classes\BreachedPDF') { throw 'uninstall left the file types registered' }
           "Uninstalled (exit $($u.ExitCode))"
 
       - uses: actions/upload-artifact@v4
