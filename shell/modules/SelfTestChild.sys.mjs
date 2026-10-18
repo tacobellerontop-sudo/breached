@@ -24,6 +24,16 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       }
       return { text: el.textContent.trim(), attrs, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, root };
     }
+    if (message.name == "SelfTest:Page") {
+      let doc = this.document;
+      return {
+        url: doc.documentURI,
+        scrollY: this.contentWindow.scrollY,
+        hints: Number(doc.querySelector("[data-breached-hints]")?.getAttribute("data-breached-hints") ?? 0),
+        dark: doc.documentElement.hasAttribute("data-breached-dark"),
+        active: doc.activeElement?.id ?? "",
+      };
+    }
     if (message.name == "SelfTest:Login") {
       // Types a login into the page's form and sends it, like a person would.
       let { username, password } = message.data;

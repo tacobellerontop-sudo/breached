@@ -1379,6 +1379,88 @@ var SelfTest = {
       check("speed: removing it puts Breached's values back", info.speedAfter[0] === before[0] && info.speedAfter[1] === before[1]);
     }
 
+    // Vim keys and link hints, dark pages, screenshots
+    {
+      let page = "http://127.0.0.1:8123/keys.html";
+      check("the Vim keys mod installs", await install("keys"));
+      let tab = B.openTab(page);
+      B.selectTab(tab);
+      await waitFor(() => tab.title == "keys" && !tab.el.hasAttribute("busy"), 10000);
+      await wait(500);
+      tab.browser.focus();
+      let state = () => this.testActor(tab.browser).sendQuery("SelfTest:Page");
+      let key = k => press(k, k.length == 1 ? "Key" + k.toUpperCase() : k, KeyboardEvent["DOM_VK_" + k.toUpperCase()], k != k.toLowerCase() ? ["Shift"] : []);
+      key("j");
+      key("j");
+      check("keys: j scrolls down", await waitFor(async () => (await state()).scrollY > 50, 3000));
+      key("G");
+      check("keys: G goes to the bottom", await waitFor(async () => (await state()).scrollY > 3000, 3000));
+      key("g");
+      key("g");
+      check("keys: gg goes back to the top", await waitFor(async () => (await state()).scrollY == 0, 3000));
+      key("f");
+      let hinted = await waitFor(async () => (await state()).hints, 3000);
+      info.hints = hinted;
+      check("keys: f puts letters on the links", hinted >= 3);
+      await this.screenshot(outDir, "33-link-hints.png");
+      // The first link gets the first label: "a" (or "aa" with many links).
+      key("a");
+      if (hinted > 9) {
+        key("a");
+      }
+      check("keys: typing a hint follows its link", await waitFor(async () => (await state()).url.endsWith("?followed"), 5000));
+      key("H");
+      check("keys: H goes back", await waitFor(async () => (await state()).url == page, 5000));
+      await waitFor(() => !tab.el.hasAttribute("busy"), 5000);
+      await wait(300);
+      await this.clickElement("#box", tab.browser);
+      info.keysActive = (await state()).active;
+      if (info.keysActive == "box") {
+        let before = (await state()).scrollY;
+        key("j");
+        await wait(300);
+        check("keys: typing in a text box isn't taken as keys", (await state()).scrollY == before);
+      }
+
+      check("the Dark pages mod installs", await install("dark"));
+      B.selectTab(tab);
+      tab.browser.reload();
+      check("dark: a light page is darkened", await waitFor(async () => (await state()).dark, 8000));
+      await wait(300);
+      await this.screenshot(outDir, "34-dark-page.png");
+      B.run("dark");
+      check(":dark stops darkening the site", await waitFor(async () => !tab.el.hasAttribute("busy") && !(await state()).dark, 8000));
+      Services.prefs.clearUserPref("breached.mods.dark.offSites");
+
+      check("the Screenshots mod installs", await install("screenshot"));
+      let shot = ModHost.hooks.get("screenshot");
+      for (let [what, full] of [["visible", false], ["whole page", true]]) {
+        let path = null;
+        try {
+          path = await shot.take({ full });
+        } catch (e) {
+          info["screenshot" + what] = String(e);
+        }
+        let bytes = path ? await IOUtils.read(path) : new Uint8Array();
+        let png = bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47;
+        // PNG height is bytes 20-23
+        let height = png ? new DataView(bytes.buffer).getUint32(20) : 0;
+        info["screenshot " + what] = { bytes: bytes.length, height };
+        check(`screenshot: saves the ${what} as a PNG`, png && bytes.length > 1000);
+        if (full) {
+          check("screenshot: the whole page is taller than the window", height > 4000);
+        }
+        if (path) {
+          await IOUtils.remove(path);
+        }
+      }
+      B.closeTab(tab);
+      for (let id of ["keys", "dark", "screenshot"]) {
+        await ModHost.Mods.uninstall(id);
+      }
+      check("dark: removing it puts the page colour scheme back", await waitFor(() => Services.prefs.getIntPref("layout.css.prefers-color-scheme.content-override") != 0, 5000));
+    }
+
     // Password manager: asks to save a login, then fills it in next time.
     check("saved passwords are off without the Password manager mod", !Services.prefs.getBoolPref("signon.rememberSignons"));
     check("the Password manager mod installs", await install("passwords"));

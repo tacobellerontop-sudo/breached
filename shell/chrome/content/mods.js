@@ -11,6 +11,9 @@ const SITE_MODS = {
   drm: { name: "Protected video (DRM)", commands: ["drm"] },
   passwords: { name: "Password manager", commands: ["passwords", "pw"] },
   speed: { name: "Speed", commands: ["speed"] },
+  keys: { name: "Vim keys and link hints", commands: ["hint"] },
+  dark: { name: "Dark pages", commands: ["dark"] },
+  screenshot: { name: "Screenshots", commands: ["screenshot"] },
   sync: { name: "Firefox Sync", commands: ["sync"] },
 };
 
