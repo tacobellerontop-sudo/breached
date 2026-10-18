@@ -32,11 +32,6 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
       let style = this.contentWindow.getComputedStyle(el, message.data.pseudo ?? null);
       return Object.fromEntries(message.data.props.map(p => [p, style.getPropertyValue(p)]));
     }
-    if (message.name == "SelfTest:AddSheet") {
-      let win = this.contentWindow;
-      win.windowUtils.loadSheetUsingURIString("data:text/css," + encodeURIComponent(message.data.css), win.windowUtils.AUTHOR_SHEET);
-      return new Promise(r => win.setTimeout(r, 500));
-    }
     if (message.name == "SelfTest:Page") {
       let doc = this.document;
       return {

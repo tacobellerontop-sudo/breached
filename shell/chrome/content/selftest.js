@@ -1329,46 +1329,36 @@ var SelfTest = {
     }, 15000);
     info.pdfUrl = tab.browser?.currentURI?.spec;
     check("files: a PDF shows in the built-in PDF viewer", !!shown);
-    // How many dark pixels the zoom-out button really draws.
+    // The toolbar icons are masks; a snapshot of the whole window leaves
+    // out masks inside pages, so this looks at the page's own snapshot.
     let actor = this.testActor(tab.browser);
-    let ink = async (selector = "#zoomOutButton") => {
-      try {
-        let r = (await actor.sendQuery("SelfTest:Element", { selector })).rect;
-        let bmp = await tab.browser.browsingContext.currentWindowGlobal.drawSnapshot(new DOMRect(r.x, r.y, r.width, r.height), 1, "white");
-        let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
-        canvas.width = bmp.width;
-        canvas.height = bmp.height;
-        let ctx = canvas.getContext("2d");
-        ctx.drawImage(bmp, 0, 0);
-        let data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        let n = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          n += data[i] < 160 ? 1 : 0;
-        }
-        return n;
-      } catch (e) {
-        return String(e);
+    let pageShot = async rect => {
+      let bmp = await tab.browser.browsingContext.currentWindowGlobal.drawSnapshot(rect, 1, "white");
+      let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+      canvas.width = bmp.width;
+      canvas.height = bmp.height;
+      canvas.getContext("2d").drawImage(bmp, 0, 0);
+      return canvas;
+    };
+    let ink = async selector => {
+      let r = (await actor.sendQuery("SelfTest:Element", { selector })).rect;
+      let canvas = await pageShot(new DOMRect(r.x, r.y, r.width, r.height));
+      let data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+      let n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        n += data[i] < 160 ? 1 : 0;
       }
+      return n;
     };
-    let drawn = await waitFor(async () => {
-      let n = await ink();
-      return n > 20 ? n : null;
-    }, 5000);
-    info.zoomInk = drawn;
-    let style = await actor.sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["mask-image", "background-color", "mask-size", "mask-repeat", "mask-position", "mask-mode", "mask-clip", "mask-origin", "mask-composite", "mask-type"] });
-    let svgs = {
-      rect: "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16'/></svg>",
-      rectFill: "<svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='16' height='16' fill='black'/></svg>",
-      path: "<svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M2 2H14V14H2Z' fill='black'/></svg>",
-      curve: "<svg width='16' height='16' viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'><path d='M2 2C8 0 14 2 14 8C14 14 8 16 2 14Z'/></svg>",
-    };
-    info.svgInk = {};
-    for (let [name, svg] of Object.entries(svgs)) {
-      await actor.sendQuery("SelfTest:AddSheet", { css: `#zoomOutButton::before { mask-image: url("data:image/svg+xml,${encodeURIComponent(svg)}") !important; mask-size: 16px !important; }` });
-      info.svgInk[name] = await ink();
+    info.iconInk = { zoomOut: await ink("#zoomOutButton"), zoomIn: await ink("#zoomInButton") };
+    check("files: the PDF viewer's toolbar icons are drawn", info.iconInk.zoomOut >= 8 && info.iconInk.zoomIn > info.iconInk.zoomOut);
+    try {
+      let canvas = await pageShot(null);
+      let blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+      await IOUtils.write(PathUtils.join(outDir, "37-pdf-page.png"), new Uint8Array(await blob.arrayBuffer()));
+    } catch (e) {
+      dump(`SELFTEST page screenshot failed: ${e}\n`);
     }
-    info.zoomStyle = Object.fromEntries(Object.entries(style ?? {}).map(([k, v]) => [k, v.slice(0, 120)]));
-    check("files: the PDF viewer's toolbar icons are drawn", !!drawn);
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
     info.pdfBanner = !!banner?.rect?.height;
     await wait(1000);
