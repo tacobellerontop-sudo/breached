@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code signing policy · Breached</title>
+  <meta name="description" content="How Breached's Windows downloads are code-signed, who builds and approves them, and what Breached sends over the network.">
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" href="icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24"> breached</a>
+    <a href="./#download">download</a>
+  </nav>
+
+  <main class="doc">
+    <h1>Code signing policy</h1>
+
+    <p>Free code signing provided by <a href="https://signpath.io">SignPath.io</a>, certificate by <a href="https://signpath.org">SignPath Foundation</a>.</p>
+
+    <h2>What is signed</h2>
+    <p>Breached's own Windows files: the installer <code>BreachedSetup-&lt;version&gt;.exe</code> and the <code>breached.exe</code> launcher inside it and inside the portable zip. They are built from the source in the <a href="https://github.com/tacobellerontop-sudo/breached">breached repository</a> by its <a href="https://github.com/tacobellerontop-sudo/breached/blob/HEAD/.github/workflows/release.yml">GitHub Actions release workflow</a>, and only those build outputs are sent for signing. The Firefox engine files Breached runs on are Mozilla's own and keep Mozilla's signature.</p>
+    <p>Every release is signed only after a person approves the signing request.</p>
+
+    <h2>Team roles</h2>
+    <ul>
+      <li><b>Committers and reviewers:</b> <a href="https://github.com/tacobellerontop-sudo">tacobellerontop-sudo</a></li>
+      <li><b>Approvers:</b> <a href="https://github.com/tacobellerontop-sudo">tacobellerontop-sudo</a></li>
+    </ul>
+    <p>Changes from anyone outside the team are reviewed before they are merged.</p>
+
+    <h2>Privacy</h2>
+    <p>Breached does not send any information to the Breached project. What it does send, to whom, and how to turn it off is in the <a href="privacy.html">privacy policy</a>.</p>
+  </main>
+
+  <footer>
+    <a href="./">Home</a>
+    <a href="https://github.com/tacobellerontop-sudo/breached">Source</a>
+    <a href="privacy.html">Privacy</a>
+  </footer>
+</body>
+</html>

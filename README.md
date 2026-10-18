@@ -54,3 +54,11 @@ Press `:` for the command line (`:open`, `:tabopen`, `:tab-close`, `:tab-focus 2
 | `scripts/check-config.py` | Checks every pref and policy still exists in the current Firefox |
 | `app/` | The Breached app: interface, actors, branding settings, build config |
 | `scripts/build/` | Turns Firefox source into Breached, and the smoke test |
+
+## Code signing and privacy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org). See the [code signing policy](https://tacobellerontop-sudo.github.io/breached/code-signing.html) and the [privacy policy](https://tacobellerontop-sudo.github.io/breached/privacy.html): Breached collects no data.
+
+## Licence
+
+Mozilla Public License 2.0, see [LICENSE](LICENSE). Firefox's engine, which Breached runs on, is Mozilla's and under the same licence.

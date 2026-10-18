@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy · Breached</title>
+  <meta name="description" content="Breached collects no data. This page lists every connection the browser makes on its own and how to turn each off.">
+  <meta name="theme-color" content="#0a0a0b">
+  <link rel="icon" href="icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a class="brand" href="./"><img src="icon.png" alt="" width="24" height="24"> breached</a>
+    <a href="./#download">download</a>
+  </nav>
+
+  <main class="doc">
+    <h1>Privacy policy</h1>
+    <p class="fine">Last updated 18 October 2026.</p>
+
+    <p>Breached collects no data. It has no telemetry, no crash reports, no accounts and no servers of its own, and nothing you do in it is sent to the Breached project. Your history, bookmarks, passwords and settings stay in your profile folder on your computer.</p>
+
+    <h2>Connections Breached makes on its own</h2>
+    <p>Besides the sites you visit, Breached talks to these services. Each one sees your IP address and the request, as any website would.</p>
+    <ul>
+      <li><b>Update check, GitHub.</b> Once a day Breached asks <code>api.github.com</code> for the newest Breached release, and downloads it from GitHub if you choose to update. Turn the daily check off in settings &gt; Updates.</li>
+      <li><b>Security lists, Mozilla.</b> Firefox's engine fetches revoked certificates and blocked extensions from Mozilla, and checks certificates with the site's certificate authority, so that dangerous sites and add-ons are stopped. These can be changed in <code>about:config</code>, but we recommend leaving them on.</li>
+      <li><b>Extension updates, Mozilla.</b> Extensions you install from addons.mozilla.org check there for updates. Remove an extension, or set <code>extensions.update.enabled</code> to false in <code>about:config</code>, to stop this.</li>
+    </ul>
+
+    <h2>Things that only happen when you ask</h2>
+    <ul>
+      <li><b>Search.</b> What you search for goes to the search engine you picked. Search suggestions are off unless you turn them on.</li>
+      <li><b>Mods.</b> Opening the mods site or installing a mod loads it from GitHub Pages.</li>
+      <li><b>Protected video.</b> If you add this mod, Breached downloads Google's Widevine module, and streaming sites use it as they would in Firefox.</li>
+      <li><b>Firefox Sync.</b> If you add this mod and sign in, your data syncs through your Mozilla account under Mozilla's privacy policy.</li>
+      <li><b>Passwords with Bitwarden.</b> The Bitwarden mod talks to your Bitwarden vault through Bitwarden's own <code>bw</code> program.</li>
+    </ul>
+
+    <h2>This website</h2>
+    <p>This site is hosted on GitHub Pages and loads its fonts from Google Fonts, so both see your visit. The download buttons ask GitHub for the newest release. The site sets no cookies and runs no analytics.</p>
+
+    <h2>Questions</h2>
+    <p>Open an issue on <a href="https://github.com/tacobellerontop-sudo/breached/issues">GitHub</a>.</p>
+  </main>
+
+  <footer>
+    <a href="./">Home</a>
+    <a href="https://github.com/tacobellerontop-sudo/breached">Source</a>
+    <a href="code-signing.html">Code signing policy</a>
+  </footer>
+</body>
+</html>

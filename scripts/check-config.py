@@ -28,6 +28,7 @@ PREF_SOURCES = [
 # Prefs that are real but defined outside the files above.
 KNOWN_ELSEWHERE = {
     "browser.contentblocking.category",  # set by the content blocking settings code
+    "services.settings.worker_idle_max_milliseconds",  # read in services/settings/RemoteSettingsWorker.sys.mjs
 }
 
 
