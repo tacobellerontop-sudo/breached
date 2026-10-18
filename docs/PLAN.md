@@ -17,7 +17,7 @@ The goals map to the plan like this:
 | 5. Fewer helpers and background tasks | Compile out the default-browser agent, background update tasks and maintenance service; disable translation, ML, prefetch/speculative connections and other background features by default. |
 | 6. Custom, minimal UI | Breached's own qutebrowser-style interface: numbered tab bar, bottom status bar, `:` command line and vim-style keys, no toolbar buttons (section 4.6). |
 
-The first usable version is a **config pack on top of stock Firefox** (no compiling), so LX can daily-drive it almost immediately. Our own branded build follows.
+The first usable version is a **config pack on top of stock Firefox** (no compiling), so users can daily-drive it almost immediately. Our own branded build follows.
 
 ## 2. What "lightweight" means (measurable targets)
 
@@ -46,7 +46,7 @@ We will not claim "lighter" without numbers. Every release is measured on Window
 
 Gecko wins because it is the only engine where **all five goals are achievable without fighting upstream**:
 
-1. **uBlock Origin is a requirement LX named, and only Gecko runs the real thing long-term.** On Chromium we would either ship uBO Lite (weaker: limited rule counts, no dynamic filtering, no scriptlet flexibility) or carry our own MV2 restoration patches indefinitely as Google deletes the underlying code.
+1. **uBlock Origin is a requirement users named, and only Gecko runs the real thing long-term.** On Chromium we would either ship uBO Lite (weaker: limited rule counts, no dynamic filtering, no scriptlet flexibility) or carry our own MV2 restoration patches indefinitely as Google deletes the underlying code.
 2. **Compatibility is good enough for daily driving.** Firefox is a full, current engine, and the remaining Chrome-only breakages are rare and usually fixed by Firefox's built-in WebCompat interventions or a user-agent override for that site. We keep those interventions enabled (they are not telemetry).
 3. **The lightweight levers are configuration, not patches.** Gecko exposes process counts, isolation strategy, tab unloading and every telemetry switch as prefs and enterprise policies. That keeps our patch set small, which is what makes a small project able to keep up with security releases.
 4. **There is a proven path.** LibreWolf, Mullvad Browser and others already ship de-telemetried Firefox builds on the same model.
@@ -140,9 +140,9 @@ Breached is a standalone Windows app (`breached.exe`) with its own interface. No
 | Browser backend modules | Session restore, password manager, permission and certificate prompts, the extension APIs uBO needs (`tabs`, `webRequest`) | Reused (recommended), not rewritten |
 | Interface | Windows, tabs, toolbars, menus, settings, new tab page | **Written by us** |
 
-Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. **Decided (LX, 2026-10-15): reuse the backend, but only the parts we need.** Rewriting would not make the running app lighter: these modules are mostly JavaScript that loads on demand, and nearly all memory goes to Gecko and the pages themselves. To keep the app small anyway, the Breached app directory pulls in only the backend modules it uses and leaves the rest out of the build (Firefox View, accounts/sync, Pocket, studies, AI features, migration wizards, and similar).
+Rewriting the backend modules too is possible (Gecko + toolkit only), but it means re-implementing security-sensitive prompts and the extension tab APIs before uBlock Origin even works. **Decided (users, 2026-10-15): reuse the backend, but only the parts we need.** Rewriting would not make the running app lighter: these modules are mostly JavaScript that loads on demand, and nearly all memory goes to Gecko and the pages themselves. To keep the app small anyway, the Breached app directory pulls in only the backend modules it uses and leaves the rest out of the build (Firefox View, accounts/sync, Pocket, studies, AI features, migration wizards, and similar).
 
-Interface direction: **like qutebrowser** (LX, 2026-10-15). Keyboard first, almost no chrome:
+Interface direction: **like qutebrowser** (users, 2026-10-15). Keyboard first, almost no chrome:
 - **Thin, numbered tab bar** at the top (`1: title`), qutebrowser's grey/black colours and a load indicator stripe. No close or new-tab buttons.
 - **No toolbar.** A one-line **status bar** at the bottom shows the mode, URL, load progress, scroll position and tab number.
 - **`:` command line** in the status bar for everything (`:open`, `:tab-close`, `:set`), with completion. Settings are commands and a plain text config file, not a settings page.
@@ -217,7 +217,7 @@ Install and updates:
 - Done: Tab Sleeper extension v1 with tests. Needs a one-time Mozilla signing step before release Firefox will install it (`extensions/tab-sleeper/README.md`).
 - Done: CI checks that every pref and policy still exists in the current Firefox release.
 - To do: benchmark harness baseline: stock Firefox vs. Firefox + config pack vs. Chrome.
-- Exit: LX uses it as the main browser for a week; regressions logged.
+- Exit:  uses it as the main browser for a week; regressions logged.
 
 **M1: Tune**
 - Measure and tune process caps, prelaunch, throttling; prototype Lean mode and decide whether it ships.
@@ -257,7 +257,7 @@ Status (2026-10-15): the dev build works. GitHub Actions turns Firefox 158.0.1 i
 | Trademark | Remove all Firefox branding before any public build. |
 | No Safe Browsing warnings | uBO malware-domain list plus Windows Defender/SmartScreen; users can re-enable Safe Browsing in settings. |
 
-Decided by LX (2026-10-15):
+Decided by users (2026-10-15):
 1. Platform: Windows only.
 2. Sync: removed entirely (lightest option).
 3. Safe Browsing: off entirely (lightest option); see 4.4 for what still protects users.
