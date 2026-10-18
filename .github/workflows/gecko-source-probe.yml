@@ -1,0 +1,42 @@
+name: Gecko source probe
+
+# Copies a few of Firefox's own script files to the gecko-src branch, to read
+# how Firefox wires up features Breached's mods reuse. Run by hand.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: "Regular expression for paths inside omni.ja"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract matching files
+        env:
+          PATTERN: ${{ inputs.pattern }}
+        run: |
+          set -e
+          version=$(curl -s https://product-details.mozilla.org/1.0/firefox_versions.json | jq -r .LATEST_FIREFOX_VERSION)
+          echo "Firefox $version"
+          curl -sSfL -o ff.tar.xz "https://archive.mozilla.org/pub/firefox/releases/$version/linux-x86_64/en-US/firefox-$version.tar.xz"
+          tar -xJf ff.tar.xz firefox/omni.ja firefox/browser/omni.ja
+          mkdir -p out/toolkit out/browser
+          (cd out/toolkit && unzip -qo ../../firefox/omni.ja || true)
+          (cd out/browser && unzip -qo ../../firefox/browser/omni.ja || true)
+          mkdir -p keep
+          (cd out && find . -type f | grep -E "$PATTERN" | while read f; do mkdir -p "../keep/$(dirname "$f")"; cp "$f" "../keep/$f"; done)
+          (cd out && find . -type f | sort > ../keep/ALL-FILES.txt)
+          echo "$version" > keep/VERSION
+          cd keep
+          git init -q -b gecko-src
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Firefox $version files matching $PATTERN"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gecko-src
