@@ -1,5 +1,7 @@
 # Breached
 
+Website: https://tacobellerontop-sudo.github.io/breached/ (source in `site/`, published by `.github/workflows/pages.yml`).
+
 A lightweight, daily-drivable Windows web browser built on Firefox's engine: a small custom interface, fewer background tasks, no telemetry or vendor services, idle tabs unloaded, and full uBlock Origin.
 
 See [docs/PLAN.md](docs/PLAN.md) for the engine choice, feature plan and milestones.
