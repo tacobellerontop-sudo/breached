@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>video</title>
+</head>
+<body>
+<!-- A playing video made from a changing canvas, for the picture-in-picture test. -->
+<canvas id="canvas" width="320" height="180" hidden></canvas>
+<video id="video" muted autoplay width="640" height="360"></video>
+<script>
+  let canvas = document.getElementById("canvas");
+  let ctx = canvas.getContext("2d");
+  let hue = 0;
+  setInterval(() => {
+    ctx.fillStyle = `hsl(${hue++ % 360} 70% 50%)`;
+    ctx.fillRect(0, 0, 320, 180);
+    ctx.fillStyle = "#fff";
+    ctx.font = "32px sans-serif";
+    ctx.fillText("Breached", 90, 100);
+  }, 40);
+  let video = document.getElementById("video");
+  video.srcObject = canvas.captureStream(25);
+  video.play().then(
+    () => (document.title = "video:playing"),
+    e => (document.title = "video:" + e.name)
+  );
+</script>
+</body>
+</html>

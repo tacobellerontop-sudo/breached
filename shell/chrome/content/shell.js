@@ -26,7 +26,7 @@ const SESSION_FILE = "breached-session.json";
 const SESSION_LAST = "breached-session-last.json"; // what the last start found, for :restore
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.11";
+const BREACHED_VERSION = "0.1.12";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -256,6 +256,8 @@ class Tab {
     this.labelEl.className = "tab-label";
     this.el.append(this.labelEl);
     this.el.tab = this;
+    // Firefox's tab elements carry their page; Gecko code (see gBrowser) uses it.
+    Object.defineProperty(this.el, "linkedBrowser", { get: () => this.browser });
     this.browser = null;
     this.url = "about:blank";
     this.title = "";
@@ -905,6 +907,7 @@ var Breached = {
     this.peekTabs();
     if (previous !== tab) {
       this.emit("TabSelect", { tab, previous });
+      tab.el.dispatchEvent(new Event("TabSelect", { bubbles: true }));
     }
     this._nextPermission();
   },
@@ -2534,6 +2537,45 @@ var Commands = {
         "Commands: " + Object.keys(Commands).filter(n => !Commands[n].alias).sort().join(" ")
       );
     },
+  },
+};
+
+/**
+ * A little of Firefox's gBrowser (its tab strip), for Gecko code that looks
+ * a page's tab up through it: the PDF viewer's find bar, picture-in-picture
+ * and page translation. Tabs are their .tab elements here, as in Firefox.
+ */
+var gBrowser = {
+  get selectedBrowser() {
+    return Breached.selectedBrowser;
+  },
+  get selectedTab() {
+    return Breached.selected?.el ?? null;
+  },
+  set selectedTab(el) {
+    let tab = Breached.tabs.find(t => t.el === el);
+    if (tab) {
+      Breached.selectTab(tab);
+    }
+  },
+  get currentURI() {
+    return Breached.selectedBrowser?.currentURI ?? null;
+  },
+  get tabContainer() {
+    return document.getElementById("tabbar");
+  },
+  getTabForBrowser(browser) {
+    return Breached.tabs.find(t => t.browser === browser)?.el ?? null;
+  },
+  shouldActivateDocShell(browser) {
+    return browser === Breached.selectedBrowser;
+  },
+  // Breached has no find bar for Gecko to hook into.
+  getCachedFindBar() {
+    return null;
+  },
+  getFindBar() {
+    return new Promise(() => {});
   },
 };
 

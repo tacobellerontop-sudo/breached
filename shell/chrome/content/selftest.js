@@ -417,6 +417,7 @@ var SelfTest = {
 
     // 16. Opening files: a PDF handed over by Windows while Breached runs
     await this.openFiles(B, check, waitFor, wait, outDir, report);
+    await this.lastMods(B, check, waitFor, wait, press, outDir, report);
 
     report.errors = Services.console
       .getMessageArray()
@@ -1365,6 +1366,104 @@ var SelfTest = {
     await this.screenshot(outDir, "37-pdf.png");
     B.closeTab(tab);
     await IOUtils.remove(dir, { recursive: true, ignoreAbsent: true });
+  },
+
+  // Picture-in-picture, page translation and custom CSS per site.
+  async lastMods(B, check, waitFor, wait, press, outDir, report) {
+    let info = (report.info.lastMods = {});
+    let D = Services.prefs.getDefaultBranch("");
+    let install = async id => {
+      try {
+        await ModHost.installFromSite(id, { confirm: false });
+      } catch (e) {
+        info[id + "Error"] = String(e);
+      }
+      return waitFor(() => ModHost.loaded.has(id), 10000);
+    };
+    let open = async (url, title) => {
+      let tab = B.openTab(url);
+      B.selectTab(tab);
+      await waitFor(() => title.test(tab.title) && !tab.el.hasAttribute("busy"), 15000);
+      return tab;
+    };
+    let message = () => document.getElementById("message")?.textContent ?? "";
+
+    // Picture-in-picture: Firefox's player window, found through gBrowser.
+    {
+      let before = D.getBoolPref("media.videocontrols.picture-in-picture.enabled", false);
+      check("the Picture-in-picture mod installs", await install("pip"));
+      let tab = await open("http://127.0.0.1:8123/video.html", /^video:/);
+      info.videoTitle = tab.title;
+      check("pip: the test video plays", tab.title == "video:playing");
+      let player = () => Services.wm.getMostRecentWindow("Toolkit:PictureInPicture");
+      B.run("pip");
+      let win = await waitFor(() => player(), 10000);
+      info.pipMessage = message();
+      check(":pip opens the video in a window on top", !!win);
+      check("pip: the tab is marked", await waitFor(() => tab.el.hasAttribute("pictureinpicture"), 5000));
+      if (win) {
+        await waitFor(() => win.document.readyState == "complete", 5000);
+        await wait(1000);
+        await this.screenshot(outDir, "38-pip.png", win);
+        B.run("pip");
+        check(":pip again closes it", await waitFor(() => !player(), 10000));
+        check("pip: the tab mark goes", await waitFor(() => !tab.el.hasAttribute("pictureinpicture"), 5000));
+      }
+      B.closeTab(tab);
+      await ModHost.Mods.uninstall("pip");
+      await waitFor(() => !ModHost.loaded.has("pip"), 10000);
+      check("pip: removing it puts Gecko's setting back", D.getBoolPref("media.videocontrols.picture-in-picture.enabled", false) === before);
+    }
+
+    // Translation: on this computer, after downloading the language once.
+    {
+      check("the Translate pages mod installs", await install("translate"));
+      check("translate: turns Firefox's translation on", Services.prefs.getBoolPref("browser.translations.enable"));
+      let tab = await open("http://127.0.0.1:8123/french.html", /promenade/i);
+      let text = async () => (await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#text" }))?.text ?? "";
+      let offered = await waitFor(
+        () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("Translate it?"),
+        20000
+      );
+      info.translateOffer = document.getElementById("prompt").textContent;
+      check("translate: a French page offers to translate it", !!offered);
+      press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+      B.run("translate en");
+      let english = await waitFor(async () => /\b(the|we|and)\b/i.test(await text()), 180000);
+      info.translated = (await text()).slice(0, 160);
+      info.translateMessage = message();
+      check(":translate en translates the page", !!english);
+      await this.screenshot(outDir, "39-translated.png");
+      B.run("translate off");
+      check(":translate off puts the French back", await waitFor(async () => /\bnous\b/.test(await text()), 20000));
+      B.closeTab(tab);
+      await ModHost.Mods.uninstall("translate");
+      await waitFor(() => !ModHost.loaded.has("translate"), 10000);
+      check("translate: removing it turns translation off again", !Services.prefs.getBoolPref("browser.translations.enable"));
+    }
+
+    // Custom CSS per site
+    {
+      check("the Custom CSS per site mod installs", await install("sitecss"));
+      let tab = await open("http://127.0.0.1:8123/keys.html", /^keys$/);
+      let background = async () =>
+        (await this.testActor(tab.browser).sendQuery("SelfTest:Style", { selector: "body", props: ["background-color"] }))?.["background-color"];
+      B.run("css body { background: rgb(1, 2, 3) !important }");
+      check(":css <rules> styles the site at once", await waitFor(async () => (await background()) == "rgb(1, 2, 3)", 5000));
+      tab.browser.reload();
+      await wait(500);
+      await waitFor(() => !tab.el.hasAttribute("busy"), 10000);
+      check("css: the rules stay for the site's pages", await waitFor(async () => (await background()) == "rgb(1, 2, 3)", 5000));
+      B.run("css");
+      info.cssEdit = B.$commandline.value;
+      check(":css puts the site's rules in the command bar", B.$commandline.value.startsWith("css body { background: rgb(1, 2, 3)"));
+      press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+      B.run("css off");
+      check(":css off removes them", await waitFor(async () => (await background()) != "rgb(1, 2, 3)", 5000));
+      B.closeTab(tab);
+      await ModHost.Mods.uninstall("sitecss");
+      Services.prefs.clearUserPref("breached.mods.sitecss.sites");
+    }
   },
 
   async importing(B, check, waitFor, wait, press, outDir, report) {

@@ -17,6 +17,8 @@ const KNOWN_MODS = [
   { id: "drm", name: "Protected video (DRM)", description: "Plays Netflix, Disney+, Spotify and other protected video and music." },
   { id: "bitwarden", name: "Bitwarden", description: "Fill logins and use passkeys from your Bitwarden vault." },
   { id: "groups", name: "Tab groups", description: "Keep tabs together under a coloured name in the tab bar, and fold groups away." },
+  { id: "translate", name: "Translate pages", description: "Translates pages in other languages on your computer, without sending them anywhere." },
+  { id: "pip", name: "Picture-in-picture", description: "Watch a video in a small window that stays on top." },
   { id: "speed", name: "Speed", description: "Trades memory for speed: tabs stay loaded and new tabs open sooner." },
   { id: "sync", name: "Firefox Sync", description: "Sync history, bookmarks and passwords with Firefox.", experimental: true },
 ];

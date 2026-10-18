@@ -16,6 +16,9 @@ const SITE_MODS = {
   screenshot: { name: "Screenshots", commands: ["screenshot"] },
   groups: { name: "Tab groups", commands: ["group", "ungroup", "groups"] },
   sync: { name: "Firefox Sync", commands: ["sync"] },
+  pip: { name: "Picture-in-picture", commands: ["pip"] },
+  translate: { name: "Translate pages", commands: ["translate"] },
+  sitecss: { name: "Custom CSS per site", commands: ["css"] },
 };
 
 const MAX_MOD_BYTES = 20 * 1024 * 1024;

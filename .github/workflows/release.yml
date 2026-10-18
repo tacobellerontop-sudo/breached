@@ -5,12 +5,18 @@ name: Release
 # a Windows installer (Inno Setup) and a portable zip, then publishes them
 # as a GitHub release tagged v<version>.
 
+run-name: Release ${{ inputs.version }}${{ inputs.engine && format(' on Firefox {0}', inputs.engine) || '' }}
+
 on:
   workflow_dispatch:
     inputs:
       version:
         description: "Version, like 0.1.0"
         required: true
+      engine:
+        description: "Firefox version to build on (empty: the newest of app/firefox-source.txt's major version)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -26,6 +32,7 @@ jobs:
     timeout-minutes: 45
     env:
       VERSION: ${{ inputs.version }}
+      ENGINE: ${{ inputs.engine }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +77,7 @@ jobs:
             ForEach-Object { if ($_ -match '/releases/(\d+\.\d+(\.\d+)?)/$') { $Matches[1] } } |
             Sort-Object -Descending { [version]($_ + ('.0' * (3 - $_.Split('.').Count))) }
           $candidates = @($releases | Where-Object { $_.Split('.')[0] -eq $major }) + @($wanted)
+          if ($env:ENGINE) { $candidates = @($env:ENGINE) }
           foreach ($version in $candidates) {
             $url = "https://archive.mozilla.org/pub/firefox/releases/$version/win64/en-US/Firefox%20Setup%20$version.exe"
             try {

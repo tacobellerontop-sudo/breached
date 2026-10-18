@@ -1,0 +1,97 @@
+name: Engine updates
+
+# Every day: when Mozilla has shipped a newer Firefox than the one the newest
+# Breached release runs on, starts the next Breached release on it, so
+# Firefox's security fixes reach Breached without anyone doing anything.
+# The release workflow's own tests decide whether it goes out. Each Firefox
+# version gets two tries (on different days); after that an issue says so.
+
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+concurrency:
+  group: engine-update
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Start a release on a newer Firefox
+        run: |
+          set -euo pipefail
+          newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]; }
+
+          firefox=$(curl -sSf https://product-details.mozilla.org/1.0/firefox_versions.json | jq -r .LATEST_FIREFOX_VERSION)
+          if ! curl -sSfI "https://archive.mozilla.org/pub/firefox/releases/$firefox/win64/en-US/Firefox%20Setup%20$firefox.exe" > /dev/null; then
+            echo "Firefox $firefox has no Windows build yet"
+            exit 0
+          fi
+
+          tag=$(gh release view --json tagName -q .tagName)
+          engine=$(gh release view "$tag" --json body -q .body | grep -oP 'from Firefox \K[0-9][0-9.]*[0-9]' | head -1 || true)
+          echo "Newest Firefox: $firefox. Breached $tag runs on Firefox ${engine:-unknown}."
+          if [ -n "$engine" ] && ! newer "$firefox" "$engine"; then
+            echo "Nothing to do"
+            exit 0
+          fi
+
+          # Earlier tries on this Firefox (release runs are named after it).
+          runs=$(gh run list -w release.yml -L 50 --json displayTitle,status,conclusion,url \
+            | jq -c --arg ff "on Firefox $firefox" '[.[] | select(.displayTitle | endswith($ff))]')
+          if [ "$(jq '[.[] | select(.status != "completed")] | length' <<< "$runs")" != 0 ]; then
+            echo "A release on Firefox $firefox is already running"
+            exit 0
+          fi
+          failed=$(jq '[.[] | select(.conclusion != "success")] | length' <<< "$runs")
+          if [ "$failed" -ge 2 ]; then
+            title="Breached couldn't move to Firefox $firefox"
+            if [ -z "$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[].number')" ]; then
+              gh issue create --title "$title" --body "$(printf 'The release workflow failed twice on Firefox %s, so Breached stays on Firefox %s for now.\n\nRuns:\n%s\n\nFix what the self-test reports, then run **Engine updates** again (Actions > Engine updates > Run workflow).' \
+                "$firefox" "${engine:-?}" "$(jq -r '.[].url | "- " + .' <<< "$runs")")"
+            fi
+            exit 0
+          fi
+
+          # The next version: what shell.js already says if that isn't
+          # released yet, else one more than the newest release.
+          inapp=$(grep -oP 'const BREACHED_VERSION = "\K[^"]+' shell/chrome/content/shell.js)
+          released=${tag#v}
+          if newer "$inapp" "$released"; then
+            version=$inapp
+          else
+            IFS=. read -r major minor patch <<< "$released"
+            version="$major.$minor.$((patch + 1))"
+            sed -i "s/const BREACHED_VERSION = \"[^\"]*\"/const BREACHED_VERSION = \"$version\"/" shell/chrome/content/shell.js
+          fi
+          sed -i "s/^version=.*/version=$firefox/" app/firefox-source.txt
+          notes="docs/releases/$version.md"
+          line="- **Firefox $firefox engine**: the security fixes and improvements in Mozilla's Firefox $firefox. Made automatically when Mozilla released it."
+          if [ ! -f "$notes" ]; then
+            printf "What's new in %s: Breached moves to Mozilla's newest engine.\n\n%s\n\nInstalled copies update from settings > Updates (or \`:update\`).\n" "$version" "$line" > "$notes"
+          elif ! grep -q "Firefox $firefox engine" "$notes"; then
+            printf '\n%s\n' "$line" >> "$notes"
+          fi
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -qm "Breached $version on Firefox $firefox" -m "Made by the Engine updates workflow."
+            git push origin "HEAD:$BRANCH"
+          fi
+          echo "Releasing Breached $version on Firefox $firefox"
+          gh workflow run release.yml --ref "$BRANCH" -f version="$version" -f engine="$firefox"

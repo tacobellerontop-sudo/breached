@@ -354,6 +354,10 @@ body {
   content: "\25CF  ";
   color: var(--error);
 }
+/* A video from this tab playing in a picture-in-picture window. */
+.tab[pictureinpicture] .tab-label::before {
+  content: "\29C9  ";
+}
 .tab[pinned] {
   flex: none;
   max-width: none;
