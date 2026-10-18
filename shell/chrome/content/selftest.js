@@ -1355,6 +1355,8 @@ var SelfTest = {
       return n > 20 ? n : null;
     }, 5000);
     info.zoomInk = drawn;
+    let style = await actor.sendQuery("SelfTest:Style", { selector: "#zoomOutButton", pseudo: "::before", props: ["mask-image", "background-color", "mask-size", "mask-repeat", "mask-position", "mask-mode", "mask-clip", "mask-origin", "mask-composite", "mask-type"] });
+    info.zoomStyle = Object.fromEntries(Object.entries(style ?? {}).map(([k, v]) => [k, v.slice(0, 120)]));
     check("files: the PDF viewer's toolbar icons are drawn", !!drawn);
     let banner = await this.testActor(tab.browser).sendQuery("SelfTest:Element", { selector: "#featuresNotification:not([hidden])" });
     info.pdfBanner = !!banner?.rect?.height;
