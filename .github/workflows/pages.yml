@@ -26,6 +26,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check the script parses
         run: node --check site/site.js
+      - name: Stamp the stylesheet and script with this commit, so browsers don't mix a new page with an old cached file
+        run: sed -i -E "s/(style\.css|site\.js)\?v=[^\"]*/\1?v=${GITHUB_SHA::8}/g" site/index.html
       - uses: actions/configure-pages@v5
         with:
           enablement: true
