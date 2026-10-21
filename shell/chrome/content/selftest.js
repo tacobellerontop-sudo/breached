@@ -802,10 +802,20 @@ var SelfTest = {
       let tab = B.openTab("about:blank");
       await wait(1000);
       for (let site of sites) {
+        let browser = B.selectedBrowser;
         let start = Date.now();
+        let shown = null;
         B.run("open " + site);
-        let done = await waitFor(() => B.selected.url.startsWith(site) && !B.selected.el.hasAttribute("busy"), 30000);
-        times[site] = done ? Date.now() - start : "over 30s";
+        // Shown: the address changed to the site (the page is drawing).
+        // Loaded: done loading.
+        let done = await waitFor(() => {
+          let here = browser.currentURI?.spec.startsWith(site);
+          if (here && shown == null) {
+            shown = Date.now() - start;
+          }
+          return here && !browser.webProgress?.isLoadingDocument;
+        }, 30000);
+        times[site] = { shown: shown ?? "over 30s", loaded: done ? Date.now() - start : "over 30s" };
         await wait(500);
       }
       B.closeTab(tab);
