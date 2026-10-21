@@ -986,6 +986,16 @@ var SelfTest = {
     }, 10000);
     info.afterReloadMessage = document.getElementById("message").textContent;
     check("after a reload, picking a login still fills it" + label, refilled);
+    // :bw.exe check shows whether the page answers.
+    B.run("bw.exe check");
+    let checked = await waitFor(() => /bitwarden check/.test(document.getElementById("prompt").textContent) && rows().length > 5, 15000);
+    info.check = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
+    check(
+      ":bw.exe check shows the page's helpers answering" + label,
+      checked && info.check.some(r => /Bitwarden's page helper.*ms: \{/.test(r))
+    );
+    await this.screenshot(outDir, `14g-bitwarden-check${label ? "-ublock" : ""}.png`);
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
     B.closeTab(B.selected);
   },
 
