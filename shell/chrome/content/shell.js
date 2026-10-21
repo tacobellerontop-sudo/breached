@@ -391,6 +391,11 @@ var Breached = {
     if (this.isPrivate) {
       document.documentElement.setAttribute("private", "true");
     }
+    // An extension's popup window (a Bitwarden passkey, say): one page, no tab bar, no session.
+    this.isPopup = !!this.windowArgs().popup;
+    if (this.isPopup) {
+      document.documentElement.setAttribute("popup", "true");
+    }
     registerActors();
     registerCommandLineHandler();
     initPdfViewer(!Services.prefs.prefHasUserValue("pdfjs.migrationVersion"));
@@ -417,11 +422,11 @@ var Breached = {
     Addons.init();
 
     // Last time's tabs, kept for :restore (and the "ask" setting).
-    let previous = this.isPrivate ? null : this.readSession(this.sessionPath());
+    let previous = this.isPrivate || this.isPopup ? null : this.readSession(this.sessionPath());
     if (previous) {
       IOUtils.writeJSON(this.sessionPath(SESSION_LAST), previous).catch(e => console.error("Breached: keeping last session", e));
     }
-    let reopen = !this.isPrivate && this.pref("restoreSession", true);
+    let reopen = !this.isPrivate && !this.isPopup && this.pref("restoreSession", true);
     let ask = reopen && this.pref("restoreSession.ask", false) && previous?.tabs?.length;
     let restored = reopen && !ask && this.restoreSession();
     let urls = this.commandLineURLs();
@@ -440,7 +445,9 @@ var Breached = {
     this._unloadTimer = setInterval(() => this.unloadIdleTabs(), 60 * 1000);
 
     let selftest = Services.env.get("BREACHED_SELFTEST");
-    if (selftest && !this.isPrivate) {
+    if (this.isPopup) {
+      // Nothing more.
+    } else if (selftest && !this.isPrivate) {
       Services.scriptloader.loadSubScript("chrome://breached/content/selftest.js", window);
       window.SelfTest.run(selftest);
     } else if (!this.isPrivate) {
@@ -466,7 +473,7 @@ var Breached = {
 
   /** Whether to show the welcome page: only in a brand new profile. */
   firstRun(restored) {
-    if (this.isPrivate || this.pref("welcome.done", false)) {
+    if (this.isPrivate || this.isPopup || this.pref("welcome.done", false)) {
       return false;
     }
     // Profiles from before the welcome page never see it.
@@ -521,7 +528,26 @@ var Breached = {
     return Services.ww.openWindow(null, window.location.href, "_blank", "chrome,all,dialog=no,private", arg);
   },
 
-  /** What openPrivateWindow passed: { url, private }. */
+  /**
+   * Opens an extension's popup window (windows.create type "popup"): a small
+   * window on top of this one, so the page that asked stays where it was.
+   */
+  openPopupWindow(url, { width, height, left, top } = {}) {
+    let arg = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+    arg.data = JSON.stringify({ url, popup: true, private: this.isPrivate || undefined });
+    width = Math.round(width || 420);
+    height = Math.round(height || 640);
+    // Centred over this window unless the extension says where.
+    left = Math.round(left ?? window.screenX + (window.outerWidth - width) / 2);
+    top = Math.round(top ?? window.screenY + (window.outerHeight - height) / 2);
+    let features = `chrome,dialog=no,resizable,width=${width},height=${height},left=${left},top=${top}`;
+    if (this.isPrivate) {
+      features += ",private";
+    }
+    return Services.ww.openWindow(null, window.location.href, "_blank", features, arg);
+  },
+
+  /** What openPrivateWindow and openPopupWindow passed: { url, private, popup }. */
   windowArgs() {
     let arg = window.arguments?.[0];
     try {
@@ -933,8 +959,8 @@ var Breached = {
     }
     if (!this.tabs.length) {
       this.selected = null;
-      if (this.isPrivate) {
-        // Closing a private window's last tab ends it.
+      if (this.isPrivate || this.isPopup) {
+        // Closing a private or popup window's last tab ends it.
         window.close();
         return;
       }
@@ -1117,7 +1143,7 @@ var Breached = {
 
   saveSessionNow() {
     clearTimeout(this._saveTimer);
-    if (this.isPrivate || !this.pref("restoreSession", true)) {
+    if (this.isPrivate || this.isPopup || !this.pref("restoreSession", true)) {
       return;
     }
     let json = JSON.stringify(this.sessionData());

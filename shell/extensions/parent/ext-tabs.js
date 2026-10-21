@@ -302,6 +302,12 @@ this.tabs = class extends ExtensionAPIPersistent {
             throw new ExtensionError("Not allowed to create tabs on the target window");
           }
           let B = shellOf(window);
+          // The extension's own pages open as a pop-up window on top, not a tab.
+          let resolved = createProperties.url !== null && context.uri.resolve(createProperties.url);
+          if (resolved && ExtensionUtils.isExtensionUrl(resolved) && createProperties.windowId === null) {
+            let popup = await openExtensionWindow(resolved, { width: 900, height: 700 });
+            return tabManager.convert(shellOf(popup).selected);
+          }
           let options = { triggeringPrincipal: context.principal };
           let url;
           if (createProperties.url !== null) {

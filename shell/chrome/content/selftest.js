@@ -2342,6 +2342,26 @@ var SelfTest = {
           let [title] = await browser.tabs.executeScript(created.id, { code: "document.title" });
           result.script = title;
           await browser.tabs.remove(created.id);
+          // A popup window (Bitwarden's passkey window) opens on top, and closing it leaves this one.
+          let before = await browser.windows.getAll();
+          let pw = await browser.windows.create({ url: "popup.html", type: "popup", width: 400, height: 300 });
+          await new Promise(r => setTimeout(r, 1500));
+          let [popupTab] = await browser.tabs.query({ windowId: pw.id });
+          result.popupWindow = {
+            newWindow: pw.id != win.id,
+            windows: (await browser.windows.getAll()).length - before.length,
+            tabs: pw.tabs.length,
+            url: popupTab?.url,
+            title: popupTab?.title,
+            mainTabs: (await browser.tabs.query({ windowId: win.id })).length - win.tabs.length,
+          };
+          await browser.windows.remove(pw.id);
+          await new Promise(r => setTimeout(r, 500));
+          result.popupWindow.afterClose = (await browser.windows.getAll()).length - before.length;
+          // The extension's own pages from tabs.create also open as a pop-up window.
+          let page = await browser.tabs.create({ url: "popup.html" });
+          result.popupWindow.tabsCreate = page.windowId != win.id;
+          await browser.windows.remove(page.windowId);
           browser.browserAction.setBadgeText({ text: "ok" });
         } catch (e) {
           result.error = String(e);
@@ -2369,6 +2389,26 @@ var SelfTest = {
     if (!addon) {
       return;
     }
+    // Screenshot the popup window while it's open.
+    let popupObserver = (subject, topic) => {
+      if (topic == "domwindowopened" && !report.info.popupWindowDom) {
+        report.info.popupWindowDom = {};
+        subject.addEventListener(
+          "load",
+          () =>
+            subject.setTimeout(async () => {
+              report.info.popupWindowDom = {
+                popupAttr: subject.document.documentElement.getAttribute("popup"),
+                tabbarShown: subject.document.getElementById("tabbar")?.getBoundingClientRect().height > 0,
+                size: [subject.outerWidth, subject.outerHeight],
+              };
+              await this.screenshot(outDir, "16a-extension-popup-window.png", subject);
+            }, 1000),
+          { once: true }
+        );
+      }
+    };
+    Services.ww.registerNotification(popupObserver);
     let resultTab = () => B.tabs.find(t => t.url.startsWith("https://example.org/#"));
     let done = await waitFor(() => resultTab(), 30000);
     let result = {};
@@ -2376,9 +2416,17 @@ var SelfTest = {
       result = JSON.parse(decodeURIComponent(resultTab().url.split("#")[1]));
     } catch (e) {}
     report.info.extensionResult = result;
+    Services.ww.unregisterNotification(popupObserver);
     check("extensions: tabs.query, windows.getCurrent and tabs.create work", done && result.count > 0 && result.active == 1 && result.windowTabs > 0 && result.created);
     check("extensions: tabs.executeScript runs in pages", result.script == "Example Domain");
     check("extensions: contextMenus calls don't break extensions", result.menus === true);
+    let pw = result.popupWindow;
+    check(
+      "extensions: a popup window (windows.create type popup) opens as its own window with the page, not a tab here",
+      pw?.newWindow && pw.windows == 1 && pw.tabs == 1 && pw.title == "test popup" && pw.mainTabs == 0
+    );
+    check("extensions: the extension's own pages from tabs.create open as a pop-up window too", pw?.tabsCreate === true);
+    check("extensions: closing the popup window leaves Breached's window open", pw?.afterClose == 0 && !window.closed);
     let button = document.querySelector("#ext-buttons .ext-button");
     check("extensions: the extension's button shows", !!button && button.getBoundingClientRect().width > 0);
     check("extensions: badges show on the button", button?.querySelector(".ext-badge")?.textContent == "ok");

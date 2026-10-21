@@ -583,3 +583,8 @@ body {
   content: "private ";
   color: var(--private);
 }
+
+/* An extension's popup window shows just its page. */
+:root[popup] #tabbar {
+  display: none !important;
+}

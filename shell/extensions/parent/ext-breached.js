@@ -43,8 +43,29 @@ global.clickModifiersFromEvent = event => {
     .map(key => map[key]);
 };
 
-/** Opens an extension's options page in a tab. */
-global.openOptionsPage = extension => {
+/**
+ * Opens an extension's page as a small window on top of Breached (LX: extensions
+ * open as pop-ups, not tabs), and resolves with that window once its page is in.
+ */
+global.openExtensionWindow = async (url, size = {}) => {
+  let window = windowTracker.getTopNormalWindow();
+  if (!window) {
+    throw new ExtensionUtils.ExtensionError("No browser window");
+  }
+  let popup = shellOf(window).openPopupWindow(url, size);
+  await new Promise(resolve => {
+    let ready = () => (popup.Breached?.selected ? resolve() : popup.setTimeout(ready, 20));
+    if (popup.document.readyState == "complete") {
+      ready();
+    } else {
+      popup.addEventListener("load", () => popup.setTimeout(ready, 0), { once: true });
+    }
+  });
+  return popup;
+};
+
+/** Opens an extension's options page, as a pop-up window. */
+global.openOptionsPage = async extension => {
   let window = windowTracker.topWindow;
   if (!window) {
     return Promise.reject({ message: "No browser window available" });
@@ -54,14 +75,15 @@ global.openOptionsPage = extension => {
     return Promise.reject({ message: "No options page" });
   }
   let url = optionsPageProperties.page;
-  let B = shellOf(window);
-  let existing = B.tabs.find(t => t.browser?.currentURI?.spec == url);
-  if (existing) {
-    B.selectTab(existing);
-  } else {
-    B.openTab(url, { afterCurrent: true, triggeringPrincipal: extension.principal });
+  for (let win of Services.wm.getEnumerator(WINDOW_TYPE)) {
+    let existing = shellOf(win)?.tabs.find(t => t.browser?.currentURI?.spec == url);
+    if (existing) {
+      shellOf(win).selectTab(existing);
+      win.focus();
+      return;
+    }
   }
-  return Promise.resolve();
+  await openExtensionWindow(url, { width: 900, height: 700 });
 };
 
 /* eslint-disable mozilla/balanced-listeners */
@@ -154,7 +176,13 @@ class WindowTracker extends WindowTrackerBase {
     return Services.wm.getMostRecentNonPBWindow(WINDOW_TYPE);
   }
 
+  /** The frontmost Breached window that isn't an extension's popup window. */
   getTopNormalWindow() {
+    for (let win of Services.wm.getZOrderDOMWindowEnumerator(WINDOW_TYPE, true)) {
+      if (!shellOf(win)?.isPopup && !win.closed) {
+        return win;
+      }
+    }
     return this.topWindow;
   }
 
@@ -351,7 +379,7 @@ class TabTracker extends TabTrackerBase {
   }
 
   get activeTab() {
-    return shellOf(windowTracker.topWindow)?.selected ?? null;
+    return shellOf(windowTracker.getTopNormalWindow())?.selected ?? null;
   }
 }
 

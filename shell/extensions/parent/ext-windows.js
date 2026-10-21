@@ -4,8 +4,8 @@
 
 "use strict";
 
-// The windows API. Breached has one window, so windows.create opens the
-// requested pages as tabs in it, and returns that window.
+// The windows API. windows.create opens the page as a small window on top of
+// Breached (like Bitwarden's passkey window), so the page you were on stays.
 
 var { ExtensionError } = ExtensionUtils;
 
@@ -120,6 +120,14 @@ this.windows = class extends ExtensionAPIPersistent {
             throw new ExtensionError("No browser window");
           }
           let B = window.Breached;
+          if (createData.url != null) {
+            let url = context.uri.resolve(Array.isArray(createData.url) ? createData.url[0] : createData.url);
+            if (!ExtensionUtils.isExtensionUrl(url) && !context.checkLoadURL(url, { dontReportErrors: true })) {
+              throw new ExtensionError(`Illegal URL: ${url}`);
+            }
+            let popup = await openExtensionWindow(url, createData);
+            return windowManager.convert(popup, { populate: true });
+          }
           let urls = createData.url == null ? [] : Array.isArray(createData.url) ? createData.url : [createData.url];
           if (createData.tabId != null) {
             let tab = tabTracker.getTab(createData.tabId);
