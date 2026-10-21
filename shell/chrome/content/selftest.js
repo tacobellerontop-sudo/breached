@@ -747,6 +747,27 @@ var SelfTest = {
         await this.screenshot(outDir, "14-bitwarden-filled.png");
       }
       B.closeTab(B.selected);
+      if (asked) {
+        // A two-step sign-in like Google's: the rows show for the email, and
+        // the picked account's password goes into the second step by itself.
+        B.openTab(loginPage.replace(/[^/]*$/, "signin.html"));
+        let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
+        let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
+        check("a Google-style sign-in shows the logins by itself", shown);
+        for (let c of "breached") {
+          press(c, "Key" + c.toUpperCase(), KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+        }
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        let signedIn = await waitFor(() => B.selected.title.startsWith("signed in"), 15000);
+        report.info.signinTitle = B.selected.title;
+        report.info.signinMessage = document.getElementById("message").textContent;
+        check(
+          "its second step gets the picked account's password by itself",
+          signedIn && B.selected.title == "signed in breached-user / breached-pass"
+        );
+        await this.screenshot(outDir, "14a-bitwarden-signin.png");
+        B.closeTab(B.selected);
+      }
       await this.passkeys(B, check, waitFor, press, outDir, report, loginPage);
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
     }
