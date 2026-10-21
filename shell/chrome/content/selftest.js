@@ -804,8 +804,9 @@ var SelfTest = {
           await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000)
         );
         press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
-        // Paste both on an empty form, as qutebrowser does: username, Tab, password.
-        B.selectedBrowser.reload();
+        // Paste both on an empty form (a reload would keep what's typed), as qutebrowser does: username, Tab, password.
+        B.closeTab(B.selected);
+        B.openTab(loginPage);
         await waitFor(() => B.selected.title == "login", 10000);
         await new Promise(r => setTimeout(r, 500));
         await this.clickElement("#user");
