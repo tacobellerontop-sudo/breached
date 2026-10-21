@@ -795,6 +795,23 @@ var SelfTest = {
   async ublock(B, check, waitFor, wait, outDir, report) {
     let info = (report.info.ublock = {});
     const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    // How long :open takes, without and with uBlock Origin.
+    let sites = ["https://example.com/", "https://www.wikipedia.org/", "https://www.bbc.com/", "https://github.com/"];
+    let timeLoads = async () => {
+      let times = {};
+      let tab = B.openTab("about:blank");
+      await wait(1000);
+      for (let site of sites) {
+        let start = Date.now();
+        B.run("open " + site);
+        let done = await waitFor(() => B.selected.url.startsWith(site) && !B.selected.el.hasAttribute("busy"), 30000);
+        times[site] = done ? Date.now() - start : "over 30s";
+        await wait(500);
+      }
+      B.closeTab(tab);
+      return times;
+    };
+    info.timesWithout = await timeLoads();
     let addon;
     try {
       let install = await AddonManager.getInstallForURL(
@@ -810,6 +827,7 @@ var SelfTest = {
     // Let it load its filter lists.
     await waitFor(() => WebExtensionPolicy.getByID("uBlock0@raymondhill.net")?.extension?.backgroundState == "running", 30000);
     await wait(8000);
+    info.timesWith = await timeLoads();
     let state = () => ({
       url: B.selected.url,
       title: B.selected.title,
