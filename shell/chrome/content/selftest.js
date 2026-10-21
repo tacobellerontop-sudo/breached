@@ -846,6 +846,7 @@ var SelfTest = {
   // The real Google sign-in page (needs the internet): the logins show
   // by themselves and picking one fills the email.
   async googleSignin(B, check, waitFor, press, outDir, report) {
+    let wait = ms => new Promise(r => setTimeout(r, ms));
     let info = (report.info.google = {});
     let errorsBefore = Services.console.getMessageArray().length;
     B.openTab("https://accounts.google.com/ServiceLogin?continue=https://www.youtube.com/");
@@ -883,7 +884,7 @@ var SelfTest = {
     }
     let filled = await waitFor(async () => {
       let list = await inputs();
-      return Array.isArray(list) && list.some(i => i.type == "email" && i.value == "breached-user");
+      return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
     }, 10000);
     info.after = await inputs();
     info.message = document.getElementById("message").textContent;
@@ -895,6 +896,20 @@ var SelfTest = {
       .slice(0, 20);
     await this.screenshot(outDir, "14f-google-filled.png");
     check("picking a login fills Google's email field", filled);
+    // After a reload: the rows show again, and picking still fills.
+    B.selectedBrowser.reload();
+    await wait(1500);
+    let again = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 20000);
+    check("after a reload, Google's sign-in shows the logins again", again);
+    if (again) {
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    }
+    let refilled = await waitFor(async () => {
+      let list = await inputs();
+      return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
+    }, 10000);
+    info.afterReloadMessage = document.getElementById("message").textContent;
+    check("after a reload, picking a login still fills it", refilled);
     B.closeTab(B.selected);
   },
 
