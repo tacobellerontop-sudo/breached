@@ -702,44 +702,66 @@ var SelfTest = {
     report.info.bitwardenTest = { fakeBw, loginPage };
     if (installed && fakeBw && loginPage) {
       Services.prefs.setStringPref("breached.mods.bitwarden.path", fakeBw);
-      // A page with a login form asks for the master password by itself.
+      let bw = this.bitwardenKeys(press, waitFor);
+      let { rows, type, shortcut, promptHas } = bw;
+      let field = async id => {
+        let list = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => []);
+        return list.find(i => i.id == id)?.value;
+      };
+      // Click into the username box, then Ctrl+Shift+L.
       B.openTab(loginPage);
-      let asked = await waitFor(
-        () => !document.getElementById("commandbar").hidden && document.getElementById("commandline").type == "password",
-        15000
-      );
-      report.info.bitwardenAutoPrompt = document.getElementById("prompt").textContent;
-      check("a login page asks for the Bitwarden master password by itself", asked);
+      await waitFor(() => B.selected.title == "login" && !B.selected.el.hasAttribute("busy"), 10000);
+      await this.clickElement("#user");
+      shortcut();
+      let asked = await promptHas("master password");
+      report.info.bitwardenPrompt = document.getElementById("prompt").textContent;
+      check("Ctrl+Shift+L asks for the Bitwarden master password", asked);
       if (asked) {
         await this.screenshot(outDir, "12-bitwarden-password.png");
-        for (let c of "hunter2") {
-          let code = /\d/.test(c) ? "Digit" + c : "Key" + c.toUpperCase();
-          press(c, code, KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
-        }
+        type("hunter2");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        let pin = await promptHas("choose a PIN");
+        check("after the master password, Bitwarden offers a PIN", pin);
+        type("1234");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await promptHas("the PIN again");
+        type("1234");
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         // Two logins: they show as rows to pick from.
-        let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
         let listed = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
         check("then the site's logins show as rows", listed);
         check("the first row starts selected", rows()[0]?.hasAttribute("selected"));
         press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
         check("Down moves to the next row", rows()[1]?.hasAttribute("selected"));
         await this.screenshot(outDir, "13-bitwarden-pick.png");
-        for (let c of "breached") {
-          press(c, "Key" + c.toUpperCase(), KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
-        }
+        type("breached");
         check(
           "typing narrows the rows",
           rows().length == 1 && rows()[0].textContent.includes("breached-user") && rows()[0].hasAttribute("selected")
         );
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        let actions = await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent) && rows().length >= 4, 10000);
+        report.info.bitwardenActions = rows().map(r => r.textContent);
+        check("picking a login offers to paste or copy its username and password", actions && /paste username/.test(rows()[0].textContent));
+        await this.screenshot(outDir, "13b-bitwarden-actions.png");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        let user = await waitFor(async () => (await field("user")) == "breached-user", 10000);
+        check("paste username types it into the box you were in", user);
+        // Then the password box.
+        await this.clickElement("#pass");
+        shortcut();
+        await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
+        type("breached");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent), 10000);
+        press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         let filled = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
-        check("the rows close after picking", document.getElementById("picker").hidden);
         report.info.bitwardenTitle = B.selected.title;
         report.info.bitwardenMessage = document.getElementById("message").textContent;
-        check("picking a login fills the form (not a hidden field), while the page changes its address", filled);
+        check("paste password types it into the password box (not a hidden one), while the page changes its address", filled);
         check("the password isn't kept in the command history", !B.history.includes("hunter2"));
-        // The fill left the password field focused: ":" types there, Esc leaves it.
+        // The password box has the focus: ":" types there, Esc leaves it.
         let colon = () => press(":", "Semicolon", KeyboardEvent.DOM_VK_SEMICOLON, ["Shift"]);
         B.selectedBrowser.focus();
         colon();
@@ -754,29 +776,33 @@ var SelfTest = {
         );
         press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
         await this.screenshot(outDir, "14-bitwarden-filled.png");
-      }
-      B.closeTab(B.selected);
-      if (asked) {
-        // A two-step sign-in like Google's: the rows show for the email, and
-        // the picked account's password goes into the second step by itself.
-        B.openTab(loginPage.replace(/[^/]*$/, "signin.html"));
-        let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
-        let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
-        check("a Google-style sign-in shows the logins by itself", shown);
-        for (let c of "breached") {
-          press(c, "Key" + c.toUpperCase(), KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+        // Copy the password instead.
+        shortcut();
+        await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
+        type("breached");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent), 10000);
+        let copyRow = rows().findIndex(r => /copy password/.test(r.textContent));
+        for (let i = 0; i < copyRow; i++) {
+          press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
         }
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-        let signedIn = await waitFor(() => B.selected.title.startsWith("signed in"), 15000);
-        report.info.signinTitle = B.selected.title;
-        report.info.signinMessage = document.getElementById("message").textContent;
+        check("copy password puts it on the clipboard", await waitFor(() => bw.clipboard() == "breached-pass", 5000));
+        // Locked: the PIN unlocks it.
+        B.run("bw.exe lock");
+        shortcut();
+        let pinAsked = await promptHas("bitwarden PIN");
+        check("once locked, Ctrl+Shift+L asks for the PIN", pinAsked);
+        await this.screenshot(outDir, "14a-bitwarden-pin.png");
+        type("1234");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         check(
-          "its second step gets the picked account's password by itself",
-          signedIn && B.selected.title == "signed in breached-user / breached-pass"
+          "the PIN unlocks Bitwarden",
+          await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000)
         );
-        await this.screenshot(outDir, "14a-bitwarden-signin.png");
-        B.closeTab(B.selected);
+        press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
       }
+      B.closeTab(B.selected);
       if (asked) {
         await this.googleSignin(B, check, waitFor, press, outDir, report);
         // Again with uBlock Origin running, as people use it.
@@ -888,6 +914,35 @@ var SelfTest = {
 
   // The real Google sign-in page (needs the internet): the logins show
   // by themselves and picking one fills the email.
+  /** Keys and rows for the Bitwarden tests. */
+  bitwardenKeys(press, waitFor) {
+    return {
+      rows: () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")],
+      type(text) {
+        for (let c of text) {
+          let code = /\d/.test(c) ? "Digit" + c : "Key" + c.toUpperCase();
+          press(c, code, KeyboardEvent["DOM_VK_" + c.toUpperCase()]);
+        }
+      },
+      shortcut: () => press("L", "KeyL", KeyboardEvent.DOM_VK_L, ["Control", "Shift"]),
+      promptHas: text =>
+        waitFor(() => !document.getElementById("commandbar").hidden && document.getElementById("prompt").textContent.includes(text), 15000),
+      clipboard() {
+        try {
+          let trans = Cc["@mozilla.org/widget/transferable;1"].createInstance(Ci.nsITransferable);
+          trans.init(null);
+          trans.addDataFlavor("text/plain");
+          Services.clipboard.getData(trans, Ci.nsIClipboard.kGlobalClipboard, window.browsingContext.currentWindowContext);
+          let data = {};
+          trans.getTransferData("text/plain", data);
+          return data.value?.QueryInterface(Ci.nsISupportsString).data ?? null;
+        } catch (e) {
+          return String(e);
+        }
+      },
+    };
+  },
+
   async installUblock(info, waitFor) {
     const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
     try {
@@ -933,8 +988,7 @@ var SelfTest = {
       B.closeTab(B.selected);
       return;
     }
-    let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
-    let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
+    let { rows, shortcut } = this.bitwardenKeys(press, waitFor);
     let inputs = async () => {
       try {
         return await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {});
@@ -942,60 +996,35 @@ var SelfTest = {
         return String(e);
       }
     };
+    let pasteEmail = async () => {
+      await this.clickElement("#identifierId");
+      shortcut();
+      let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
+      if (shown) {
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await waitFor(() => /paste username/.test(rows()[0]?.textContent), 10000);
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+      }
+      let pasted = await waitFor(async () => {
+        let list = await inputs();
+        return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
+      }, 10000);
+      return { shown, pasted };
+    };
+    let first = await pasteEmail();
     info.inputs = await inputs();
-    info.prompt = document.getElementById("prompt").textContent;
-    try {
-      info.actor = !!B.selectedBrowser.browsingContext.currentWindowGlobal.getActor("Bitwarden");
-    } catch (e) {
-      info.actor = String(e);
-    }
-    await this.screenshot(outDir, `14e-google-signin${label ? "-ublock" : ""}.png`);
-    check("Google's sign-in shows the Bitwarden logins by itself" + label, shown);
-    if (shown) {
-      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-    } else {
-      B.run("bw.exe");
-      await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
-      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-    }
-    let filled = await waitFor(async () => {
-      let list = await inputs();
-      return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
-    }, 10000);
-    info.after = await inputs();
     info.message = document.getElementById("message").textContent;
-    info.log = Services.console
-      .getMessageArray()
-      .slice(errorsBefore)
-      .map(m => m.message ?? m.errorMessage ?? "")
-      .filter(m => /bitwarden|Bitwarden|BitwardenChild|actor/i.test(m))
-      .slice(0, 20);
     await this.screenshot(outDir, `14f-google-filled${label ? "-ublock" : ""}.png`);
-    check("picking a login fills Google's email field" + label, filled);
-    // After a reload: the rows show again, and picking still fills.
+    check("on Google's sign-in, Ctrl+Shift+L shows the logins" + label, first.shown);
+    check("and pastes the username into Google's email box" + label, first.pasted);
+    // After a reload too.
     B.selectedBrowser.reload();
     await wait(1500);
-    let again = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 20000);
-    check("after a reload, Google's sign-in shows the logins again" + label, again);
-    if (again) {
-      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-    }
-    let refilled = await waitFor(async () => {
-      let list = await inputs();
-      return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
-    }, 10000);
+    await waitFor(() => !B.selectedBrowser.webProgress?.isLoadingDocument, 20000);
+    await wait(1000);
+    let again = await pasteEmail();
     info.afterReloadMessage = document.getElementById("message").textContent;
-    check("after a reload, picking a login still fills it" + label, refilled);
-    // :bw.exe check shows whether the page answers.
-    B.run("bw.exe check");
-    let checked = await waitFor(() => /bitwarden check/.test(document.getElementById("prompt").textContent) && rows().length > 5, 15000);
-    info.check = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
-    check(
-      ":bw.exe check shows the page's helpers answering" + label,
-      checked && info.check.some(r => /Bitwarden's page helper.*ms: \{/.test(r))
-    );
-    await this.screenshot(outDir, `14g-bitwarden-check${label ? "-ublock" : ""}.png`);
-    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    check("after a reload, it still pastes into Google's email box" + label, again.pasted);
     B.closeTab(B.selected);
   },
 
@@ -1027,11 +1056,13 @@ var SelfTest = {
       .filter(m => /passkey/i.test(m));
     check("the site accepts the Bitwarden passkey's signature", verified && B.selected.title == "passkey:verified");
     // The page's login box then offers passkeys (conditional mediation):
-    // the rows show by themselves, the passkey first, then the logins.
+    // Ctrl+Shift+L shows the passkey first, then the logins.
+    await new Promise(r => setTimeout(r, 1000));
+    this.bitwardenKeys(press, waitFor).shortcut();
     let offered = await asking("bitwarden:");
     report.info.passkeyOfferRows = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
     check(
-      "a login box offering passkeys shows Bitwarden's passkey and logins by itself",
+      "a login box offering passkeys: Ctrl+Shift+L shows Bitwarden's passkey and logins",
       offered && /passkey/.test(report.info.passkeyOfferRows[0]) && report.info.passkeyOfferRows.length == 3
     );
     await this.screenshot(outDir, "14d-passkey-offer.png");
