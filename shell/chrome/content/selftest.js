@@ -768,6 +768,9 @@ var SelfTest = {
         await this.screenshot(outDir, "14a-bitwarden-signin.png");
         B.closeTab(B.selected);
       }
+      if (asked) {
+        await this.googleSignin(B, check, waitFor, press, outDir, report);
+      }
       await this.passkeys(B, check, waitFor, press, outDir, report, loginPage);
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
     }
@@ -783,6 +786,61 @@ var SelfTest = {
       "settings: removing the mod takes :bw.exe away again",
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
     );
+    B.closeTab(B.selected);
+  },
+
+  // The real Google sign-in page (needs the internet): the logins show
+  // by themselves and picking one fills the email.
+  async googleSignin(B, check, waitFor, press, outDir, report) {
+    let info = (report.info.google = {});
+    let errorsBefore = Services.console.getMessageArray().length;
+    B.openTab("https://accounts.google.com/ServiceLogin?continue=https://www.youtube.com/");
+    let loaded = await waitFor(() => /accounts\.google\.com/.test(B.selected.url) && !B.selected.el.hasAttribute("busy"), 30000);
+    info.url = B.selected.url;
+    if (!loaded) {
+      info.skipped = "Google's sign-in didn't load";
+      B.closeTab(B.selected);
+      return;
+    }
+    let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
+    let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
+    let inputs = async () => {
+      try {
+        return await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {});
+      } catch (e) {
+        return String(e);
+      }
+    };
+    info.inputs = await inputs();
+    info.prompt = document.getElementById("prompt").textContent;
+    try {
+      info.actor = !!B.selectedBrowser.browsingContext.currentWindowGlobal.getActor("Bitwarden");
+    } catch (e) {
+      info.actor = String(e);
+    }
+    await this.screenshot(outDir, "14e-google-signin.png");
+    check("Google's sign-in shows the Bitwarden logins by itself", shown);
+    if (shown) {
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    } else {
+      B.run("bw.exe");
+      await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    }
+    let filled = await waitFor(async () => {
+      let list = await inputs();
+      return Array.isArray(list) && list.some(i => i.type == "email" && i.value == "breached-user");
+    }, 10000);
+    info.after = await inputs();
+    info.message = document.getElementById("message").textContent;
+    info.log = Services.console
+      .getMessageArray()
+      .slice(errorsBefore)
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => /bitwarden|Bitwarden|BitwardenChild|actor/i.test(m))
+      .slice(0, 20);
+    await this.screenshot(outDir, "14f-google-filled.png");
+    check("picking a login fills Google's email field", filled);
     B.closeTab(B.selected);
   },
 

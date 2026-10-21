@@ -42,6 +42,24 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
         active: doc.activeElement?.id ?? "",
       };
     }
+    if (message.name == "SelfTest:Inputs") {
+      // Every input of the page, as a password manager sees it.
+      return [...this.document.querySelectorAll("input")].map(i => {
+        let r = i.getBoundingClientRect();
+        return {
+          type: i.type,
+          name: i.name,
+          id: i.id,
+          autocomplete: i.getAttribute("autocomplete"),
+          value: i.type == "password" ? i.value.length : i.value,
+          tabIndex: i.tabIndex,
+          ariaHidden: i.getAttribute("aria-hidden"),
+          rect: [Math.round(r.width), Math.round(r.height)],
+          visible: i.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }),
+          focused: this.document.activeElement === i,
+        };
+      });
+    }
     if (message.name == "SelfTest:Login") {
       // Types a login into the page's form and sends it, like a person would.
       let { username, password } = message.data;
