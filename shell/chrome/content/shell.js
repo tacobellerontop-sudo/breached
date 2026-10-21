@@ -400,6 +400,8 @@ var Breached = {
     registerCommandLineHandler();
     initPdfViewer(!Services.prefs.prefHasUserValue("pdfjs.migrationVersion"));
     Permissions.init();
+    // Passkeys go to Windows until a provider (the Bitwarden mod) takes them.
+    ChromeUtils.importESModule("resource://breached/Passkeys.sys.mjs").Passkeys.reset();
     window.browserDOMWindow = BrowserDOMWindow;
     this.applyLayout();
     Services.prefs.addObserver(PREF, this);

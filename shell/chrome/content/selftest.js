@@ -1112,9 +1112,14 @@ var SelfTest = {
       info.credentials = String(e);
     }
     check(
-      "on Google's sign-in, Bitwarden answers passkey requests (not Windows)" + label,
-      info.credentials?.own?.includes("get")
+      "on Google's sign-in, Breached answers passkey requests itself (not Windows)" + label,
+      ChromeUtils.importESModule("resource://breached/Passkeys.sys.mjs").Passkeys.running &&
+        Services.prefs.getBoolPref("security.webauth.webauthn_enable_softtoken")
     );
+    // Google offers passkeys when the browser says it has a built-in authenticator.
+    info.isUVPAA = await this.testActor(B.selectedBrowser)
+      .sendQuery("SelfTest:UVPAA", {})
+      .catch(e => String(e));
     let first = await pasteEmail();
     info.inputs = await inputs();
     info.message = document.getElementById("message").textContent;
@@ -1135,45 +1140,73 @@ var SelfTest = {
   // Bitwarden makes a passkey for a page and signs in with it; the page
   // checks the signature itself (scripts/test/passkey.html).
   async passkeys(B, check, waitFor, press, outDir, report, loginPage) {
+    const { Passkeys } = ChromeUtils.importESModule("resource://breached/Passkeys.sys.mjs");
+    check(
+      "with the Bitwarden mod, Breached answers passkey requests itself (Windows isn't asked)",
+      Passkeys.running &&
+        Services.prefs.getBoolPref("security.webauth.webauthn_enable_softtoken") &&
+        !Services.prefs.getBoolPref("security.webauth.webauthn_enable_usbtoken")
+    );
     // WebAuthn wants a domain, so localhost rather than 127.0.0.1.
     let page = loginPage.replace("127.0.0.1", "localhost").replace(/[^/]*$/, "passkey.html");
-    let asking = what =>
-      waitFor(() => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes(what), 15000);
+    let message = () => document.getElementById("message").textContent;
     B.openTab(page);
-    let save = await asking("wants to make a passkey for breached-user");
-    report.info.passkeySavePrompt = document.getElementById("prompt").textContent;
-    check("a site making a passkey offers to keep it in Bitwarden", save);
-    await this.screenshot(outDir, "14b-passkey-save.png");
-    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-    let pick = await asking("localhost passkey:");
+    let saved = await waitFor(() => /Saved a passkey/.test(message()), 20000);
+    report.info.passkeySaveMessage = message();
     report.info.passkeyTitleAfterCreate = B.selected.title;
-    report.info.passkeyRows = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
-    check("signing in shows Bitwarden's passkeys as rows", pick && report.info.passkeyRows[0]?.includes("breached-user"));
-    await this.screenshot(outDir, "14c-passkey-pick.png");
-    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    check("a site making a passkey: Breached makes it and keeps it in Bitwarden", saved);
+    await this.screenshot(outDir, "14b-passkey-save.png");
     let verified = await waitFor(() => /^passkey:(verified|not|bad|[A-Z])/.test(B.selected.title), 15000);
     report.info.passkeyResult = B.selected.title;
-    report.info.passkeyMessage = document.getElementById("message").textContent;
     report.info.passkeyLog = Services.console
       .getMessageArray()
       .map(m => m.message ?? m.errorMessage ?? "")
-      .filter(m => /passkey/i.test(m));
-    check("the site accepts the Bitwarden passkey's signature", verified && B.selected.title == "passkey:verified");
+      .filter(m => /passkey|webauthn/i.test(m));
+    check("signing in with it: the site accepts the passkey's signature", verified && B.selected.title == "passkey:verified");
     // The page's login box then offers passkeys (conditional mediation):
     // Ctrl+Shift+L shows the passkey first, then the logins.
+    let bw = this.bitwardenKeys(press, waitFor);
     await new Promise(r => setTimeout(r, 1000));
-    this.bitwardenKeys(press, waitFor).shortcut();
-    let offered = await asking("bitwarden:");
+    report.info.passkeyWaiting = Passkeys.waiting(B.selectedBrowser);
+    bw.shortcut();
+    let offered = await waitFor(
+      () => !document.getElementById("picker").hidden && document.getElementById("prompt").textContent.includes("bitwarden:"),
+      15000
+    );
     report.info.passkeyOfferRows = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
     check(
       "a login box offering passkeys: Ctrl+Shift+L shows Bitwarden's passkey and logins",
-      offered && /passkey/.test(report.info.passkeyOfferRows[0]) && report.info.passkeyOfferRows.length == 3
+      offered && /passkey/.test(report.info.passkeyOfferRows[0])
     );
     await this.screenshot(outDir, "14d-passkey-offer.png");
     press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     let signedIn = await waitFor(() => /^passkey:conditional/.test(B.selected.title), 15000);
     report.info.passkeyConditional = B.selected.title;
     check("picking the passkey there signs in", signedIn && B.selected.title == "passkey:conditional verified");
+    B.closeTab(B.selected);
+
+    // Locked, as after a restart: the request asks to unlock, which loads the vault's passkeys.
+    B.run("bw.exe lock");
+    Passkeys.unload();
+    B.openTab(page + "#signin");
+    let asked = await waitFor(
+      () => !document.getElementById("commandbar").hidden && /PIN/.test(document.getElementById("prompt").textContent),
+      15000
+    );
+    report.info.passkeyLockedResult = B.selected.title;
+    report.info.passkeyLockedMessage = message();
+    check("a passkey request while Bitwarden is locked asks to unlock it", asked);
+    bw.type("1234");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    check(
+      "unlocking loads the vault's passkeys into Breached",
+      await waitFor(() => Passkeys.loaded && [...Passkeys.known.values()].some(p => p.rpId == "localhost" && p.itemId), 15000)
+    );
+    report.info.passkeysLoaded = [...Passkeys.known.values()].map(p => ({ rpId: p.rpId, name: p.name, signCount: p.signCount }));
+    B.selectedBrowser.reload();
+    let again = await waitFor(() => /^passkey:signin /.test(B.selected.title), 15000);
+    report.info.passkeyResultAgain = B.selected.title;
+    check("then the site signs in with the passkey from the vault", again && B.selected.title == "passkey:signin 1,2,3,4");
     B.closeTab(B.selected);
   },
 

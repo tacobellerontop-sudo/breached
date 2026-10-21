@@ -77,7 +77,12 @@
       let user = new Uint8Array(r.userHandle ?? []).join(",");
       return ok && user == "1,2,3,4" && got.id == made.id ? "verified" : `not verified (${ok}, ${user})`;
     }
-    run().catch(e => step(e.name + " " + e.message));
+    // #signin: just sign in with whatever passkey the browser has for this site.
+    async function signin() {
+      let got = await navigator.credentials.get({ publicKey: { challenge: random(), userVerification: "preferred" } });
+      step("signin " + new Uint8Array(got.response.userHandle ?? []).join(","));
+    }
+    (location.hash == "#signin" ? signin() : run()).catch(e => step(e.name + " " + e.message));
   </script>
 </body>
 </html>

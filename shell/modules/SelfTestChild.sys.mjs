@@ -57,6 +57,11 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
         credentialsOwn: Object.getOwnPropertyNames(Cu.waiveXrays(this.contentWindow).navigator.credentials),
       };
     }
+    if (message.name == "SelfTest:UVPAA") {
+      // Whether the page sees a built-in passkey authenticator (sites like Google offer passkeys then).
+      let asked = Cu.waiveXrays(this.contentWindow).PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      return new Promise(resolve => asked.then(v => resolve(!!v), e => resolve(String(e))));
+    }
     if (message.name == "SelfTest:Credentials") {
       // Whether the page's navigator.credentials is Bitwarden's (wrapped) or Gecko's own.
       let creds = Cu.waiveXrays(this.contentWindow).navigator.credentials;
