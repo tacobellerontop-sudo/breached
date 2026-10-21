@@ -24,11 +24,13 @@ PREF_SOURCES = [
     "modules/libpref/init/all.js",
     "modules/libpref/init/StaticPrefList.yaml",
     "toolkit/components/telemetry/app/TelemetryControllerBase.sys.mjs",
+    "toolkit/components/pdfjs/PdfJsDefaultPrefs.js",
 ]
 # Prefs that are real but defined outside the files above.
 KNOWN_ELSEWHERE = {
     "browser.contentblocking.category",  # set by the content blocking settings code
     "services.settings.worker_idle_max_milliseconds",  # read in services/settings/RemoteSettingsWorker.sys.mjs
+    "pdfjs.featuresNotificationImpressionLimit",  # read in toolkit/components/pdfjs/content/PdfJsFeaturesNotification.sys.mjs
 }
 
 
