@@ -17,6 +17,10 @@ on:
         description: "Firefox version to build on (empty: the newest of app/firefox-source.txt's major version)"
         required: false
         default: ""
+      mods_ref:
+        description: "breached-mods branch the self-test installs mods from (for a release that mods depend on)"
+        required: false
+        default: "main"
 
 permissions:
   contents: write
@@ -41,6 +45,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: tacobellerontop-sudo/breached-mods
+          ref: ${{ inputs.mods_ref || 'main' }}
           path: mods-repo
 
       - name: Check the version
