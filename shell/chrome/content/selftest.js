@@ -693,14 +693,14 @@ var SelfTest = {
     report.info.bitwardenTest = { fakeBw, loginPage };
     if (installed && fakeBw && loginPage) {
       Services.prefs.setStringPref("breached.mods.bitwarden.path", fakeBw);
+      // A page with a login form asks for the master password by itself.
       B.openTab(loginPage);
-      await waitFor(() => B.selected.title == "login", 10000);
-      B.run("bw.exe");
       let asked = await waitFor(
         () => !document.getElementById("commandbar").hidden && document.getElementById("commandline").type == "password",
-        10000
+        15000
       );
-      check(":bw.exe asks for the master password", asked);
+      report.info.bitwardenAutoPrompt = document.getElementById("prompt").textContent;
+      check("a login page asks for the Bitwarden master password by itself", asked);
       if (asked) {
         await this.screenshot(outDir, "12-bitwarden-password.png");
         for (let c of "hunter2") {
@@ -711,7 +711,7 @@ var SelfTest = {
         // Two logins: they show as rows to pick from.
         let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
         let listed = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
-        check(":bw.exe lists the site's logins as rows", listed);
+        check("then the site's logins show as rows", listed);
         check("the first row starts selected", rows()[0]?.hasAttribute("selected"));
         press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
         check("Down moves to the next row", rows()[1]?.hasAttribute("selected"));
@@ -728,7 +728,7 @@ var SelfTest = {
         check("the rows close after picking", document.getElementById("picker").hidden);
         report.info.bitwardenTitle = B.selected.title;
         report.info.bitwardenMessage = document.getElementById("message").textContent;
-        check(":bw.exe fills the page's login form", filled);
+        check("picking a login fills the form (not a hidden field), while the page changes its address", filled);
         check("the password isn't kept in the command history", !B.history.includes("hunter2"));
         // The fill left the password field focused: ":" types there, Esc leaves it.
         let colon = () => press(":", "Semicolon", KeyboardEvent.DOM_VK_SEMICOLON, ["Shift"]);
@@ -792,6 +792,19 @@ var SelfTest = {
       .map(m => m.message ?? m.errorMessage ?? "")
       .filter(m => /passkey/i.test(m));
     check("the site accepts the Bitwarden passkey's signature", verified && B.selected.title == "passkey:verified");
+    // The page's login box then offers passkeys (conditional mediation):
+    // the rows show by themselves, the passkey first, then the logins.
+    let offered = await asking("bitwarden:");
+    report.info.passkeyOfferRows = [...document.querySelectorAll("#picker .picker-row")].map(r => r.textContent);
+    check(
+      "a login box offering passkeys shows Bitwarden's passkey and logins by itself",
+      offered && /passkey/.test(report.info.passkeyOfferRows[0]) && report.info.passkeyOfferRows.length == 3
+    );
+    await this.screenshot(outDir, "14d-passkey-offer.png");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    let signedIn = await waitFor(() => /^passkey:conditional/.test(B.selected.title), 15000);
+    report.info.passkeyConditional = B.selected.title;
+    check("picking the passkey there signs in", signedIn && B.selected.title == "passkey:conditional verified");
     B.closeTab(B.selected);
   },
 

@@ -6,6 +6,8 @@
 </head>
 <body>
   <!-- Self-test page for the Bitwarden mod: the title shows what was filled. -->
+  <!-- A hidden decoy, like some sites have: it must stay empty. -->
+  <input id="decoy" type="password" style="visibility: hidden" />
   <form>
     <input id="user" type="text" name="username" autocomplete="username" />
     <input id="pass" type="password" name="password" autocomplete="current-password" />
@@ -15,11 +17,14 @@
     const show = () => {
       let u = document.getElementById("user").value;
       let p = document.getElementById("pass").value;
-      if (u && p) {
+      if (u && p && !document.getElementById("decoy").value) {
         document.title = `filled ${u} / ${p}`;
+        clearInterval(moving);
       }
     };
     document.addEventListener("input", show);
+    // Like many sign-in pages, the address keeps changing while you sign in.
+    let moving = setInterval(() => history.replaceState(null, "", "#step" + Date.now()), 500);
   </script>
 </body>
 </html>

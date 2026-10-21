@@ -41,24 +41,32 @@
       let spki = made.response.getPublicKey();
       let key = await crypto.subtle.importKey("spki", spki, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
       step("made");
+      step(await check(made, key, { allowCredentials: [{ type: "public-key", id: made.rawId }] }));
+      // Then a login box that offers passkeys without asking (conditional mediation).
+      let box = document.createElement("input");
+      box.autocomplete = "username webauthn";
+      document.body.append(box);
+      let result = await check(made, key, {}, "conditional");
+      step("conditional " + result);
+    }
+    // Signs in and checks the answer like a website would.
+    async function check(made, key, extra, mediation) {
       let challenge = random();
-      let got = await navigator.credentials.get({
-        publicKey: { challenge, allowCredentials: [{ type: "public-key", id: made.rawId }] },
-      });
+      let got = await navigator.credentials.get({ mediation, publicKey: { challenge, ...extra } });
       let r = got.response;
       let client = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
       let b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
       if (client.type != "webauthn.get" || client.challenge != b64(challenge) || client.origin != location.origin) {
-        return step("bad client data " + JSON.stringify(client));
+        return "bad client data " + JSON.stringify(client);
       }
       let authData = new Uint8Array(r.authenticatorData);
       if (b64(authData.slice(0, 32)) != b64(await sha256(new TextEncoder().encode(location.hostname)))) {
-        return step("bad rp id hash");
+        return "bad rp id hash";
       }
       let signed = new Uint8Array([...authData, ...(await sha256(new Uint8Array(r.clientDataJSON)))]);
       let ok = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, derToRaw(new Uint8Array(r.signature)), signed);
       let user = new Uint8Array(r.userHandle ?? []).join(",");
-      step(ok && user == "1,2,3,4" && got.id == made.id ? "verified" : `not verified (${ok}, ${user})`);
+      return ok && user == "1,2,3,4" && got.id == made.id ? "verified" : `not verified (${ok}, ${user})`;
     }
     run().catch(e => step(e.name + " " + e.message));
   </script>
