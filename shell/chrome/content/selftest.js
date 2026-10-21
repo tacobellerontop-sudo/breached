@@ -877,9 +877,25 @@ var SelfTest = {
     let wait = ms => new Promise(r => setTimeout(r, ms));
     let info = (report.info.google = {});
     let errorsBefore = Services.console.getMessageArray().length;
-    B.openTab("https://accounts.google.com/ServiceLogin?continue=https://www.youtube.com/");
-    let loaded = await waitFor(() => /accounts\.google\.com/.test(B.selected.url) && !B.selected.el.hasAttribute("busy"), 30000);
-    info.url = B.selected.url;
+    // Like signing in from YouTube: the same tab goes from YouTube to Google.
+    B.openTab("https://www.youtube.com/");
+    await waitFor(() => /youtube/i.test(B.selected.title) && !B.selected.el.hasAttribute("busy"), 30000);
+    B.run("open https://accounts.google.com/ServiceLogin?service=youtube&continue=https://www.youtube.com/");
+    let loaded = await waitFor(
+      () => /accounts\.google\.com/.test(B.selectedBrowser.currentURI?.spec) && !B.selectedBrowser.webProgress?.isLoadingDocument,
+      30000
+    );
+    await wait(1500);
+    info.url = B.selectedBrowser.currentURI?.spec;
+    let bc = B.selectedBrowser.browsingContext;
+    let current = BrowsingContext.getCurrentTopByBrowserId(B.selectedBrowser.browserId);
+    info.context = {
+      tabTitle: B.selected.title,
+      hasWindowGlobal: !!bc?.currentWindowGlobal,
+      sameAsCurrentTop: bc === current,
+      currentHasWindowGlobal: !!current?.currentWindowGlobal,
+      discarded: bc?.isDiscarded,
+    };
     if (!loaded) {
       info.skipped = "Google's sign-in didn't load";
       B.closeTab(B.selected);
