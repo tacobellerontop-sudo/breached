@@ -45,8 +45,8 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
     if (message.name == "SelfTest:Login") {
       // Types a login into the page's form and sends it, like a person would.
       let { username, password } = message.data;
-      let user = this.document.querySelector("input[type=text], input[type=email]");
-      let pass = this.document.querySelector("input[type=password]");
+      let user = this.document.querySelector("form input[type=text], form input[type=email]");
+      let pass = this.document.querySelector("form input[type=password]");
       user?.setUserInput(username);
       pass?.setUserInput(password);
       pass?.form?.requestSubmit();
