@@ -9,6 +9,10 @@ on:
       pattern:
         description: "Regular expression for paths inside omni.ja"
         required: true
+      files:
+        description: "Also these source files (space-separated paths in Firefox's source, from its release branch)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -33,6 +37,10 @@ jobs:
           (cd out && find . -type f | grep -E "$PATTERN" | while read f; do mkdir -p "../keep/$(dirname "$f")"; cp "$f" "../keep/$f"; done)
           (cd out && find . -type f | sort > ../keep/ALL-FILES.txt)
           echo "$version" > keep/VERSION
+          for f in ${{ inputs.files }}; do
+            mkdir -p "keep/source/$(dirname "$f")"
+            curl -sSfL -o "keep/source/$f" "https://raw.githubusercontent.com/mozilla-firefox/firefox/release/$f" || echo "missing $f" >> keep/MISSING.txt
+          done
           cd keep
           git init -q -b gecko-src
           git config user.name "github-actions[bot]"
