@@ -46,13 +46,22 @@
       let box = document.createElement("input");
       box.autocomplete = "username webauthn";
       document.body.append(box);
-      let result = await check(made, key, {}, "conditional");
+      // Asked the way Google's sign-in does: with an untouched browser
+      // function taken from a fresh blank frame.
+      let result = await check(made, key, {}, "conditional", true);
       step("conditional " + result);
     }
     // Signs in and checks the answer like a website would.
-    async function check(made, key, extra, mediation) {
+    async function check(made, key, extra, mediation, fromFrame) {
       let challenge = random();
-      let got = await navigator.credentials.get({ mediation, publicKey: { challenge, ...extra } });
+      let get = navigator.credentials.get.bind(navigator.credentials);
+      if (fromFrame) {
+        let frame = document.createElement("iframe");
+        frame.style.display = "none";
+        document.body.append(frame);
+        get = options => frame.contentWindow.CredentialsContainer.prototype.get.call(navigator.credentials, options);
+      }
+      let got = await get({ mediation, publicKey: { challenge, ...extra } });
       let r = got.response;
       let client = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
       let b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
