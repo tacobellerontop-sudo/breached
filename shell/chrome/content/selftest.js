@@ -796,7 +796,7 @@ var SelfTest = {
     let info = (report.info.ublock = {});
     const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
     // How long :open takes, without and with uBlock Origin.
-    let sites = ["https://example.com/", "https://www.wikipedia.org/", "https://www.bbc.com/", "https://github.com/"];
+    let sites = ["https://example.com/", "https://www.wikipedia.org/", "https://www.youtube.com/", "https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://github.com/"];
     let timeLoads = async () => {
       let times = {};
       let tab = B.openTab("about:blank");
