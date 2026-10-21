@@ -52,6 +52,8 @@ var SelfTest = {
       Alt: ["AltLeft", KeyboardEvent.DOM_VK_ALT],
     };
     let press = (key, code, keyCode, mods = []) => {
+      // Something else (the Bitwarden mod pasting) may have taken the window's input.
+      tip.beginInputTransactionForTests(window);
       for (let m of mods) {
         tip.keydown(new KeyboardEvent("", { key: m, code: MODS[m][0], keyCode: MODS[m][1] }));
       }
