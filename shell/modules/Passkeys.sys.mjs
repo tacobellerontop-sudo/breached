@@ -13,19 +13,15 @@
 // Breached shows them as rows. A login box offering passkeys (conditional
 // mediation) waits until the provider picks one with use().
 
+import { clearInterval, setInterval } from "resource://gre/modules/Timer.sys.mjs";
+
 const SOFT_TOKEN = "security.webauth.webauthn_enable_softtoken";
 const USB_TOKEN = "security.webauth.webauthn_enable_usbtoken";
 const POLL_MS = 1500;
 
 const service = () => Cc["@mozilla.org/webauthn/service;1"].getService(Ci.nsIWebAuthnService);
 
-const b64url = bytes => {
-  let s = "";
-  for (let b of bytes) {
-    s += String.fromCharCode(b);
-  }
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-};
+const b64url = bytes => ChromeUtils.base64URLEncode(new Uint8Array(bytes), { pad: false });
 
 /** The Breached window and browser showing a top browsing context id. */
 function browserFor(browsingContextId) {
@@ -295,7 +291,7 @@ export const Passkeys = {
 
   /** Signs the waiting login box in with this passkey. */
   use(tid, credentialId) {
-    let s = atob(credentialId.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (credentialId.length % 4)) % 4));
-    service().selectAutoFillEntry(tid, Array.from(s, c => c.charCodeAt(0)));
+    let bytes = new Uint8Array(ChromeUtils.base64URLDecode(credentialId, { padding: "ignore" }));
+    service().selectAutoFillEntry(tid, Array.from(bytes));
   },
 };
