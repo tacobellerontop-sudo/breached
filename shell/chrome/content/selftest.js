@@ -419,6 +419,9 @@ var SelfTest = {
     await this.openFiles(B, check, waitFor, wait, outDir, report);
     await this.lastMods(B, check, waitFor, wait, press, outDir, report);
 
+    // 17. uBlock Origin (the real one, from addons.mozilla.org): sites still open
+    await this.ublock(B, check, waitFor, wait, outDir, report);
+
     report.errors = Services.console
       .getMessageArray()
       .filter(m => m instanceof Ci.nsIScriptError && !(m.flags & Ci.nsIScriptError.warningFlag))
@@ -787,6 +790,57 @@ var SelfTest = {
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
     );
     B.closeTab(B.selected);
+  },
+
+  async ublock(B, check, waitFor, wait, outDir, report) {
+    let info = (report.info.ublock = {});
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    let addon;
+    try {
+      let install = await AddonManager.getInstallForURL(
+        "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi",
+        { telemetryInfo: { source: "internal" } }
+      );
+      addon = await install.install();
+      info.version = addon?.version;
+    } catch (e) {
+      info.installError = String(e);
+      return;
+    }
+    // Let it load its filter lists.
+    await waitFor(() => WebExtensionPolicy.getByID("uBlock0@raymondhill.net")?.extension?.backgroundState == "running", 30000);
+    await wait(8000);
+    let state = () => ({
+      url: B.selected.url,
+      title: B.selected.title,
+      uri: B.selectedBrowser.currentURI?.spec,
+      loading: B.selectedBrowser.webProgress?.isLoadingDocument,
+      busy: B.selected.el.hasAttribute("busy"),
+    });
+    let tab = B.openTab(B.homepage());
+    await wait(2000);
+    info.home = state();
+    B.run("open example.com");
+    let fromHome = await waitFor(() => B.selected.title == "Example Domain", 20000);
+    info.fromHome = state();
+    await this.screenshot(outDir, "40-ublock-open-from-home.png");
+    check("with uBlock Origin, :open from the home page opens the site", fromHome);
+    B.run("open https://www.wikipedia.org/");
+    let fromSite = await waitFor(() => /wikipedia/i.test(B.selected.title), 20000);
+    info.fromSite = state();
+    check("with uBlock Origin, :open from a site opens another site", fromSite);
+    B.run("open -t example.org");
+    let newTab = await waitFor(() => B.selected.title == "Example Domain" && /example\.org/.test(B.selected.url), 20000);
+    info.newTab = state();
+    check("with uBlock Origin, :open -t opens the site in a new tab", newTab);
+    info.log = Services.console
+      .getMessageArray()
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => /ublock|uBlock|NS_ERROR|blocked/i.test(m))
+      .slice(-15);
+    B.closeTab(B.selected);
+    B.closeTab(tab);
+    await addon.uninstall();
   },
 
   // The real Google sign-in page (needs the internet): the logins show
