@@ -690,6 +690,17 @@ var SelfTest = {
     press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     let installed = await waitFor(() => ModHost.loaded.has("bitwarden") && Commands["bw.exe"], 15000);
     check("the mods site installs the Bitwarden mod, which adds :bw.exe", installed);
+    if (!installed) {
+      report.info.bitwardenLoadProblem = {
+        message: document.getElementById("message").textContent,
+        loaded: ModHost.loaded.has("bitwarden"),
+        console: Services.console
+          .getMessageArray()
+          .map(m => m.message ?? m.errorMessage ?? "")
+          .filter(m => /bitwarden|mod|passkey/i.test(m))
+          .slice(-15),
+      };
+    }
     check(
       "the mods site then shows it as installed",
       await waitFor(async () => (await this.element("a[data-breached-mod=bitwarden]"))?.text == "Installed", 5000)
