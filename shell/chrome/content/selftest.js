@@ -708,7 +708,7 @@ var SelfTest = {
     if (installed && fakeBw && loginPage) {
       Services.prefs.setStringPref("breached.mods.bitwarden.path", fakeBw);
       let bw = this.bitwardenKeys(press, waitFor);
-      let { rows, type, shortcut, promptHas } = bw;
+      let { rows, type, shortcut, promptHas, pickRow } = bw;
       let field = async id => {
         let list = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => []);
         return list.find(i => i.id == id)?.value;
@@ -747,9 +747,12 @@ var SelfTest = {
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         let actions = await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent) && rows().length >= 4, 10000);
         report.info.bitwardenActions = rows().map(r => r.textContent);
-        check("picking a login offers to paste or copy its username and password", actions && /paste username/.test(rows()[0].textContent));
+        check(
+          "picking a login offers to paste both (username, Tab, password), or paste or copy each",
+          actions && /paste both/.test(rows()[0].textContent) && rows().some(r => /paste username/.test(r.textContent))
+        );
         await this.screenshot(outDir, "13b-bitwarden-actions.png");
-        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        pickRow(/paste username/);
         let user = await waitFor(async () => (await field("user")) == "breached-user", 10000);
         check("paste username types it into the box you were in", user);
         // Then the password box.
@@ -759,8 +762,7 @@ var SelfTest = {
         type("breached");
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent), 10000);
-        press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
-        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        pickRow(/paste password/);
         let filled = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
         report.info.bitwardenTitle = B.selected.title;
         report.info.bitwardenMessage = document.getElementById("message").textContent;
@@ -787,11 +789,7 @@ var SelfTest = {
         type("breached");
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
         await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent), 10000);
-        let copyRow = rows().findIndex(r => /copy password/.test(r.textContent));
-        for (let i = 0; i < copyRow; i++) {
-          press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
-        }
-        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        pickRow(/copy password/);
         check("copy password puts it on the clipboard", await waitFor(() => bw.clipboard() == "breached-pass", 5000));
         // Locked: the PIN unlocks it.
         B.run("bw.exe lock");
@@ -806,6 +804,20 @@ var SelfTest = {
           await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000)
         );
         press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+        // Paste both on an empty form, as qutebrowser does: username, Tab, password.
+        B.selectedBrowser.reload();
+        await waitFor(() => B.selected.title == "login", 10000);
+        await new Promise(r => setTimeout(r, 500));
+        await this.clickElement("#user");
+        shortcut();
+        await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 15000);
+        type("breached");
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await waitFor(() => /breached-user:/.test(document.getElementById("prompt").textContent), 10000);
+        pickRow(/paste both/);
+        let both = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
+        report.info.bitwardenBothTitle = B.selected.title;
+        check("paste both fills the username, Tabs to the password box and fills it", both);
       }
       B.closeTab(B.selected);
       // The Speed mod (a spare page process waiting, more processes), as people use it.
@@ -989,8 +1001,17 @@ var SelfTest = {
   // by themselves and picking one fills the email.
   /** Keys and rows for the Bitwarden tests. */
   bitwardenKeys(press, waitFor) {
+    let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
     return {
-      rows: () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")],
+      rows,
+      /** Moves down to the row whose text matches, then Enter. */
+      pickRow(label) {
+        let at = rows().findIndex(r => label.test(r.textContent));
+        for (let i = 0; i < at; i++) {
+          press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
+        }
+        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+      },
       type(text) {
         for (let c of text) {
           let code = /\d/.test(c) ? "Digit" + c : "Key" + c.toUpperCase();
@@ -1061,7 +1082,7 @@ var SelfTest = {
       B.closeTab(B.selected);
       return;
     }
-    let { rows, shortcut } = this.bitwardenKeys(press, waitFor);
+    let { rows, shortcut, pickRow } = this.bitwardenKeys(press, waitFor);
     let inputs = async () => {
       try {
         return await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {});
@@ -1075,8 +1096,8 @@ var SelfTest = {
       let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 15000);
       if (shown) {
         press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
-        await waitFor(() => /paste username/.test(rows()[0]?.textContent), 10000);
-        press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+        await waitFor(() => rows().some(r => /paste username/.test(r.textContent)), 10000);
+        pickRow(/paste username/);
       }
       let pasted = await waitFor(async () => {
         let list = await inputs();
