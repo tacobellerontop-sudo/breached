@@ -178,12 +178,21 @@ class WindowTracker extends WindowTrackerBase {
 
   /** The frontmost Breached window that isn't an extension's popup window. */
   getTopNormalWindow() {
-    for (let win of Services.wm.getZOrderDOMWindowEnumerator(WINDOW_TYPE, true)) {
+    let top = this.topWindow;
+    if (!top || !shellOf(top)?.isPopup) {
+      return top;
+    }
+    // A popup window: the window it was opened over, or any other.
+    let opener = top.breachedOpener;
+    if (opener && !opener.closed) {
+      return opener;
+    }
+    for (let win of Services.wm.getEnumerator(WINDOW_TYPE)) {
       if (!shellOf(win)?.isPopup && !win.closed) {
         return win;
       }
     }
-    return this.topWindow;
+    return top;
   }
 
   addProgressListener(window, listener) {

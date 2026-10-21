@@ -544,7 +544,9 @@ var Breached = {
     if (this.isPrivate) {
       features += ",private";
     }
-    return Services.ww.openWindow(null, window.location.href, "_blank", features, arg);
+    let popup = Services.ww.openWindow(null, window.location.href, "_blank", features, arg);
+    popup.breachedOpener = window;
+    return popup;
   },
 
   /** What openPrivateWindow and openPopupWindow passed: { url, private, popup }. */
