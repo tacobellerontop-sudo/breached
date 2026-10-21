@@ -773,6 +773,15 @@ var SelfTest = {
       }
       if (asked) {
         await this.googleSignin(B, check, waitFor, press, outDir, report);
+        // Again with uBlock Origin running, as people use it.
+        let ublock = await this.installUblock(report.info, waitFor);
+        if (ublock) {
+          let first = report.info.google;
+          await this.googleSignin(B, check, waitFor, press, outDir, report, " with uBlock Origin");
+          report.info.googleWithUblock = report.info.google;
+          report.info.google = first;
+          await ublock.uninstall();
+        }
       }
       await this.passkeys(B, check, waitFor, press, outDir, report, loginPage);
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
@@ -873,7 +882,24 @@ var SelfTest = {
 
   // The real Google sign-in page (needs the internet): the logins show
   // by themselves and picking one fills the email.
-  async googleSignin(B, check, waitFor, press, outDir, report) {
+  async installUblock(info, waitFor) {
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    try {
+      let install = await AddonManager.getInstallForURL(
+        "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi",
+        { telemetryInfo: { source: "internal" } }
+      );
+      let addon = await install.install();
+      await waitFor(() => WebExtensionPolicy.getByID("uBlock0@raymondhill.net")?.extension?.backgroundState == "running", 30000);
+      await new Promise(r => setTimeout(r, 8000));
+      return addon;
+    } catch (e) {
+      info.ublockInstallError = String(e);
+      return null;
+    }
+  },
+
+  async googleSignin(B, check, waitFor, press, outDir, report, label = "") {
     let wait = ms => new Promise(r => setTimeout(r, ms));
     let info = (report.info.google = {});
     let errorsBefore = Services.console.getMessageArray().length;
@@ -917,8 +943,8 @@ var SelfTest = {
     } catch (e) {
       info.actor = String(e);
     }
-    await this.screenshot(outDir, "14e-google-signin.png");
-    check("Google's sign-in shows the Bitwarden logins by itself", shown);
+    await this.screenshot(outDir, `14e-google-signin${label ? "-ublock" : ""}.png`);
+    check("Google's sign-in shows the Bitwarden logins by itself" + label, shown);
     if (shown) {
       press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     } else {
@@ -938,13 +964,13 @@ var SelfTest = {
       .map(m => m.message ?? m.errorMessage ?? "")
       .filter(m => /bitwarden|Bitwarden|BitwardenChild|actor/i.test(m))
       .slice(0, 20);
-    await this.screenshot(outDir, "14f-google-filled.png");
-    check("picking a login fills Google's email field", filled);
+    await this.screenshot(outDir, `14f-google-filled${label ? "-ublock" : ""}.png`);
+    check("picking a login fills Google's email field" + label, filled);
     // After a reload: the rows show again, and picking still fills.
     B.selectedBrowser.reload();
     await wait(1500);
     let again = await waitFor(() => !document.getElementById("picker").hidden && rows().length >= 1, 20000);
-    check("after a reload, Google's sign-in shows the logins again", again);
+    check("after a reload, Google's sign-in shows the logins again" + label, again);
     if (again) {
       press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     }
@@ -953,7 +979,7 @@ var SelfTest = {
       return Array.isArray(list) && list.some(i => i.id == "identifierId" && i.value == "breached-user");
     }, 10000);
     info.afterReloadMessage = document.getElementById("message").textContent;
-    check("after a reload, picking a login still fills it", refilled);
+    check("after a reload, picking a login still fills it" + label, refilled);
     B.closeTab(B.selected);
   },
 
