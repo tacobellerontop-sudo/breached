@@ -427,6 +427,9 @@ var SelfTest = {
     await this.openFiles(B, check, waitFor, wait, outDir, report);
     await this.lastMods(B, check, waitFor, wait, press, outDir, report);
 
+    // 18. The official Bitwarden extension (from addons.mozilla.org): does it run?
+    await this.bitwardenExtension(B, waitFor, wait, outDir, report);
+
     // 17. uBlock Origin (the real one, from addons.mozilla.org): sites still open
     await this.ublock(B, check, waitFor, wait, outDir, report);
 
@@ -843,6 +846,64 @@ var SelfTest = {
       await waitFor(() => !ModHost.loaded.has("bitwarden") && !Commands["bw.exe"], 5000)
     );
     B.closeTab(B.selected);
+  },
+
+  // Only reports what happens (no checks yet): Breached's extension support
+  // with the Bitwarden extension, which fills logins and answers passkeys.
+  async bitwardenExtension(B, waitFor, wait, outDir, report) {
+    let info = (report.info.bitwardenExtension = {});
+    const { AddonManager } = ChromeUtils.importESModule("resource://gre/modules/AddonManager.sys.mjs");
+    let before = Services.console.getMessageArray().length;
+    let addon;
+    try {
+      let install = await AddonManager.getInstallForURL(
+        "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi",
+        { telemetryInfo: { source: "internal" } }
+      );
+      addon = await install.install();
+      info.id = addon.id;
+      info.version = addon.version;
+    } catch (e) {
+      info.installError = String(e);
+      return;
+    }
+    let policy = () => WebExtensionPolicy.getByID(addon.id);
+    info.running = !!(await waitFor(() => policy()?.extension?.backgroundState == "running", 30000));
+    await wait(5000);
+    info.manifestVersion = policy()?.extension?.manifestVersion;
+    info.permissions = policy()?.permissions;
+    // A login page: does its content script add anything?
+    let loginPage = Services.env.get("BREACHED_TEST_LOGIN_PAGE");
+    if (loginPage) {
+      let tab = B.openTab(loginPage);
+      await waitFor(() => tab.title == "login" && !tab.el.hasAttribute("busy"), 10000);
+      await wait(4000);
+      try {
+        await this.clickElement("#user");
+        await wait(3000);
+        info.page = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Extras", {});
+      } catch (e) {
+        info.pageError = String(e);
+      }
+      await this.screenshot(outDir, "41-bitwarden-extension-login.png");
+      B.closeTab(tab);
+    }
+    // Its popup, as :ext opens it.
+    try {
+      B.run("ext bitwarden");
+      await wait(5000);
+      await this.screenshot(outDir, "42-bitwarden-extension-popup.png");
+      document.getElementById("ext-popup-panel")?.hidePopup?.();
+    } catch (e) {
+      info.popupError = String(e);
+    }
+    info.log = Services.console
+      .getMessageArray()
+      .slice(before)
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => !/Content-Security-Policy|uBlock/.test(m))
+      .slice(-40);
+    await addon.uninstall();
   },
 
   async ublock(B, check, waitFor, wait, outDir, report) {

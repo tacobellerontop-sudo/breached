@@ -42,6 +42,21 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
         active: doc.activeElement?.id ?? "",
       };
     }
+    if (message.name == "SelfTest:Extras") {
+      // Elements an extension added to the page (outside the page's own markup).
+      let doc = this.document;
+      let names = new Set();
+      for (let el of doc.querySelectorAll("*")) {
+        if (el.localName.includes("-") || /bitwarden|bwi|autofill/i.test(el.className?.toString?.() ?? "")) {
+          names.add(el.localName + (el.id ? "#" + el.id : ""));
+        }
+      }
+      return {
+        custom: [...names].slice(0, 30),
+        bodyAttrs: [...doc.body.attributes].map(a => a.name),
+        credentialsOwn: Object.getOwnPropertyNames(Cu.waiveXrays(this.contentWindow).navigator.credentials),
+      };
+    }
     if (message.name == "SelfTest:Credentials") {
       // Whether the page's navigator.credentials is Bitwarden's (wrapped) or Gecko's own.
       let creds = Cu.waiveXrays(this.contentWindow).navigator.credentials;
