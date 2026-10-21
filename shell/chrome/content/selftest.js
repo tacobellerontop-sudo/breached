@@ -191,6 +191,12 @@ var SelfTest = {
     // 5. Commands
     B.run("tab-focus 1");
     check(":tab-focus switches tabs", B.selected === B.tabs[0]);
+    let tabBg = t => getComputedStyle(t.el).backgroundColor;
+    let selectedBg = tabBg(B.tabs[0]);
+    check("the selected tab has its own colour", selectedBg != tabBg(B.tabs[1]));
+    B.run("tab-focus 2");
+    check("the colour follows the selected tab", tabBg(B.tabs[1]) == selectedBg && tabBg(B.tabs[0]) != selectedBg);
+    B.run("tab-focus 1");
     B.run("tab-sleep 2");
     check(":tab-sleep unloads a tab", B.tabs[1].asleep && $("content").children.length == 1);
     B.run("tab-focus 2");

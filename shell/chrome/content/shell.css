@@ -318,10 +318,12 @@ body {
   white-space: nowrap;
   cursor: default;
 }
-.tab:nth-child(odd of .tab) {
+/* :where() keeps these stripes weaker than .tab[selected] below; "of .tab"
+   alone would outrank it and the selected tab would never show. */
+.tab:where(:nth-child(odd of .tab)) {
   background: color-mix(in srgb, var(--tab-odd) var(--bar-opacity), transparent);
 }
-.tab:nth-child(even of .tab) {
+.tab:where(:nth-child(even of .tab)) {
   background: color-mix(in srgb, var(--tab-even) var(--bar-opacity), transparent);
 }
 .tab[selected] {
