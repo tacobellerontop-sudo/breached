@@ -805,6 +805,12 @@ var SelfTest = {
         press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
       }
       B.closeTab(B.selected);
+      // The Speed mod (a spare page process waiting, more processes), as people use it.
+      let speed = await ModHost.installFromSite("speed", { confirm: false, quiet: true }).then(
+        () => waitFor(() => ModHost.loaded.has("speed"), 10000),
+        e => (report.info.speedInstall = String(e))
+      );
+      report.info.speedForBitwarden = speed;
       if (asked) {
         await this.googleSignin(B, check, waitFor, press, outDir, report);
         // Again with uBlock Origin running, as people use it.
@@ -818,6 +824,10 @@ var SelfTest = {
         }
       }
       await this.passkeys(B, check, waitFor, press, outDir, report, loginPage);
+      if (speed === true) {
+        await ModHost.Mods.uninstall("speed");
+        await waitFor(() => !ModHost.loaded.has("speed"), 5000);
+      }
       Services.prefs.clearUserPref("breached.mods.bitwarden.path");
     }
 
@@ -1013,6 +1023,15 @@ var SelfTest = {
       }, 10000);
       return { shown, pasted };
     };
+    try {
+      info.credentials = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Credentials", {});
+    } catch (e) {
+      info.credentials = String(e);
+    }
+    check(
+      "on Google's sign-in, Bitwarden answers passkey requests (not Windows)" + label,
+      info.credentials?.own?.includes("get")
+    );
     let first = await pasteEmail();
     info.inputs = await inputs();
     info.message = document.getElementById("message").textContent;

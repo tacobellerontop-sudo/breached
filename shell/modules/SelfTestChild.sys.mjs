@@ -42,6 +42,11 @@ export class BreachedSelfTestChild extends JSWindowActorChild {
         active: doc.activeElement?.id ?? "",
       };
     }
+    if (message.name == "SelfTest:Credentials") {
+      // Whether the page's navigator.credentials is Bitwarden's (wrapped) or Gecko's own.
+      let creds = Cu.waiveXrays(this.contentWindow).navigator.credentials;
+      return { own: Object.getOwnPropertyNames(creds), get: String(creds.get).slice(0, 60) };
+    }
     if (message.name == "SelfTest:Inputs") {
       // Every input of the page, as a password manager sees it.
       return [...this.document.querySelectorAll("input")].map(i => {
