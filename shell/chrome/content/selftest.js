@@ -1201,14 +1201,24 @@ var SelfTest = {
     Passkeys.unload();
     B.openTab(page + "#signin");
     let asked = await waitFor(
-      () => !document.getElementById("commandbar").hidden && /PIN/.test(document.getElementById("prompt").textContent),
+      () => !document.getElementById("commandbar").hidden && /PIN|master password/.test(document.getElementById("prompt").textContent),
       15000
     );
     report.info.passkeyLockedResult = B.selected.title;
     report.info.passkeyLockedMessage = message();
+    report.info.passkeyLockedPrompt = document.getElementById("prompt").textContent;
     check("a passkey request while Bitwarden is locked asks to unlock it", asked);
-    bw.type("1234");
-    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    if (/master password/.test(report.info.passkeyLockedPrompt)) {
+      // (The PIN is kept in memory; a mod reloaded since has forgotten it.)
+      bw.type("hunter2");
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+      if (await bw.promptHas("choose a PIN")) {
+        press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+      }
+    } else {
+      bw.type("1234");
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    }
     check(
       "unlocking loads the vault's passkeys into Breached",
       await waitFor(() => Passkeys.loaded && [...Passkeys.known.values()].some(p => p.rpId == "localhost" && p.itemId), 15000)
