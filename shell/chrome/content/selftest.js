@@ -830,6 +830,7 @@ var SelfTest = {
         let both = await waitFor(() => B.selected.title == "filled breached-user / breached-pass", 15000);
         report.info.bitwardenBothTitle = B.selected.title;
         check("paste both fills the username, Tabs to the password box and fills it", both);
+        await this.bitwardenAutofill(B, check, waitFor, press, outDir, report, loginPage, bw);
       }
       B.closeTab(B.selected);
       // The Speed mod (a spare page process waiting, more processes), as people use it.
@@ -1012,6 +1013,55 @@ var SelfTest = {
   // The real Google sign-in page (needs the internet): the logins show
   // by themselves and picking one fills the email.
   /** Keys and rows for the Bitwarden tests. */
+  // Gecko's own password manager filling from the unlocked vault, and how fast Ctrl+Shift+L is.
+  async bitwardenAutofill(B, check, waitFor, press, outDir, report, loginPage, bw) {
+    let info = (report.info.bitwardenAutofill = {});
+    let { rows, shortcut, pickRow } = bw;
+    let field = async id => {
+      let list = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => []);
+      return list.find(i => i.id == id)?.value;
+    };
+    // Ctrl+Shift+L with the vault unlocked: the rows come from memory, not bw.exe.
+    B.closeTab(B.selected);
+    B.openTab(loginPage);
+    await waitFor(() => B.selected.title == "login", 10000);
+    await new Promise(r => setTimeout(r, 500));
+    await this.clickElement("#user");
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    let started = Date.now();
+    shortcut();
+    let shown = await waitFor(() => !document.getElementById("picker").hidden && rows().length == 2, 10000);
+    info.shortcutMs = Date.now() - started;
+    check(`Ctrl+Shift+L shows the logins quickly with the vault unlocked (${info.shortcutMs} ms)`, shown && info.shortcutMs < 1000);
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    // Two logins for the site: clicking the username box lists them (Gecko's dropdown).
+    B.selectedBrowser.focus();
+    await this.clickElement("#pass");
+    await this.clickElement("#user");
+    let popup = () => document.getElementById("PopupAutoComplete");
+    let listed = await waitFor(() => popup()?.state == "open", 8000);
+    info.dropdown = popup() ? { state: popup().state, rows: [...popup().querySelectorAll("richlistitem")].map(r => r.textContent.trim()) } : null;
+    check("clicking a login box lists the vault's logins for the site", listed && info.dropdown.rows.some(r => r.includes("breached-user")));
+    await this.screenshot(outDir, "14e-bitwarden-autofill-list.png");
+    if (listed) {
+      press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
+      press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    }
+    let filled = await waitFor(() => /^filled /.test(B.selected.title), 8000);
+    info.dropdownTitle = B.selected.title;
+    check("picking one fills the username and password", filled && B.selected.title == "filled breached-user / breached-pass");
+    B.closeTab(B.selected);
+    // One login for the site: filled in when the page loads.
+    B.openTab(loginPage.replace("127.0.0.1", "localhost"));
+    let auto = await waitFor(async () => (await field("pass")) > 0 && (await field("user")) == "single-user", 10000);
+    info.loadFilled = { user: await field("user"), pass: await field("pass") };
+    check("a site's only login is filled in when the page loads", auto);
+    await this.screenshot(outDir, "14f-bitwarden-autofill-load.png");
+    B.closeTab(B.selected);
+    check("nothing is saved in Gecko's own password store", !(await Services.logins.getAllLogins()).some(l => /breached-user|other-user|single-user/.test(l.username)));
+    B.openTab(loginPage);
+  },
+
   bitwardenKeys(press, waitFor) {
     let rows = () => [...document.querySelectorAll("#picker .picker-row:not(.picker-empty)")];
     return {

@@ -1,5 +1,5 @@
 // A stand-in for the Bitwarden CLI (bw.exe), for Breached's self-test.
-// Master password "hunter2"; two logins for any URL. Items made or changed
+// Master password "hunter2"; two logins for 127.0.0.1 and Google, one for localhost. Items made or changed
 // with create/edit (passkeys) are kept in items.txt next to it, one per line.
 using System;
 using System.Collections.Generic;
@@ -13,8 +13,9 @@ class FakeBw
 
     static readonly Dictionary<string, string> Builtin = new Dictionary<string, string>
     {
-        { "1", "{\"id\":\"1\",\"type\":1,\"name\":\"test login\",\"login\":{\"username\":\"breached-user\",\"password\":\"breached-pass\",\"totp\":null}}" },
-        { "2", "{\"id\":\"2\",\"type\":1,\"name\":\"second login\",\"login\":{\"username\":\"other-user\",\"password\":\"other-pass\",\"totp\":null}}" },
+        { "1", "{\"id\":\"1\",\"type\":1,\"name\":\"test login\",\"login\":{\"uris\":[{\"match\":null,\"uri\":\"http://127.0.0.1:8123/\"},{\"match\":null,\"uri\":\"https://accounts.google.com\"}],\"username\":\"breached-user\",\"password\":\"breached-pass\",\"totp\":null}}" },
+        { "2", "{\"id\":\"2\",\"type\":1,\"name\":\"second login\",\"login\":{\"uris\":[{\"match\":null,\"uri\":\"http://127.0.0.1:8123/\"},{\"match\":null,\"uri\":\"https://accounts.google.com\"}],\"username\":\"other-user\",\"password\":\"other-pass\",\"totp\":null}}" },
+        { "3", "{\"id\":\"3\",\"type\":1,\"name\":\"only login\",\"login\":{\"uris\":[{\"match\":1,\"uri\":\"http://localhost:8123\"}],\"username\":\"single-user\",\"password\":\"single-pass\",\"totp\":null}}" },
     };
 
     static string Store
