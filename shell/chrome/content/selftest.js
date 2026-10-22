@@ -1098,6 +1098,7 @@ var SelfTest = {
       return ok;
     };
     // :bw on its own: a menu with this site's logins and the rest.
+    await waitFor(() => B.selected.title == "login", 10000);
     B.run("bw");
     await waitFor(() => prompt().includes("bitwarden:") && rows().length > 5, 10000);
     info.menu = rowTexts();
