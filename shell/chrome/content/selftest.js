@@ -1041,17 +1041,20 @@ var SelfTest = {
     let popup = () => document.getElementById("PopupAutoComplete");
     let listed = await waitFor(() => popup()?.state == "open", 8000);
     await new Promise(r => setTimeout(r, 300));
-    let rowText = r =>
-      [r.textContent, r.getAttribute("ac-value"), r.getAttribute("ac-label"), r.getAttribute("title")].filter(Boolean).join(" ").trim();
+    // Rows are <richlistitem><autocomplete-row-item>, which draws its label in its shadow root.
+    let rowText = r => {
+      let item = r.querySelector("autocomplete-row-item");
+      return [item?.label, item?.description, item?.shadowRoot?.textContent].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    };
     info.dropdown = popup()
       ? {
           state: popup().state,
           rows: [...popup().querySelectorAll("richlistitem")].map(r => ({
             text: rowText(r),
-            is: r.getAttribute("is"),
+            upgraded: !!customElements.get("autocomplete-row-item"),
             style: r.getAttribute("originaltype"),
             height: r.getBoundingClientRect().height,
-            shown: [...r.querySelectorAll("*")].filter(e => e.textContent && !e.children.length).map(e => e.textContent.trim()).slice(0, 4),
+            shadow: !!r.querySelector("autocomplete-row-item")?.shadowRoot,
           })),
         }
       : null;
