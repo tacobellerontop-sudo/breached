@@ -1152,9 +1152,13 @@ var SelfTest = {
     press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     await waitFor(() => /newuser:/.test(prompt()) && rows().length == 4, 10000);
     info.newMessage = document.getElementById("message").textContent;
+    let inputs = async () =>
+      (await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => [])).map(i => `${i.id}=${i.value}${i.focused ? "*" : ""}`).join(" ");
+    info.beforePaste = await inputs();
+    info.focusedBefore = document.commandDispatcher.focusedElement?.id ?? document.activeElement?.id;
     pickRow(/paste both/);
     let pasted = await waitFor(async () => (await field("user")) == "newuser" && (await field("pass")) == 20, 10000);
-    info.newFields = { user: await field("user"), pass: await field("pass") };
+    info.newFields = await inputs();
     check(":bw new pastes the username and a new password", pasted);
     let saved = window.breachedBitwardenLogins.loginsFor("http://localhost:8123").find(l => l.username == "newuser");
     check(":bw new saves the login in the vault", saved?.password?.length == 20);
