@@ -1,5 +1,6 @@
 // A stand-in for the Bitwarden CLI (bw.exe), for Breached's self-test.
-// Master password "hunter2"; two logins for 127.0.0.1 and Google, one for localhost. Items made or changed
+// Master password "hunter2"; two logins for 127.0.0.1 and Google, one for localhost, a secure note
+// and a card. Items made or changed
 // with create/edit (passkeys) are kept in items.txt next to it, one per line.
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,8 @@ class FakeBw
         { "1", "{\"id\":\"1\",\"type\":1,\"name\":\"test login\",\"login\":{\"uris\":[{\"match\":null,\"uri\":\"http://127.0.0.1:8123/\"},{\"match\":null,\"uri\":\"https://accounts.google.com\"}],\"username\":\"breached-user\",\"password\":\"breached-pass\",\"totp\":null}}" },
         { "2", "{\"id\":\"2\",\"type\":1,\"name\":\"second login\",\"login\":{\"uris\":[{\"match\":null,\"uri\":\"http://127.0.0.1:8123/\"},{\"match\":null,\"uri\":\"https://accounts.google.com\"}],\"username\":\"other-user\",\"password\":\"other-pass\",\"totp\":null}}" },
         { "3", "{\"id\":\"3\",\"type\":1,\"name\":\"only login\",\"login\":{\"uris\":[{\"match\":1,\"uri\":\"http://localhost:8123\"}],\"username\":\"single-user\",\"password\":\"single-pass\",\"totp\":null}}" },
+        { "4", "{\"id\":\"4\",\"type\":2,\"name\":\"home wifi\",\"notes\":\"network: home\\npassword: correct-horse\",\"secureNote\":{\"type\":0},\"fields\":[{\"name\":\"router pin\",\"value\":\"2468\",\"type\":1}]}" },
+        { "5", "{\"id\":\"5\",\"type\":3,\"name\":\"test card\",\"card\":{\"cardholderName\":\"Test Person\",\"brand\":\"Visa\",\"number\":\"4111111111111111\",\"expMonth\":\"4\",\"expYear\":\"2030\",\"code\":\"123\"}}" },
     };
 
     static string Store
@@ -108,6 +111,31 @@ class FakeBw
                 saved.Add(item.Replace("\r", "").Replace("\n", ""));
                 File.WriteAllLines(Store, saved);
                 Console.Write(item);
+                return 0;
+            }
+            case "generate":
+            {
+                // Only what the mod asks for: a passphrase (--passphrase --words N --separator S).
+                string[] words = { "apple", "river", "candle", "orbit", "maple", "tiger" };
+                int count = 3;
+                string separator = "-";
+                for (int i = 1; i < args.Length - 1; i++)
+                {
+                    if (args[i] == "--words") count = int.Parse(args[i + 1]);
+                    if (args[i] == "--separator") separator = args[i + 1];
+                }
+                bool capitalize = args.Contains("--capitalize");
+                var random = new Random();
+                var picked = Enumerable.Range(0, count).Select(n =>
+                {
+                    string w = words[random.Next(words.Length)];
+                    return capitalize ? char.ToUpper(w[0]) + w.Substring(1) : w;
+                }).ToList();
+                if (args.Contains("--includeNumber"))
+                {
+                    picked[picked.Count - 1] += random.Next(10);
+                }
+                Console.Write(string.Join(separator, picked));
                 return 0;
             }
             case "sync":

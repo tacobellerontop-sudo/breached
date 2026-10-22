@@ -831,6 +831,7 @@ var SelfTest = {
         report.info.bitwardenBothTitle = B.selected.title;
         check("paste both fills the username, Tabs to the password box and fills it", both);
         await this.bitwardenAutofill(B, check, waitFor, press, outDir, report, loginPage, bw);
+        await this.bitwardenMore(B, check, waitFor, press, report, loginPage, bw);
       }
       B.closeTab(B.selected);
       // The Speed mod (a spare page process waiting, more processes), as people use it.
@@ -1080,6 +1081,85 @@ var SelfTest = {
     B.closeTab(B.selected);
     check("nothing is saved in Gecko's own password store", !(await Services.logins.getAllLogins()).some(l => /breached-user|other-user|single-user/.test(l.username)));
     B.openTab(loginPage);
+  },
+
+  // Secure notes, cards, the password and username generators, and saving a new login.
+  async bitwardenMore(B, check, waitFor, press, report, loginPage, bw) {
+    let info = (report.info.bitwardenMore = {});
+    let { rows, pickRow, type, clipboard } = bw;
+    let field = async id => {
+      let list = await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => []);
+      return list.find(i => i.id == id)?.value;
+    };
+    let prompt = () => document.getElementById("prompt").textContent;
+    let rowTexts = () => rows().map(r => r.textContent);
+    let copied = async (match, ms = 5000) => {
+      let ok = await waitFor(() => match(clipboard() ?? ""), ms);
+      return ok;
+    };
+    // :bw notes, then one line of the note.
+    B.run("bw notes");
+    await waitFor(() => prompt().includes("secure notes:") && rows().length >= 1, 10000);
+    info.notes = rowTexts();
+    pickRow(/home wifi/);
+    await waitFor(() => /home wifi:/.test(prompt()), 5000);
+    info.noteRows = rowTexts();
+    pickRow(/password: correct-horse/);
+    check(":bw notes lists the secure notes and copies one line", await copied(t => t == "password: correct-horse"));
+    // :bw find card: the only match opens straight away.
+    B.run("bw find visa");
+    await waitFor(() => /test card:/.test(prompt()), 10000);
+    info.cardRows = rowTexts();
+    pickRow(/copy card number/);
+    check(":bw find finds a card and copies its number", await copied(t => t == "4111111111111111"));
+    // :bw generate 24, and a passphrase.
+    B.run("bw generate 24");
+    await waitFor(() => /new password:/.test(prompt()) && rows().length == 3, 5000);
+    info.generated = rowTexts().slice(1);
+    pickRow(/copy this/);
+    check(":bw generate 24 makes a 24 character password", await copied(t => t.length == 24 && /\d/.test(t) && /[A-Z]/.test(t)));
+    let first = clipboard();
+    B.run("bw generate");
+    await waitFor(() => /new password:/.test(prompt()) && rows().length == 3, 5000);
+    pickRow(/another one/);
+    await new Promise(r => setTimeout(r, 300));
+    pickRow(/copy this/);
+    check("another one makes a different password", await copied(t => t.length == 20 && t != first));
+    B.run("bw generate words 3");
+    await waitFor(() => /new password:/.test(prompt()) && rows().length == 3, 10000);
+    pickRow(/copy this/);
+    check(":bw generate words 3 makes a passphrase", await copied(t => t.split("-").length == 3));
+    info.passphrase = clipboard();
+    B.run("bw username");
+    await waitFor(() => /new username:/.test(prompt()) && rows().length == 3, 10000);
+    pickRow(/copy this/);
+    check(":bw username makes a username", await copied(t => /^[a-z]+\d{4}$/.test(t)));
+    info.username = clipboard();
+    // :bw new on a site: a username I type, a new password, saved and pasted
+    // (autofill off, so the boxes start empty).
+    Services.prefs.setStringPref("breached.mods.bitwarden.autofill", "off");
+    B.openTab(loginPage.replace("127.0.0.1", "localhost"));
+    await waitFor(() => B.selected.title == "login", 10000);
+    await new Promise(r => setTimeout(r, 500));
+    await this.clickElement("#user");
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    B.run("bw new");
+    await waitFor(() => /username for localhost:/.test(prompt()) && rows().length >= 2, 10000);
+    info.newRows = rowTexts();
+    pickRow(/type my own/);
+    await waitFor(() => /username for localhost:/.test(prompt()) && document.getElementById("picker").hidden, 5000);
+    type("newuser");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    await waitFor(() => /newuser:/.test(prompt()) && rows().length == 4, 10000);
+    info.newMessage = document.getElementById("message").textContent;
+    pickRow(/paste both/);
+    let pasted = await waitFor(async () => (await field("user")) == "newuser" && (await field("pass")) == 20, 10000);
+    info.newFields = { user: await field("user"), pass: await field("pass") };
+    check(":bw new pastes the username and a new password", pasted);
+    let saved = window.breachedBitwardenLogins.loginsFor("http://localhost:8123").find(l => l.username == "newuser");
+    check(":bw new saves the login in the vault", saved?.password?.length == 20);
+    Services.prefs.clearUserPref("breached.mods.bitwarden.autofill");
+    B.closeTab(B.selected);
   },
 
   bitwardenKeys(press, waitFor) {
