@@ -1040,8 +1040,25 @@ var SelfTest = {
     await this.clickElement("#user");
     let popup = () => document.getElementById("PopupAutoComplete");
     let listed = await waitFor(() => popup()?.state == "open", 8000);
-    info.dropdown = popup() ? { state: popup().state, rows: [...popup().querySelectorAll("richlistitem")].map(r => r.textContent.trim()) } : null;
-    check("clicking a login box lists the vault's logins for the site", listed && info.dropdown.rows.some(r => r.includes("breached-user")));
+    await new Promise(r => setTimeout(r, 300));
+    let rowText = r =>
+      [r.textContent, r.getAttribute("ac-value"), r.getAttribute("ac-label"), r.getAttribute("title")].filter(Boolean).join(" ").trim();
+    info.dropdown = popup()
+      ? {
+          state: popup().state,
+          rows: [...popup().querySelectorAll("richlistitem")].map(r => ({
+            text: rowText(r),
+            is: r.getAttribute("is"),
+            style: r.getAttribute("originaltype"),
+            height: r.getBoundingClientRect().height,
+            shown: [...r.querySelectorAll("*")].filter(e => e.textContent && !e.children.length).map(e => e.textContent.trim()).slice(0, 4),
+          })),
+        }
+      : null;
+    check(
+      "clicking a login box lists the vault's logins for the site",
+      listed && info.dropdown.rows.some(r => r.text.includes("breached-user") && r.height > 0)
+    );
     await this.screenshot(outDir, "14e-bitwarden-autofill-list.png");
     if (listed) {
       press("ArrowDown", "ArrowDown", KeyboardEvent.DOM_VK_DOWN);
