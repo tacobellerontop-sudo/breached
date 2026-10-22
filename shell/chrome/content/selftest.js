@@ -1097,6 +1097,14 @@ var SelfTest = {
       let ok = await waitFor(() => match(clipboard() ?? ""), ms);
       return ok;
     };
+    // :bw on its own: a menu with this site's logins and the rest.
+    B.run("bw");
+    await waitFor(() => prompt().includes("bitwarden:") && rows().length > 5, 10000);
+    info.menu = rowTexts();
+    check(":bw shows a menu with this site's logins and the other actions", /breached-user/.test(info.menu[0]) && info.menu.some(r => /^new password/.test(r)));
+    pickRow(/^new password/);
+    check("picking new password from the menu makes one", await waitFor(() => /new password:/.test(prompt()) && rows().length == 3, 5000));
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
     // :bw notes, then one line of the note.
     B.run("bw notes");
     await waitFor(() => prompt().includes("secure notes:") && rows().length >= 1, 10000);
