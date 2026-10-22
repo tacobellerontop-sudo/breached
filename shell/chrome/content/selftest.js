@@ -1141,8 +1141,11 @@ var SelfTest = {
     B.openTab(loginPage.replace("127.0.0.1", "localhost"));
     await waitFor(() => B.selected.title == "login", 10000);
     await new Promise(r => setTimeout(r, 500));
+    let inputs = async () =>
+      (await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => [])).map(i => `${i.id}=${i.value}${i.focused ? "*" : ""}`).join(" ");
+    B.selectedBrowser.focus();
     await this.clickElement("#user");
-    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    info.afterClick = await inputs();
     B.run("bw new");
     await waitFor(() => /username for localhost:/.test(prompt()) && rows().length >= 2, 10000);
     info.newRows = rowTexts();
@@ -1152,8 +1155,6 @@ var SelfTest = {
     press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
     await waitFor(() => /newuser:/.test(prompt()) && rows().length == 4, 10000);
     info.newMessage = document.getElementById("message").textContent;
-    let inputs = async () =>
-      (await this.testActor(B.selectedBrowser).sendQuery("SelfTest:Inputs", {}).catch(() => [])).map(i => `${i.id}=${i.value}${i.focused ? "*" : ""}`).join(" ");
     info.beforePaste = await inputs();
     info.focusedBefore = document.commandDispatcher.focusedElement?.id ?? document.activeElement?.id;
     pickRow(/paste both/);
