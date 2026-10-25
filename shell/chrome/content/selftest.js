@@ -1381,8 +1381,8 @@ var SelfTest = {
     B.closeTab(B.selected);
 
     // Locked, as after a restart: the request asks to unlock, which loads the vault's passkeys.
-    B.run("bw.exe lock");
-    Passkeys.unload();
+    B.run("bw.exe lock all");
+    await waitFor(() => !Passkeys.loaded, 5000);
     B.openTab(page + "#signin");
     let asked = await waitFor(
       () => !document.getElementById("commandbar").hidden && /PIN|master password/.test(document.getElementById("prompt").textContent),
