@@ -1144,6 +1144,26 @@ var SelfTest = {
     pickRow(/copy this/);
     check(":bw username makes a username", await copied(t => /^[a-z]+\d{4}$/.test(t)));
     info.username = clipboard();
+    // :bw alias: a DuckDuckGo address (answered by a data: address here); the
+    // API key is asked for once and kept in the vault.
+    Services.prefs.setStringPref("breached.mods.bitwarden.forwarder", "duckduckgo");
+    Services.prefs.setStringPref("breached.mods.bitwarden.forwarderTestUrl", 'data:application/json,{"address":"testalias"}');
+    B.run("bw alias");
+    let keyAsked = await waitFor(() => /DuckDuckGo API key/.test(prompt()), 10000);
+    check(":bw alias asks for the DuckDuckGo API key the first time", keyAsked);
+    type("testkey");
+    press("Enter", "Enter", KeyboardEvent.DOM_VK_RETURN);
+    await waitFor(() => /new email address:/.test(prompt()) && rows().length >= 2, 10000);
+    info.aliasRows = rowTexts();
+    info.aliasMessage = document.getElementById("message").textContent;
+    pickRow(/copy this/);
+    check(":bw alias makes a DuckDuckGo address", await copied(t => t == "testalias@duck.com"));
+    B.run("bw alias");
+    let direct = await waitFor(() => /new email address:/.test(prompt()) && rows().length >= 2, 10000);
+    check("the second time the key comes from the vault", direct);
+    press("Escape", "Escape", KeyboardEvent.DOM_VK_ESCAPE);
+    Services.prefs.clearUserPref("breached.mods.bitwarden.forwarder");
+    Services.prefs.clearUserPref("breached.mods.bitwarden.forwarderTestUrl");
     // :bw new on a site: a username I type, a new password, saved and pasted
     // (autofill off, so the boxes start empty).
     Services.prefs.setStringPref("breached.mods.bitwarden.autofill", "off");
@@ -1388,10 +1408,10 @@ var SelfTest = {
       await waitFor(() => Passkeys.loaded && [...Passkeys.known.values()].some(p => p.rpId == "localhost" && p.itemId), 15000)
     );
     report.info.passkeysLoaded = [...Passkeys.known.values()].map(p => ({ rpId: p.rpId, name: p.name, signCount: p.signCount }));
-    B.selectedBrowser.reload();
+    // The request waited for the unlock: no reload, no trying again.
     let again = await waitFor(() => /^passkey:signin /.test(B.selected.title), 15000);
     report.info.passkeyResultAgain = B.selected.title;
-    check("then the site signs in with the passkey from the vault", again && B.selected.title == "passkey:signin 1,2,3,4");
+    check("then the site signs in with the passkey from the vault, without reloading", again && B.selected.title == "passkey:signin 1,2,3,4");
     B.closeTab(B.selected);
   },
 
