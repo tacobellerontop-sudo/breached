@@ -1418,6 +1418,11 @@ var SelfTest = {
     // The request waited for the unlock: no reload, no trying again.
     let again = await waitFor(() => /^passkey:signin /.test(B.selected.title), 15000);
     report.info.passkeyResultAgain = B.selected.title;
+    report.info.passkeyWaitLog = Services.console
+      .getMessageArray()
+      .map(m => m.message ?? m.errorMessage ?? "")
+      .filter(m => /Bitwarden|PasskeyWait|webauthn|WebAuthn/i.test(m))
+      .slice(-12);
     check("then the site signs in with the passkey from the vault, without reloading", again && B.selected.title == "passkey:signin 1,2,3,4");
     B.closeTab(B.selected);
   },
