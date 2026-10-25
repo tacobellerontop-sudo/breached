@@ -1383,7 +1383,14 @@ var SelfTest = {
     // Locked, as after a restart: the request asks to unlock, which loads the vault's passkeys.
     B.run("bw.exe lock all");
     await waitFor(() => !Passkeys.loaded, 5000);
+    report.info.passkeyReadyShared = Services.ppmm.sharedData.get("breached.bitwarden.passkeysReady");
+    report.info.passkeyWaitActor = ModHost.Mods._actors?.get("BitwardenWait") ?? null;
     B.openTab(page + "#signin");
+    setTimeout(async () => {
+      report.info.passkeyLockedCredentials = await this.testActor(B.selectedBrowser)
+        .sendQuery("SelfTest:Credentials", {})
+        .catch(e => String(e));
+    }, 1500);
     let asked = await waitFor(
       () => !document.getElementById("commandbar").hidden && /PIN|master password/.test(document.getElementById("prompt").textContent),
       15000
