@@ -1,0 +1,312 @@
+Crash Annotation GraphicsCriticalError: |[0][GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt (t=0.994547) [GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt
+SELFTEST PASS shell loaded with one tab
+SELFTEST PASS command bar hidden until ':'
+SELFTEST PASS the home page opens on start
+console.warn: services.settings: Failed to load last_modified.json: TypeError: NetworkError when attempting to fetch resource.
+SELFTEST PASS the home page's box opens an address
+SELFTEST PASS a web page loads
+SELFTEST PASS pages run in a separate content process
+SELFTEST PASS window title shows the page
+SELFTEST PASS tab bar at the bottom by default
+SELFTEST PASS page helper runs in web pages
+SELFTEST PASS page fullscreen helper runs in web pages
+SELFTEST PASS ':' on a page opens the command bar
+SELFTEST PASS command bar sits at the bottom of the window
+SELFTEST PASS Escape closes the command bar
+SELFTEST PASS Ctrl+T can open ':open -t' (setting)
+SELFTEST PASS Ctrl+T opens a new tab with the home page
+SELFTEST PASS the new tab is selected
+SELFTEST PASS the home page's box has focus
+SELFTEST PASS the new tab goes to the address
+SELFTEST PASS Ctrl+W closes the tab
+SELFTEST PASS Ctrl+Shift+T reopens it
+SELFTEST PASS :tab-focus switches tabs
+SELFTEST PASS the selected tab has its own colour
+SELFTEST PASS the colour follows the selected tab
+SELFTEST PASS :tab-sleep unloads a tab
+SELFTEST PASS a sleeping tab wakes when selected
+SELFTEST PASS it comes back on the same page
+SELFTEST PASS idle tabs unload on their own
+SELFTEST PASS plain words search
+SELFTEST PASS typing an address in the command bar starts connecting to it
+SELFTEST PASS addresses open as addresses
+SELFTEST PASS javascript: is refused
+SELFTEST PASS :settings opens the settings page
+SELFTEST PASS settings opens on one page, Appearance
+SELFTEST PASS settings: the side list switches pages
+SELFTEST PASS settings: the side list goes back
+SELFTEST PASS dropdowns open as a popup list
+SELFTEST PASS picking from a dropdown changes the setting
+SELFTEST PASS settings: tab bar position moves the tab bar up
+SELFTEST PASS settings: search engine changes searches
+SELFTEST PASS settings: tracker blocking starts at Strict
+SELFTEST PASS settings: tracker blocking level applies
+SELFTEST PASS Breached's own title bar replaces the Windows one
+SELFTEST PASS the title bar sits at the top with window buttons
+SELFTEST PASS tabs on top share the title bar's row
+SELFTEST PASS the title bar shows the page title
+SELFTEST PASS settings: colours start as pastel silver and orange
+SELFTEST PASS settings: a colour set recolours the window
+SELFTEST PASS settings: the settings page follows the colours
+SELFTEST PASS settings: one colour can be changed
+SELFTEST PASS settings: transparency turns on the Windows backdrop
+SELFTEST PASS settings: bar colour strength applies
+SELFTEST PASS settings: transparency turns off
+SELFTEST PASS settings: the Windows title bar can come back
+SELFTEST PASS updates: versions compare by number
+SELFTEST PASS updates: a test copy isn't an installed one
+SELFTEST PASS :update opens settings at Updates
+SELFTEST PASS updates: checking GitHub finishes with an answer
+SELFTEST PASS :set tabs.autohide true hides the tab bar
+SELFTEST PASS the hidden tab bar shows while switching
+SELFTEST PASS :close closes the current tab
+SELFTEST PASS :history opens the history page
+SELFTEST PASS history lists visited pages
+SELFTEST PASS history search narrows the list
+SELFTEST PASS a download saves to the downloads folder
+SELFTEST PASS :downloads opens the download manager
+SELFTEST PASS the download manager shows finished downloads with open and folder buttons
+SELFTEST PASS :bw.exe without the mod says which mod it needs
+SELFTEST PASS :mods opens settings at the mods section, with a link to the mods site
+SELFTEST PASS settings: no mods come installed
+SELFTEST PASS settings: Get mods opens the mods site
+SELFTEST PASS the mods site knows it's open in Breached
+SELFTEST PASS Install on the mods site asks first
+SELFTEST PASS the mods site installs the Bitwarden mod, which adds :bw.exe
+SELFTEST PASS the mods site then shows it as installed
+SELFTEST PASS settings: the installed mod shows with its settings
+SELFTEST PASS Ctrl+Shift+L asks for the Bitwarden master password
+SELFTEST PASS after the master password, Bitwarden offers a PIN
+SELFTEST PASS then the site's logins show as rows
+SELFTEST PASS the first row starts selected
+SELFTEST PASS Down moves to the next row
+SELFTEST PASS typing narrows the rows
+SELFTEST PASS picking a login offers to paste both (username, Tab, password), or paste or copy each
+SELFTEST PASS paste username types it into the box you were in
+SELFTEST PASS paste password types it into the password box (not a hidden one), while the page changes its address
+SELFTEST PASS the password isn't kept in the command history
+SELFTEST PASS ':' in a page's text field types there
+SELFTEST PASS after Esc, ':' opens the command bar
+SELFTEST PASS copy password puts it on the clipboard
+SELFTEST PASS once locked, Ctrl+Shift+L asks for the PIN
+SELFTEST PASS the PIN unlocks Bitwarden
+SELFTEST PASS paste both fills the username, Tabs to the password box and fills it
+SELFTEST PASS Ctrl+Shift+L shows the logins quickly with the vault unlocked (102 ms)
+SELFTEST PASS clicking a login box lists the vault's logins for the site
+SELFTEST PASS picking one fills the username and password
+SELFTEST PASS a site's only login is filled in when the page loads
+SELFTEST PASS nothing is saved in Gecko's own password store
+SELFTEST PASS :bw shows a menu with this site's logins and the other actions
+SELFTEST PASS picking new password from the menu makes one
+SELFTEST PASS :bw notes lists the secure notes and copies one line
+SELFTEST PASS :bw find finds a card and copies its number
+SELFTEST PASS :bw generate 24 makes a 24 character password
+SELFTEST PASS another one makes a different password
+SELFTEST PASS :bw generate words 3 makes a passphrase
+SELFTEST PASS :bw username makes a username
+SELFTEST PASS :bw alias asks for the DuckDuckGo API key the first time
+SELFTEST PASS :bw alias makes a DuckDuckGo address
+SELFTEST PASS the second time the key comes from the vault
+SELFTEST PASS :bw new pastes the username and a new password
+SELFTEST PASS :bw new saves the login in the vault
+SELFTEST PASS on Google's sign-in, Breached answers passkey requests itself (not Windows)
+SELFTEST PASS on Google's sign-in, Ctrl+Shift+L shows the logins
+SELFTEST PASS and pastes the username into Google's email box
+SELFTEST PASS after a reload, it still pastes into Google's email box
+SELFTEST PASS on Google's sign-in, Breached answers passkey requests itself (not Windows) with uBlock Origin
+SELFTEST PASS on Google's sign-in, Ctrl+Shift+L shows the logins with uBlock Origin
+SELFTEST PASS and pastes the username into Google's email box with uBlock Origin
+SELFTEST PASS after a reload, it still pastes into Google's email box with uBlock Origin
+SELFTEST PASS with the Bitwarden mod, Breached answers passkey requests itself (Windows isn't asked)
+SELFTEST PASS a site making a passkey: Breached makes it and keeps it in Bitwarden
+SELFTEST PASS signing in with it: the site accepts the passkey's signature
+SELFTEST PASS a login box offering passkeys: Ctrl+Shift+L shows Bitwarden's passkey and logins
+SELFTEST PASS picking the passkey there signs in
+SELFTEST PASS a passkey request while Bitwarden is locked asks to unlock it
+SELFTEST PASS unlocking loads the vault's passkeys into Breached
+SELFTEST PASS then the site signs in with the passkey from the vault, without reloading
+SELFTEST PASS settings: removing the mod takes :bw.exe away again
+SELFTEST PASS the extension manager is running
+SELFTEST PASS a test extension installs
+SELFTEST PASS extensions: tabs.query, windows.getCurrent and tabs.create work
+SELFTEST PASS extensions: tabs.executeScript runs in pages
+SELFTEST PASS extensions: contextMenus calls don't break extensions
+SELFTEST PASS extensions: a popup window (windows.create type popup) opens as its own window with the page, not a tab here
+SELFTEST PASS extensions: the extension's own pages from tabs.create open as a pop-up window too
+SELFTEST PASS extensions: closing the popup window leaves Breached's window open
+SELFTEST PASS extensions: the extension's button shows
+SELFTEST PASS extensions: badges show on the button
+SELFTEST PASS :ext opens the extension's popup
+SELFTEST PASS :extensions lists installed extensions
+SELFTEST PASS removing an extension removes its button
+SELFTEST PASS a site asking for the camera and microphone asks in the command bar
+SELFTEST PASS the question offers allow, always, block and never
+SELFTEST PASS allowing gives the page the camera and microphone
+SELFTEST PASS "always" is remembered for the site
+SELFTEST PASS the tab is marked while the camera is on
+SELFTEST PASS a tab using the camera isn't unloaded
+SELFTEST PASS a remembered site isn't asked again
+SELFTEST PASS a site asking for your location asks in the command bar
+SELFTEST PASS Escape blocks it this time
+SELFTEST PASS blocking once isn't remembered
+SELFTEST PASS :permissions lists the saved answers in settings
+SELFTEST PASS settings: a saved answer can be forgotten
+SELFTEST PASS the new tab page has a pinned section
+SELFTEST PASS :pin adds sites to the new tab page
+SELFTEST PASS pinned sites keep their order
+SELFTEST PASS pinned sites can be reordered
+SELFTEST PASS a pinned site can be unpinned from the page
+SELFTEST PASS :unpin takes one off
+SELFTEST PASS private: :private opens a window with the page
+SELFTEST PASS private: the window is private
+SELFTEST PASS private: its pages load privately
+SELFTEST PASS private: the title says so
+SELFTEST PASS private: no history kept
+SELFTEST PASS private: closing its last tab closes it
+SELFTEST PASS menu: right-click on a link shows link items
+SELFTEST PASS menu: extension items show
+SELFTEST PASS menu: Copy link
+SELFTEST PASS menu: a text field gets cut, copy, paste
+SELFTEST PASS menu: Paste pastes the copied link into the page
+SELFTEST PASS menu: an image gets image items
+SELFTEST PASS menu: Save image downloads it
+SELFTEST PASS menu: the page gets back, reload, print, view source
+SELFTEST PASS menu: an extension's item tells the extension what was clicked
+SELFTEST PASS zoom: kept for the site's other pages
+SELFTEST PASS zoom: other sites aren't zoomed
+SELFTEST PASS zoom: 100% forgets the site
+SELFTEST PASS print: Ctrl+P prints the page
+SELFTEST PASS print: Ctrl+P asks once
+SELFTEST PASS print: a page's print button prints
+SELFTEST PASS print: no tab is left behind
+SELFTEST PASS tabs on the left: a column beside the page
+SELFTEST PASS tabs on the right: a column beside the page
+SELFTEST PASS hidden column: the page takes the whole width
+SELFTEST PASS hidden column: hidden
+SELFTEST PASS show on hover: the mouse at the right edge shows the column
+SELFTEST PASS show on hover: it goes again when the mouse leaves
+SELFTEST PASS hidden bottom bar starts hidden
+SELFTEST PASS show on hover: the mouse at the bottom edge shows the tab bar
+SELFTEST PASS show on hover can be turned off
+SELFTEST PASS back and forward show in the tab bar
+SELFTEST PASS back is greyed out with nowhere to go
+SELFTEST PASS back turns on after a second page
+SELFTEST PASS the back button goes back
+SELFTEST PASS forward turns on after going back
+SELFTEST PASS the forward button goes forward
+SELFTEST PASS tabs stay in order beside the buttons
+SELFTEST PASS the buttons can be switched off
+SELFTEST PASS reader view: :reader opens the article in about:reader
+SELFTEST PASS reader view: :reader again goes back to the page
+SELFTEST PASS protected video starts off, without its mod
+SELFTEST PASS a site wanting protected video offers the Protected video mod
+SELFTEST PASS get the mod installs it from the mods site
+SELFTEST PASS the mod downloads Widevine
+SELFTEST PASS the page gets Widevine after the reload
+SELFTEST PASS removing the mod turns protected video off
+SELFTEST PASS the Speed mod installs
+SELFTEST PASS speed: a spare process waits
+SELFTEST PASS speed: tabs stay loaded
+SELFTEST PASS speed: 256 MB memory cache
+SELFTEST PASS speed: its setting lets tabs sleep again
+SELFTEST PASS :speed lists what it changed
+SELFTEST PASS speed: removing it puts Breached's values back
+SELFTEST PASS the Vim keys mod installs
+SELFTEST PASS keys: j scrolls down
+SELFTEST PASS keys: G goes to the bottom
+SELFTEST PASS keys: gg goes back to the top
+SELFTEST PASS keys: f puts letters on the links
+SELFTEST PASS keys: typing a hint follows its link
+SELFTEST PASS keys: H goes back
+SELFTEST PASS keys: typing in a text box isn't taken as keys
+SELFTEST PASS the Dark pages mod installs
+SELFTEST PASS dark: a light page is darkened
+SELFTEST PASS :dark stops darkening the site
+SELFTEST PASS the Screenshots mod installs
+SELFTEST PASS screenshot: saves the visible as a PNG
+SELFTEST PASS screenshot: saves the whole page as a PNG
+SELFTEST PASS screenshot: the whole page is taller than the window
+SELFTEST PASS dark: removing it puts the page colour scheme back
+SELFTEST PASS the Tab groups mod installs
+SELFTEST PASS groups: :group puts tabs in a group
+SELFTEST PASS groups: a group's tabs sit together
+SELFTEST PASS groups: the group's name shows in the tab bar
+SELFTEST PASS groups: clicking the name folds the group away
+SELFTEST PASS groups: clicking again opens it
+SELFTEST PASS groups: :ungroup takes a tab out
+SELFTEST PASS groups: groups are saved
+SELFTEST PASS groups: a group with no tabs is gone
+SELFTEST PASS saved passwords are off without the Password manager mod
+SELFTEST PASS the Password manager mod installs
+SELFTEST PASS passwords: sending a login form asks to save it
+SELFTEST PASS passwords: save keeps it in the password store
+SELFTEST PASS passwords: the saved login fills in next time
+SELFTEST PASS passwords: removing the mod turns saved passwords off again
+SELFTEST PASS the Bookmarks mod installs
+SELFTEST PASS bookmarks: Ctrl+D bookmarks the page
+SELFTEST PASS bookmarks: :bookmarks lists them as rows
+SELFTEST PASS bookmarks: picking one opens it
+SELFTEST PASS bookmarks: removing the mod takes Ctrl+D away
+SELFTEST PASS Mozilla accounts are off without the Firefox Sync mod
+SELFTEST PASS the Firefox Sync mod installs
+SELFTEST PASS sync: the mod turns Mozilla accounts on, with history, bookmarks and passwords
+SELFTEST PASS sync: :sync in opens the Mozilla account sign-in page
+SELFTEST PASS sync: removing the mod turns Mozilla accounts off again
+SELFTEST PASS the welcome page doesn't show for a profile that's been used
+SELFTEST PASS after that check it's marked done
+SELFTEST PASS :welcome opens the welcome page
+SELFTEST PASS welcome: starts on colours
+SELFTEST PASS welcome: a colour scheme applies at once
+SELFTEST PASS welcome: the dial makes its own scheme
+SELFTEST PASS welcome: the dial's scheme is marked chosen
+SELFTEST PASS welcome: Dark makes dark bars
+SELFTEST PASS welcome: Next goes to the tab bar
+SELFTEST PASS welcome: picking a place moves the tab bar
+SELFTEST PASS welcome: Next goes to your stuff
+SELFTEST PASS welcome: it looks for other browsers
+SELFTEST PASS welcome: the start choice applies at once
+SELFTEST PASS welcome: Next goes to mods
+SELFTEST PASS welcome: lists the mods site's mods
+SELFTEST PASS welcome: the last step says Finish
+SELFTEST PASS welcome: Finish installs the ticked mod
+SELFTEST PASS welcome: then goes to the home page
+SELFTEST PASS welcome: finishing marks it done
+SELFTEST PASS import: finds Chrome and Firefox
+SELFTEST PASS import: Chrome's bookmarks come over (web addresses only)
+SELFTEST PASS import: Chrome's history comes over
+SELFTEST PASS import: an imported bookmark is a Breached bookmark
+SELFTEST PASS import: Firefox's bookmarks and history come over
+SELFTEST PASS import: imported history shows in Breached
+SELFTEST PASS import: passwords come over from a .csv
+SELFTEST PASS import: a password with a comma is kept whole
+SELFTEST PASS import: the same .csv twice adds nothing new
+SELFTEST PASS restore: asks which of last time's tabs to reopen
+SELFTEST PASS restore: all reopens every tab
+SELFTEST PASS files: a path on the command line becomes a file address
+SELFTEST PASS files: opening a file while Breached runs opens it in a new tab
+SELFTEST PASS files: a PDF shows in the built-in PDF viewer
+SELFTEST PASS files: the PDF viewer's toolbar icons are drawn
+SELFTEST PASS the Picture-in-picture mod installs
+SELFTEST PASS pip: the test video plays
+SELFTEST PASS :pip opens the video in a window on top
+SELFTEST PASS pip: the tab is marked
+SELFTEST PASS :pip again closes it
+SELFTEST PASS pip: the tab mark goes
+SELFTEST PASS pip: removing it puts Gecko's setting back
+SELFTEST PASS the Translate pages mod installs
+SELFTEST PASS translate: turns Firefox's translation on
+SELFTEST PASS translate: a French page offers to translate it
+SELFTEST PASS :translate en translates the page
+SELFTEST PASS :translate off puts the French back
+SELFTEST PASS translate: removing it turns translation off again
+SELFTEST PASS the Custom CSS per site mod installs
+SELFTEST PASS :css <rules> styles the site at once
+SELFTEST PASS css: the rules stay for the site's pages
+SELFTEST PASS :css puts the site's rules in the command bar
+SELFTEST PASS :css off removes them
+SELFTEST PASS with uBlock Origin, :open from the home page opens the site
+SELFTEST PASS with uBlock Origin, :open from a site opens another site
+SELFTEST PASS with uBlock Origin, :open -t opens the site in a new tab
+SELFTEST PASS no Breached script errors
+SELFTEST PASSED
+Crash Annotation GraphicsCriticalError: |[0][GFX1-]: RenderCompositorSWGL failed mapping default framebuffer, no dt (t=0.994547) |[1][GFX1-]: VideoBridgeParent receives IPC close with reason=AbnormalShutdown (t=135.667) [GFX1-]: VideoBridgeParent receives IPC close with reason=AbnormalShutdown
