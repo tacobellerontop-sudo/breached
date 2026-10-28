@@ -2,18 +2,35 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
+  /* The sketch's dark page, with a soft glow low on the right: the
+     horizon the browser is named for breaking through. */
+  background:
+    radial-gradient(60% 45% at 88% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg) 72%, black));
 }
 
 main {
   width: min(640px, 90vw);
   padding-block: 40px;
+  text-align: center;
+}
+
+#greeting {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+#greeting:empty {
+  display: none;
 }
 
 #brand {
-  font-size: 40px;
+  font-size: 56px;
   font-weight: normal;
   letter-spacing: 2px;
-  margin: 0 0 24px;
+  margin: 0 0 28px;
+}
+#brand-slash {
+  color: var(--accent);
 }
 #cursor {
   color: var(--accent);
@@ -30,26 +47,53 @@ main {
   }
 }
 
+/* The sketch's search: no box, just an underline, centred. */
 #search-form {
   display: flex;
   align-items: center;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  width: min(520px, 100%);
+  margin: 0 auto;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
 }
 #search-form:focus-within {
-  border-color: var(--accent);
-}
-#prompt {
-  padding-inline: 8px 4px;
-  color: var(--accent);
+  border-bottom-color: var(--accent);
+  border-bottom-width: 2px;
 }
 #search {
   flex: 1;
   border: none;
   outline: none;
   background: transparent;
-  padding: 8px 8px 8px 0;
-  font-size: 15px;
+  padding: 10px 2px;
+  font-size: 16px;
+  text-align: center;
+}
+#search::placeholder {
+  color: var(--muted);
+}
+
+/* The breach line: a thin glowing horizon under the search. */
+#breach-line {
+  width: min(520px, 100%);
+  height: 1px;
+  margin: 28px auto 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 65%, transparent), transparent);
+}
+
+#sleeping {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+#sleeping[hidden] {
+  display: none;
+}
+
+#pinned,
+#sites,
+footer {
+  text-align: start;
 }
 
 #pinned h2,

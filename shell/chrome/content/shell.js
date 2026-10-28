@@ -26,7 +26,7 @@ const SESSION_FILE = "breached-session.json";
 const SESSION_LAST = "breached-session-last.json"; // what the last start found, for :restore
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.15";
+const BREACHED_VERSION = "0.1.16";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
@@ -254,7 +254,19 @@ class Tab {
     this.el.setAttribute("role", "tab");
     this.labelEl = document.createElement("span");
     this.labelEl.className = "tab-label";
-    this.el.append(this.labelEl);
+    // The sketch's X on a tab: closes just this tab, without selecting it
+    // first (the tab bar's mousedown handler would select it otherwise).
+    this.closeEl = document.createElement("button");
+    this.closeEl.className = "tab-close";
+    this.closeEl.textContent = "\u00d7";
+    this.closeEl.title = "Close tab (Ctrl+W)";
+    this.closeEl.tabIndex = -1;
+    this.closeEl.addEventListener("mousedown", event => event.stopPropagation());
+    this.closeEl.addEventListener("click", event => {
+      event.stopPropagation();
+      Breached.closeTab(this);
+    });
+    this.el.append(this.labelEl, this.closeEl);
     this.el.tab = this;
     // Firefox's tab elements carry their page; Gecko code (see gBrowser) uses it.
     Object.defineProperty(this.el, "linkedBrowser", { get: () => this.browser });
@@ -362,6 +374,9 @@ var Breached = {
   get $commandbar() {
     return document.getElementById("commandbar");
   },
+  get $addressbar() {
+    return document.getElementById("addressbar");
+  },
   get $commandline() {
     return document.getElementById("commandline");
   },
@@ -412,6 +427,10 @@ var Breached = {
     this.$tabbar.addEventListener("auxclick", this);
     document.getElementById("nav-back").addEventListener("click", () => this.run("back"));
     document.getElementById("nav-forward").addEventListener("click", () => this.run("forward"));
+    document.getElementById("nav-reload").addEventListener("click", () => this.run("reload"));
+    document.getElementById("tab-new").addEventListener("click", () => this.newTab());
+    document.getElementById("toolbar-menu").addEventListener("click", () => this.openSettings());
+    this.initAddressBar();
     this.$commandline.addEventListener("input", this);
     this.$commandline.addEventListener("blur", this);
     window.addEventListener("keydown", this, true);
@@ -683,6 +702,57 @@ var Breached = {
     document.getElementById("nav-forward").disabled = !b?.canGoForward;
   },
 
+  /** The address bar: Enter opens in this tab, Ctrl+Enter in a new tab.
+      While the user is typing, a page load must not overwrite their text. */
+  initAddressBar() {
+    let input = this.$addressbar;
+    input.addEventListener("focus", () => input.select());
+    input.addEventListener("keydown", event => {
+      if (event.key != "Enter") {
+        return;
+      }
+      let text = input.value.trim();
+      if (!text) {
+        return;
+      }
+      let url;
+      try {
+        url = this.urlFor(text);
+      } catch (e) {
+        this.showMessage(e.message, "error");
+        return;
+      }
+      if (event.ctrlKey || event.metaKey) {
+        this.openTab(url, { afterCurrent: true });
+      } else if (this.selectedBrowser) {
+        this.load(this.selectedBrowser, url);
+      }
+      this.selectedBrowser?.focus();
+    });
+  },
+
+  /** Shows the selected tab's address, and a lock only for https pages.
+      The new tab page shows the placeholder instead of "breached:home". */
+  updateAddressBar() {
+    let input = this.$addressbar;
+    if (!input || document.activeElement == input) {
+      return;
+    }
+    let url = this.selected?.url ?? "";
+    input.value = url == "breached:home" || url == "about:blank" ? "" : url;
+    let lock = document.getElementById("address-lock");
+    lock.textContent = url.startsWith("https://")
+      ? "\u{1f512}"
+      : url.startsWith("http://")
+        ? "\u{1f513}"
+        : "\u2315";
+    lock.title = url.startsWith("https://")
+      ? "Secure connection"
+      : url.startsWith("http://")
+        ? "Not secure"
+        : "Breached page";
+  },
+
   /** With an auto-hiding tab bar, show it briefly (tab switches). */
   peekTabs() {
     let root = document.documentElement;
@@ -699,6 +769,7 @@ var Breached = {
     let name = this.isPrivate ? "Breached (private)" : "Breached";
     document.title = tab ? `${tab.title || tab.url} - ${name}` : name;
     document.getElementById("titlebar-title").textContent = document.title;
+    this.updateAddressBar();
   },
 
   // -------------------------------------------------------------- browsers
@@ -1005,9 +1076,16 @@ var Breached = {
     this.selectTab(this.tabs[(i + step + n) % n]);
   },
 
-  /** Puts a tab's element in the tab bar at its place in this.tabs. */
+  /** Puts a tab's element in the tab bar at its place in this.tabs. Tabs go
+      before the + button, so it always sits after the last tab. */
   placeTabEl(tab) {
-    let next = this.tabs[this.tabs.indexOf(tab) + 1]?.el ?? document.getElementById("ext-buttons");
+    let next =
+      this.tabs[this.tabs.indexOf(tab) + 1]?.el ??
+      document.getElementById("ext-buttons") ??
+      document.getElementById("tab-new");
+    if (next?.parentNode != this.$tabbar) {
+      next = document.getElementById("tab-new");
+    }
     this.$tabbar.insertBefore(tab.el, next?.parentNode == this.$tabbar ? next : null);
   },
 

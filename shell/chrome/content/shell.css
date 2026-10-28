@@ -1,22 +1,25 @@
-/* Breached window, laid out like qutebrowser. The colours are settings
-   (breached.colors.*, pastel silver and orange by default); shell.js sets
-   these variables from them. */
+/* Breached window. The colours are settings (breached.colors.*, the dark
+   "breach" set by default); shell.js sets these variables from them. The
+   layout is the sketch's: a tab strip on top, an address bar under it, and
+   the ":" command bar at the bottom for keyboard users. */
 
 :root {
   --font: "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
   --font-size: 12px;
-  --bar-bg: #cfd3da;
-  --fg: #2f3136;
-  --tab-odd: #bcc1c9;
-  --tab-even: #c6cad1;
-  --tab-selected: #f5b183;
-  --tab-selected-fg: #2f3136;
+  --bar-bg: #15171e;
+  --fg: #e6e8f0;
+  --tab-odd: #1b1e27;
+  --tab-even: #20242f;
+  --tab-selected: #2a2f3d;
+  --tab-selected-fg: #ffffff;
   --accent: #ee9f66;
   --loading: #9db8d9;
   --loaded: #ee9f66;
   --error: #e07b7b;
   --tab-height: 20px;
-  --titlebar-height: 30px;
+  --tabbar-height: 36px;
+  --toolbar-height: 42px;
+  --titlebar-height: 38px;
   /* How much of each bar colour shows; below 100% only with transparency. */
   --bar-opacity: 100%;
 
@@ -36,6 +39,7 @@
 .bar-surface,
 #titlebar,
 #tabbar,
+#toolbar,
 #bottom {
   background: color-mix(in srgb, var(--bar-bg) var(--bar-opacity), transparent);
 }
@@ -56,6 +60,17 @@
 :root[sizemode="fullscreen"] #titlebar,
 :root[inDOMFullscreen] #titlebar {
   display: none;
+}
+#brand-mark {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-inline: 10px 2px;
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--accent);
+  -moz-window-dragging: drag;
+  user-select: none;
 }
 #titlebar-content {
   flex: 1;
@@ -157,15 +172,33 @@ body {
   order: 1;
   display: flex;
   flex: none;
-  height: var(--tab-height);
+  height: var(--tabbar-height);
+  align-items: stretch;
   overflow: hidden;
   user-select: none;
 }
-#content {
+#toolbar {
   order: 2;
+  display: flex;
+  flex: none;
+  height: var(--toolbar-height);
+  align-items: center;
+  gap: 6px;
+  padding-inline: 6px;
+  user-select: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+}
+#content {
+  order: 3;
 }
 #bottom {
-  order: 3;
+  order: 4;
+}
+:root[tabs-position="bottom"] #toolbar {
+  order: 1;
+}
+:root[tabs-position="bottom"] #content {
+  order: 2;
 }
 :root[tabs-position="bottom"] #tabbar {
   order: 3;
@@ -182,10 +215,10 @@ body {
   visibility: hidden;
 }
 :root[tabs-autohide][tabs-position="top"] #tabbar {
-  top: 0;
+  top: var(--toolbar-height);
 }
 :root[tabs-autohide][tabs-position="top"][customtitlebar]:not([sizemode="fullscreen"]) #tabbar {
-  top: var(--titlebar-height);
+  top: calc(var(--titlebar-height) + var(--toolbar-height));
 }
 :root[tabs-autohide][tabs-position="bottom"] #tabbar {
   bottom: 0;
@@ -232,7 +265,7 @@ body {
 }
 :root[tabs-vertical] body {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   grid-template-columns: var(--vtabs-width) minmax(0, 1fr);
 }
 :root[tabs-vertical][tabs-position="right"] body {
@@ -245,12 +278,16 @@ body {
   grid-row: 1;
   grid-column: 1 / -1;
 }
+:root[tabs-vertical] #toolbar {
+  grid-row: 2;
+  grid-column: 1 / -1;
+}
 :root[tabs-vertical] #bottom {
-  grid-row: 3;
+  grid-row: 4;
   grid-column: 1 / -1;
 }
 :root[tabs-vertical] #tabbar {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 1;
   height: auto;
   flex-direction: column;
@@ -258,7 +295,7 @@ body {
   overflow-y: auto;
 }
 :root[tabs-vertical] #content {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 2;
 }
 :root[tabs-vertical][tabs-position="right"] #tabbar {
@@ -279,12 +316,12 @@ body {
 /* Hidden: over the page, from below the title bar to the bottom. */
 :root[tabs-vertical][tabs-autohide] #tabbar {
   inset-inline: auto;
-  top: 0;
+  top: var(--toolbar-height);
   bottom: 0;
   width: var(--vtabs-width);
 }
 :root[tabs-vertical][tabs-autohide][customtitlebar]:not([sizemode="fullscreen"]) #tabbar {
-  top: var(--titlebar-height);
+  top: calc(var(--titlebar-height) + var(--toolbar-height));
 }
 :root[tabs-vertical][tabs-autohide][tabs-position="left"] #tabbar {
   left: 0;
@@ -313,10 +350,55 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-inline: 4px 6px;
+  padding-inline: 14px 6px;
   border-inline-start: 3px solid var(--loaded);
   white-space: nowrap;
   cursor: default;
+  /* The sketch's tab: a slanted left edge, like a folded page corner. */
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%);
+}
+:root[tabs-vertical] .tab {
+  clip-path: none;
+  padding-inline-start: 4px;
+}
+/* The + button sits after the last tab, like the sketch. */
+.tab-new {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 10px;
+  cursor: pointer;
+  -moz-window-dragging: no-drag;
+}
+.tab-new:hover {
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
+}
+/* A tab's close button, shown on the selected tab and on hover, like the
+   sketch's X on the active tab. */
+.tab-close {
+  appearance: none;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  padding: 2px 5px;
+  margin-inline-start: auto;
+  cursor: pointer;
+  display: none;
+  -moz-window-dragging: no-drag;
+}
+.tab[selected] .tab-close,
+.tab:hover .tab-close {
+  display: inline;
+}
+.tab-close:hover {
+  background: color-mix(in srgb, var(--fg) 20%, transparent);
 }
 /* :where() keeps these stripes weaker than .tab[selected] below; "of .tab"
    alone would outrank it and the selected tab would never show. */
@@ -329,6 +411,7 @@ body {
 .tab[selected] {
   background: color-mix(in srgb, var(--tab-selected) var(--bar-opacity), transparent);
   color: var(--tab-selected-fg);
+  border-top: 2px solid var(--accent);
 }
 .tab[busy] {
   border-inline-start-color: var(--loading);
@@ -463,8 +546,45 @@ body {
 /* Page fullscreen (videos): only the page. */
 :root[inDOMFullscreen] #titlebar,
 :root[inDOMFullscreen] #tabbar,
+:root[inDOMFullscreen] #toolbar,
 :root[inDOMFullscreen] #bottom {
   display: none;
+}
+
+/* ---- Address bar: back, forward, reload, the address itself, menu ---- */
+#addressbar {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--fg) 18%, transparent);
+  border-radius: 8px;
+  outline: none;
+  background: color-mix(in srgb, var(--bar-bg) 82%, var(--fg));
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+#addressbar:focus {
+  border-color: var(--accent);
+}
+#addressbar::placeholder {
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
+}
+#address-lock {
+  flex: none;
+  font-size: 13px;
+  padding-inline-start: 2px;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+#toolbar .nav-button {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+}
+#toolbar-menu {
+  font-size: 18px;
+  letter-spacing: 1px;
 }
 
 /* ---- Back and forward, at the start of the tab bar ---- */
@@ -585,6 +705,7 @@ body {
 }
 
 /* An extension's popup window shows just its page. */
-:root[popup] #tabbar {
+:root[popup] #tabbar,
+:root[popup] #toolbar {
   display: none !important;
 }

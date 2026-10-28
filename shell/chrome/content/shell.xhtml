@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!-- Breached: the whole browser window. Tabs and web pages are added by
-     shell.js; everything else is the tab bar and the ":" command bar. -->
+     shell.js; everything else is the tab strip, the address bar, and the
+     ":" command bar. -->
 <!DOCTYPE html>
 <html id="breached-window"
       xmlns="http://www.w3.org/1999/xhtml"
@@ -37,6 +38,7 @@
                nomaxresults="true" />
   </xul:popupset>
   <div id="titlebar">
+    <span id="brand-mark" title="Breached">/</span>
     <div id="titlebar-content">
       <span id="titlebar-title">Breached</span>
     </div>
@@ -49,10 +51,18 @@
     </div>
   </div>
   <div id="tabbar" role="tablist">
+    <button id="tab-new" class="tab-new" title="New tab (Ctrl+T)" tabindex="-1">+</button>
+  </div>
+  <div id="toolbar">
     <span id="nav-buttons">
       <button id="nav-back" class="nav-button" title="Back (Alt+Left)" tabindex="-1" disabled="disabled"></button>
       <button id="nav-forward" class="nav-button" title="Forward (Alt+Right)" tabindex="-1" disabled="disabled"></button>
+      <button id="nav-reload" class="nav-button" title="Reload (Ctrl+R)" tabindex="-1">&#x21bb;</button>
     </span>
+    <span id="address-lock" title="Connection security">&#x2315;</span>
+    <input id="addressbar" type="text" spellcheck="false" autocomplete="off"
+           placeholder="Search or enter address" />
+    <button id="toolbar-menu" class="nav-button" title="Settings (Ctrl+,)" tabindex="-1">&#x22ee;</button>
   </div>
   <div id="content"></div>
   <div id="bottom">

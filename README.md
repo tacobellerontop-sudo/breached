@@ -41,7 +41,7 @@ Releases run on Breached's own build of the Gecko engine (`.github/workflows/bui
 
 Every change to `app/` builds a portable Windows zip on GitHub: open the latest **Build Breached (dev)** run in the Actions tab, download `breached-dev-win64`, unzip it and run `Breached.bat`. It keeps its own profile in the `profile` folder next to it, so it doesn't touch an installed Firefox.
 
-Press `:` for the command line (`:open`, `:tabopen`, `:tab-close`, `:tab-focus 2`, `:undo`, `:set`, `:help`). Tab completes command names; Up/Down recalls history.
+The window has a tab strip on top (with a + button and an X on each tab), an address bar under it (Enter opens in this tab, Ctrl+Enter in a new one), and a dark new tab page with a centred search box. Press `:` for the command line (`:open`, `:tabopen`, `:tab-close`, `:tab-focus 2`, `:undo`, `:set`, `:help`). Tab completes command names; Up/Down recalls history.
 
 ## What's here
 

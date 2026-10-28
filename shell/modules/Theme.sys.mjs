@@ -22,8 +22,11 @@ export const COLORS = [
 ];
 
 // Order matches COLORS. The first one is the default.
-export const DEFAULT_PRESET = "pastel";
+export const DEFAULT_PRESET = "breach";
 export const PRESETS = {
+  // The whole-window revamp's look: the sketch's dark window, with
+  // Breached's orange kept for highlights and the selected tab.
+  breach: ["#15171e", "#e6e8f0", "#1b1e27", "#20242f", "#2a2f3d", "#ffffff", "#ee9f66", "#9db8d9", "#ee9f66", "#e07b7b"],
   pastel: ["#cfd3da", "#2f3136", "#bcc1c9", "#c6cad1", "#f5b183", "#2f3136", "#ee9f66", "#9db8d9", "#ee9f66", "#e07b7b"],
   qutebrowser: ["#000000", "#ffffff", "#808080", "#a9a9a9", "#000000", "#ffffff", "#00aa00", "#0000aa", "#00aa00", "#ff0000"],
   graphite: ["#1e1e1e", "#d4d4d4", "#2d2d2d", "#333333", "#0e639c", "#ffffff", "#3794ff", "#c5a332", "#3794ff", "#f14c4c"],
@@ -34,7 +37,8 @@ export const PRESETS = {
 };
 
 export const PRESET_NAMES = {
-  pastel: "Pastel silver and orange (default)",
+  breach: "Breach dark (default)",
+  pastel: "Pastel silver and orange",
   qutebrowser: "qutebrowser",
   graphite: "Graphite",
   nord: "Nord",

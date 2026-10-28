@@ -112,8 +112,11 @@ var SelfTest = {
     check("pages run in a separate content process", B.selectedBrowser.isRemoteBrowser);
     check("window title shows the page", document.title.startsWith("Example Domain"));
     check(
-      "tab bar at the bottom by default",
-      rect("tabbar").top >= rect("content").bottom - 1 && rect("tabbar").height > 0
+      "tab bar at the top by default, with the address bar under it",
+      rect("tabbar").bottom <= rect("toolbar").top + 1 &&
+        rect("toolbar").bottom <= rect("content").top + 1 &&
+        rect("tabbar").height > 0 &&
+        rect("toolbar").height > 0
     );
     await wait(500);
     await this.screenshot(outDir, "1-page.png");
@@ -314,7 +317,7 @@ var SelfTest = {
     await showSettingsPage("appearance");
     let rgb = hex => `rgb(${hex.slice(1).match(/../g).map(h => parseInt(h, 16)).join(", ")})`;
     let preset = settingsDoc().getElementById("setting-color-preset");
-    check("settings: colours start as pastel silver and orange", preset.value == "pastel");
+    check("settings: colours start as breach dark", preset.value == "breach");
     preset.value = "nord";
     preset.dispatchEvent(new Event("change"));
     await wait(200);
@@ -365,7 +368,7 @@ var SelfTest = {
       "settings: the Windows title bar can come back",
       !root.hasAttribute("customtitlebar") && rect("titlebar").height == 0 && $("tabbar").parentNode == document.body
     );
-    ChromeUtils.importESModule("resource://breached/Theme.sys.mjs").applyPreset("pastel");
+    ChromeUtils.importESModule("resource://breached/Theme.sys.mjs").applyPreset("breach");
     for (let p of ["titlebar", "transparency", "transparency.opacity"]) {
       Services.prefs.clearUserPref("breached." + p);
     }
@@ -376,7 +379,7 @@ var SelfTest = {
     await wait(2000);
     check(
       ":set tabs.autohide true hides the tab bar",
-      getComputedStyle($("tabbar")).visibility == "hidden" && rect("content").top <= rect("titlebar").bottom + 1
+      getComputedStyle($("tabbar")).visibility == "hidden" && rect("content").top <= rect("toolbar").bottom + 1
     );
     B.run("tab-next");
     check("the hidden tab bar shows while switching", getComputedStyle($("tabbar")).visibility == "visible");
