@@ -45,25 +45,6 @@ function linkTo(a, url) {
 
 let dragFrom = -1;
 
-/** The time of day, in words: the new tab page's one personal touch. */
-function showGreeting() {
-  let hour = new Date().getHours();
-  let text = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  document.getElementById("greeting").textContent = text;
-}
-
-/** How many tabs Breached has put to sleep: its lightness, made visible.
-    Only shown when at least one tab is asleep. */
-function showSleeping() {
-  let shell = shellWindow()?.Breached;
-  let el = document.getElementById("sleeping");
-  let asleep = shell?.tabs?.filter(tab => tab.asleep).length ?? 0;
-  el.hidden = asleep == 0;
-  if (asleep) {
-    el.textContent = `${asleep} tab${asleep == 1 ? "" : "s"} asleep`;
-  }
-}
-
 function showPinned() {
   let list = document.getElementById("pin-list");
   list.textContent = "";
@@ -231,8 +212,6 @@ window.addEventListener("DOMContentLoaded", () => {
     shellWindow()?.Breached?.openSettings();
   });
   input.focus();
-  showGreeting();
-  showSleeping();
   setUpPinForm();
   showPinned();
   showMostVisited();

@@ -5,7 +5,7 @@ pref("toolkit.defaultChromeURI", "chrome://breached/content/shell.xhtml");
 pref("toolkit.singletonWindowType", "breached:main");
 
 // Interface (change these on the settings page, or with :set)
-pref("breached.tabs.position", "top");           // "top", "bottom", "left" or "right" (vertical)
+pref("breached.tabs.position", "bottom");        // "top", "bottom", "left" or "right" (vertical)
 pref("breached.welcome.done", false);           // the first-start page has been shown
 pref("breached.tabs.navButtons", true);          // back and forward buttons in the tab bar
 pref("breached.tabs.autohide", false);           // true: show only while switching tabs
@@ -19,13 +19,13 @@ pref("breached.restoreSession", true);
 pref("breached.restoreSession.ask", false);       // ask which of last time's tabs to reopen
 pref("breached.titlebar", "custom");             // "custom" (Breached's own) or "native" (Windows')
 
-// Colours (#rrggbb): the dark "breach" set by default (Theme.sys.mjs). Presets are on the settings page.
-pref("breached.colors.background", "#15171e");
-pref("breached.colors.text", "#e6e8f0");
-pref("breached.colors.tab", "#1b1e27");
-pref("breached.colors.tabAlt", "#20242f");
-pref("breached.colors.tabSelected", "#2a2f3d");
-pref("breached.colors.tabSelectedText", "#ffffff");
+// Colours (#rrggbb): pastel silver and orange by default (Theme.sys.mjs). Presets are on the settings page.
+pref("breached.colors.background", "#cfd3da");
+pref("breached.colors.text", "#2f3136");
+pref("breached.colors.tab", "#bcc1c9");
+pref("breached.colors.tabAlt", "#c6cad1");
+pref("breached.colors.tabSelected", "#f5b183");
+pref("breached.colors.tabSelectedText", "#2f3136");
 pref("breached.colors.accent", "#ee9f66");
 pref("breached.colors.loading", "#9db8d9");
 pref("breached.colors.loaded", "#ee9f66");
