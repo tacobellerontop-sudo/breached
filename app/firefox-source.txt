@@ -2,5 +2,5 @@
 # version: the Firefox release Breached runs on (the Engine updates workflow
 # moves it on by itself). revision: only for building Gecko ourselves
 # (build-gecko.yml), which releases no longer use.
-version=158.0.1
+version=159.0
 revision=7e92a9e429dab30b7166890a7e778e3d1dd4cbeb

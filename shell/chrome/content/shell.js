@@ -26,7 +26,7 @@ const SESSION_FILE = "breached-session.json";
 const SESSION_LAST = "breached-session-last.json"; // what the last start found, for :restore
 const MESSAGE_MS = 4000;
 const PEEK_MS = 1500;
-const BREACHED_VERSION = "0.1.15";
+const BREACHED_VERSION = "0.1.16";
 
 // Breached's own pages, shown as breached:<name> in the tab and command bar.
 const PAGES = {
